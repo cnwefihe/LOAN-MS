@@ -59,7 +59,8 @@ export function EligibilityCalculator({ products, ctx, payslipOnFile, guarantees
   const answer = isAdvance
     ? <AdvanceAnswer r={result} productId={productId} onUseMax={(v) => setAmount(Number(v).toLocaleString("en-GB"))} />
     : <Answer r={result} p={p} months={months} productId={productId} onUseMax={(v) => setAmount(Number(v).toLocaleString("en-GB"))} />;
-  const breakdown = !!result?.payslip && !isAdvance;
+  // Loans always show the result under the details, with the working on the right. Advances have no working to show.
+  const breakdown = !isAdvance;
 
   return (
     <div className="space-y-6">
@@ -117,7 +118,7 @@ export function EligibilityCalculator({ products, ctx, payslipOnFile, guarantees
             )}
           </ol>
         </Card>
-        {/* With a breakdown beside it, the result sits here and fills the column to the same height. */}
+        {/* The result sits here and fills the column to the same height as the card beside it. */}
         {breakdown && <div className="flex-1 [&>*]:h-full">{answer}</div>}
         </div>
 
@@ -127,6 +128,11 @@ export function EligibilityCalculator({ products, ctx, payslipOnFile, guarantees
             <Card className="flex-1" title="How this is calculated" description={`Your total monthly deductions, including this loan, are subject to a maximum of ${p.maxDeductionPercent}% of net pay.`}>
               <PayslipBreakdown a={result.payslip} period={ctx.payslip?.period} guarantees={result.guaranteeCommitment} instalment={result.shortfall ? null : result.instalmentMonthly} />
               <MaxLoan r={result} p={p} months={months} />
+            </Card>
+          )}
+          {!result?.payslip && !isAdvance && (
+            <Card className="flex-1" title="How this is calculated" bodyClassName="flex min-h-40 items-center justify-center text-center">
+              <p className="max-w-xs text-sm text-muted">Your figures will appear here once your payslip is uploaded.</p>
             </Card>
           )}
         </div>

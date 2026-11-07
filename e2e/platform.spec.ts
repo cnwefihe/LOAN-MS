@@ -19,6 +19,14 @@ async function signIn(page: Page, name: string) {
 
 const GRAPH = "http://127.0.0.1:3199";
 type Mail = { to: string; subject: string; html: string; attachments: { contentId: string }[] };
+/** A click before the page finishes loading does nothing, so keep trying until the menu opens. */
+async function openRowMenu(page: Page, name: string) {
+  await expect(async () => {
+    if (!(await page.getByRole("menu").isVisible())) await page.getByRole("button", { name }).click();
+    await expect(page.getByRole("menu")).toBeVisible({ timeout: 1500 });
+  }).toPass({ timeout: 30_000 });
+}
+
 const mails = async (): Promise<Mail[]> => (await fetch(`${GRAPH}/_captured`)).json();
 
 const PDF = { name: "payslip.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n% e2e payslip\n%%EOF") };
@@ -30,7 +38,7 @@ test.describe.serial("application lifecycle through the UI", () => {
   test("administrator sets the Head of Computer Science under Organisation", async ({ page }) => {
     await signIn(page, "Emeka Nwosu");
     await page.goto("/admin/organisation");
-    await page.getByRole("button", { name: "Actions for Computer Science" }).click();
+    await openRowMenu(page, "Actions for Computer Science");
     await page.getByRole("menuitem", { name: "Edit" }).click();
     await page.getByLabel("Approved by").selectOption({ label: "HOD" });
     await page.getByLabel("Approver").selectOption({ label: "Funmilayo Adebayo" });
@@ -280,7 +288,7 @@ test.describe.serial("application lifecycle through the UI", () => {
     await signIn(page, "Emeka Nwosu");
     await page.goto("/reports?tab=library");
     await expect(page.getByRole("heading", { name: "Report library" })).toBeVisible();
-    await page.getByRole("button", { name: "Actions for Portfolio report download" }).click();
+    await openRowMenu(page, "Actions for Portfolio report download");
     const mgmt = await page.request.get((await page.getByRole("menuitem", { name: "Download PDF" }).getAttribute("href"))!);
     expect(mgmt.headers()["content-type"]).toBe("application/pdf");
     expect((await mgmt.body()).subarray(0, 5).toString()).toBe("%PDF-");
@@ -288,7 +296,7 @@ test.describe.serial("application lifecycle through the UI", () => {
     await page.getByLabel("Period from").fill("2020-01-01");
     await page.getByRole("button", { name: "Apply" }).click();
     await page.waitForURL(/from=2020-01-01/);
-    await page.getByRole("button", { name: "Actions for Disbursements register download" }).click();
+    await openRowMenu(page, "Actions for Disbursements register download");
     const href = await page.getByRole("menuitem", { name: "Download Excel" }).getAttribute("href");
     expect(href).toContain("from=2020-01-01");
     const xlsx = await page.request.get(href!);
