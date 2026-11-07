@@ -127,29 +127,23 @@ export function composeEmail(b: Branding, subject: string, text: string, hasLogo
   if (last >= 0) { link = lines[last].trim().slice(6); lines.splice(last, 1); }
   const c = b.primaryColour;
   const content = lines.join("\n").trim().split(/\n{2,}/).map((p) => block(p, c)).join("");
-  const footerNote = "This email and any attachments are confidential and intended only for the addressee. If you received it in error, please tell the sender and delete it. This is an automated message; please do not reply.";
+  const footer = `${b.systemName} · ${b.institutionName}`;
   const html = `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(subject)}</title></head>
 <body style="margin:0;padding:0;background:#f1f3f8;font-family:'Segoe UI',Arial,sans-serif;color:#172033">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f3f8;padding:28px 12px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #e2e8f0;border-top:5px solid ${c};border-radius:8px;overflow:hidden">
 <tr><td style="padding:22px 32px 18px;border-bottom:1px solid #e2e8f0">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-<td style="vertical-align:middle">${hasLogo ? `<img src="cid:brand-logo" alt="${esc(b.institutionName)}" height="44" style="display:block;height:44px;width:auto;border:0">` : `<strong style="font-size:17px;color:${c}">${esc(b.institutionName)}</strong>`}</td>
-<td align="right" style="vertical-align:middle;font-size:13px;font-weight:600;color:${c}">${esc(b.systemName)}</td>
-</tr></table></td></tr>
+${hasLogo ? `<img src="cid:brand-logo" alt="${esc(b.institutionName)}" height="44" style="display:block;height:44px;width:auto;border:0">` : `<strong style="font-size:17px;color:${c}">${esc(b.institutionName)}</strong>`}
+</td></tr>
 <tr><td style="padding:28px 32px 24px;font-size:15px;line-height:1.6">
 <h1 style="margin:0 0 18px;font-size:20px;line-height:1.3;font-weight:600;color:${c}">${esc(subject)}</h1>
 ${content}
-${link ? `<p style="margin:22px 0 6px"><a href="${esc(link)}" style="display:inline-block;background:${c};color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 22px;border-radius:6px">Open in the ${esc(b.systemName)}</a></p><p style="margin:0;font-size:12px;color:#5f6f86">Or copy this address: ${esc(link)}</p>` : ""}
+${link ? `<p style="margin:22px 0 6px"><a href="${esc(link)}" style="display:inline-block;background:${c};color:#ffffff;text-decoration:none;font-weight:600;font-size:13px;padding:7px 16px;border-radius:6px">Open</a></p><p style="margin:0;font-size:12px;color:#5f6f86">Or copy this address: ${esc(link)}</p>` : ""}
 <p style="margin:24px 0 0;color:#172033">Kind regards,<br><strong>${esc(b.emailSignature).replace(/\n/g, "<br>")}</strong></p>
 </td></tr>
-<tr><td style="padding:18px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;line-height:1.55;color:#5f6f86">
-<strong style="color:#172033">${esc(b.institutionName)}</strong>${b.address ? `<br>${esc(b.address)}` : ""}${b.supportEmail ? `<br>Support: <a href="mailto:${esc(b.supportEmail)}" style="color:${c}">${esc(b.supportEmail)}</a>` : ""}
-<div style="margin-top:12px;padding-top:12px;border-top:1px solid #e2e8f0"><strong style="color:#b91c1c">${esc(b.confidentialMarking)}.</strong> ${esc(b.footerNotice)}<br>${esc(footerNote)}</div>
-</td></tr></table>
-<p style="margin:14px 0 0;font-size:12px;color:#5f6f86;text-align:center">&copy; ${new Date().getFullYear()} ${esc(b.institutionName)}. All rights reserved.<br>${esc(b.systemName)}</p>
+<tr><td align="center" style="padding:14px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;line-height:1.5;color:#5f6f86">${esc(footer)}</td></tr></table>
 </td></tr></table></body></html>`;
-  const plain = `${lines.join("\n").trim()}${link ? `\n\nOpen: ${link}` : ""}\n\nKind regards,\n${b.emailSignature}\n\n${b.institutionName}${b.address ? `, ${b.address}` : ""}\n${b.confidentialMarking}. ${b.footerNotice}\n${footerNote}`;
+  const plain = `${lines.join("\n").trim()}${link ? `\n\nOpen: ${link}` : ""}\n\nKind regards,\n${b.emailSignature}\n\n${footer}`;
   return { html, text: plain };
 }
 

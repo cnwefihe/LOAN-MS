@@ -61,7 +61,7 @@ export default async function BrandingPage({ searchParams }: { searchParams: Pro
           </ul>
         </Card>}
 
-        {tab === "documents" && <Card title="Documents" description="The marking and footer appear on every PDF and email. {institution} in the footer is replaced by the institution name.">
+        {tab === "documents" && <Card title="Documents" description="The marking and footer appear on every PDF. {institution} in the footer is replaced by the institution name.">
           <SettingsGroupForm group="Documents" values={values} />
         </Card>}
       </div>

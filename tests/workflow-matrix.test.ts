@@ -340,8 +340,7 @@ describe("repayments, receipts and closure for every approved loan", () => {
     expect(mailTo("halima.musa.dev@example.edu.ng").some((x) => /awaiting your approval/.test(x.subject))).toBe(true); // HR Director
     expect(mailTo("bisi.lawal.dev@example.edu.ng").length).toBeGreaterThan(0); // checker queue
     for (const mail of graph.captured) {
-      expect(mail.html).toContain("CONFIDENTIAL");
-      expect(mail.html).toContain("Pan-Atlantic University. Authorised User Only.");
+      expect(mail.html).toContain("Loan Management System · Pan-Atlantic University");
       expect(`${mail.subject}${mail.html}`).not.toMatch(/\u2014/);
     }
     expect(graph.stats.tokenRequests).toBe(1);

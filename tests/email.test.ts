@@ -70,8 +70,7 @@ describe("email through Microsoft 365 (Graph)", () => {
     expect(mail.contentType).toBe("HTML");
     expect(mail.subject).toContain("LMS-261031-001");
     expect(mail.html).toContain("Loan Management System");
-    expect(mail.html).toContain("CONFIDENTIAL");
-    expect(mail.html).toContain("Pan-Atlantic University. Authorised User Only.");
+    expect(mail.html).toContain("Loan Management System · Pan-Atlantic University");
     expect(mail.html).toContain('href="https://loans.example.edu.ng/loans/abc"');
     expect(mail.html).toContain("cid:brand-logo");
     expect(mail.attachments).toEqual([expect.objectContaining({ contentId: "brand-logo", isInline: true, contentType: "image/png" })]);

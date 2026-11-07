@@ -278,7 +278,7 @@ test.describe.serial("application lifecycle through the UI", () => {
       expect(all.some((m) => m.to === who), who).toBe(true);
     }
     for (const m of all) {
-      expect(m.html).toContain("Pan-Atlantic University. Authorised User Only.");
+      expect(m.html).toContain("Loan Management System · Pan-Atlantic University");
       expect(m.attachments.some((a) => a.contentId === "brand-logo")).toBe(true);
       expect(`${m.subject}${m.html}`).not.toContain("\u2014");
     }

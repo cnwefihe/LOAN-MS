@@ -115,7 +115,7 @@ Create a client secret (12-month expiry, with a rotation reminder) and store it 
 4. Set `EMAIL_TRANSPORT=graph`, `EMAIL_SENDER_ADDRESS` and the three `EMAIL_GRAPH_*` values, then restart the app.
 5. Check delivery: Administration > Email outbox > **Send a test email**. The page states whether delivery is configured and, if Microsoft rejects a message, shows Microsoft's reason (for example a wrong secret or a missing permission).
 
-Every email is branded with the logo and colours from Administration > Branding and documents, ends with the sign-off from System settings, and carries the confidentiality marking and the "Pan-Atlantic University. Authorised User Only." notice. The plain-text content of each message type is editable under Administration > Terms and templates.
+Every email is branded with the logo and colours from Administration > Branding and documents, ends with the sign-off from System settings, and has a short footer naming the system and the University.
 
 ## 6. Build, migrate and schedule
 

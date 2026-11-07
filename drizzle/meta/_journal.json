@@ -134,6 +134,13 @@
       "when": 1793862080430,
       "tag": "0018_payslip_details",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793948480430,
+      "tag": "0019_admin_edit_staff",
+      "breakpoints": true
     }
   ]
 }

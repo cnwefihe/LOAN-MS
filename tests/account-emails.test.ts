@@ -17,6 +17,7 @@ import { loadActor, provisionEntraUser } from "@/server/services/identity";
 import { setUserActive, setUserRole } from "@/server/services/admin";
 import { composeEmail } from "@/server/email";
 import { getBranding } from "@/server/branding";
+import { hrUpdateStaffRecord } from "@/server/services/staff";
 
 let db: Database;
 const ids: Record<string, string> = {};
@@ -70,10 +71,18 @@ describe("account emails", () => {
     expect(html).toContain("Name</td>");
     expect(html).toContain("Ada New</td>");
     expect(html).toContain("A note: this one stays a sentence.</p>");
-    expect(html).toContain("Open in the Loan Management System");
+    expect(html).toContain(">Open</a>");
     expect(html).toContain("Kind regards,");
-    expect(html).toContain("All rights reserved.");
-    expect(html).toContain("CONFIDENTIAL");
+    expect(html).toContain("Loan Management System · Pan-Atlantic University");
+    expect(html).not.toContain("CONFIDENTIAL");
     expect(text).toContain("Kind regards,");
+  });
+});
+
+describe("administrators and staff records", () => {
+  it("lets a Super Administrator edit another person's record, but not their own", async () => {
+    const a = await admin();
+    expect(a.permissions.has("hr.staff.edit")).toBe(true);
+    await expect(hrUpdateStaffRecord(db, a, ids.admin, { designation: "Own change" } as never, "Test")).rejects.toThrow(/your own/);
   });
 });
