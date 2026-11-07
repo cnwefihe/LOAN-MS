@@ -1,3 +1,4 @@
+import { appUrl } from "@/lib/app-url";
 import { NextResponse, type NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { entraConfig, msalClient, cryptoProvider, redirectUri, ENTRA_SCOPES } from "@/lib/auth/entra";
@@ -8,12 +9,12 @@ const OIDC_COOKIE = "pau_oidc";
 
 export async function GET(req: NextRequest) {
   const cfg = entraConfig();
-  if (!cfg) return NextResponse.redirect(new URL("/login?error=sso_not_configured", req.url));
+  if (!cfg) return NextResponse.redirect(appUrl("/login?error=sso_not_configured", req));
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
   try {
     await rateLimit(`login:${ip}`, 30, 300);
   } catch {
-    return NextResponse.redirect(new URL("/login?error=rate_limited", req.url));
+    return NextResponse.redirect(appUrl("/login?error=rate_limited", req));
   }
 
   const { verifier, challenge } = await cryptoProvider.generatePkceCodes();

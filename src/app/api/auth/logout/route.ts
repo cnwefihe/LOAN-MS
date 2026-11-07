@@ -1,3 +1,4 @@
+import { appUrl } from "@/lib/app-url";
 import { NextResponse, type NextRequest } from "next/server";
 import { destroySession } from "@/lib/auth/session";
 import { entraConfig } from "@/lib/auth/entra";
@@ -7,7 +8,7 @@ export async function POST(req: NextRequest) {
   const done = `/login?signedOut=${idle ? "idle" : "1"}`;
   await destroySession();
   const cfg = entraConfig();
-  const local = new URL(done, req.url);
+  const local = appUrl(done, req);
   if (!cfg) return NextResponse.redirect(local, 303);
   // Also end the Microsoft session so a shared computer is not left signed in.
   const logout = new URL(`https://login.microsoftonline.com/${cfg.tenantId}/oauth2/v2.0/logout`);

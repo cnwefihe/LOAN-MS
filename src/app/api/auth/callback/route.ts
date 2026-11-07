@@ -1,3 +1,4 @@
+import { appUrl } from "@/lib/app-url";
 import { NextResponse, type NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { entraConfig, msalClient, redirectUri, ENTRA_SCOPES, fetchGraphProfile } from "@/lib/auth/entra";
@@ -9,7 +10,7 @@ import { DomainError } from "@/server/errors";
 const OIDC_COOKIE = "pau_oidc";
 
 function fail(req: NextRequest, code: string) {
-  return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(code)}`, req.url));
+  return NextResponse.redirect(appUrl(`/login?error=${encodeURIComponent(code)}`, req));
 }
 
 export async function GET(req: NextRequest) {
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
     // "amr" lists how Microsoft authenticated the person; "mfa" means Microsoft already did the second step.
     const amr = (result?.idTokenClaims as { amr?: unknown } | undefined)?.amr;
     await createSession(userId, "entra", Array.isArray(amr) && amr.includes("mfa"));
-    return NextResponse.redirect(new URL(saved.returnTo || "/home", req.url));
+    return NextResponse.redirect(appUrl(saved.returnTo || "/home", req));
   } catch (err) {
     if (err instanceof DomainError) return fail(req, err.message);
     console.error("[auth] Entra callback failed", err);
