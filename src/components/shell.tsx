@@ -331,7 +331,8 @@ export function AppShell({ sections, unread, user, devBanner, brand, announcemen
         </div>
         {/* Centred on the whole screen, not just the content column: the right padding matches the sidebar's width. */}
         <footer className={`app-footer shrink-0 px-4 py-1.5 text-center leading-tight transition-[padding] duration-200 sm:px-6 lg:pl-8 ${collapsed ? "lg:pr-[6.75rem]" : "lg:pr-[18.5rem]"}`}>
-          <p className="text-[13px] font-medium text-slate-600">&copy; {year} {brand.institutionName} <span aria-hidden className="mx-1 text-slate-400">&middot;</span> LMS v{brand.version}</p>
+          <p className="text-[0.8125rem] font-semibold text-navy">&copy; {year} {brand.institutionName}. All rights reserved.</p>
+          <p className="text-[0.8125rem] font-medium text-slate-700">{brand.systemName} v{brand.version}</p>
         </footer>
       </div>
     </div>

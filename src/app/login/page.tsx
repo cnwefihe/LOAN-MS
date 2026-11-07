@@ -102,8 +102,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           </section>
         )}
       </main>
-      <footer className="pb-6 text-center text-[13px] font-medium text-slate-600">
-        &copy; {new Date().getFullYear()} {brand.institutionName} <span aria-hidden className="mx-1 text-slate-400">&middot;</span> LMS v{version}
+      <footer className="app-footer shrink-0 px-4 py-1.5 text-center leading-tight">
+        <p className="text-[0.8125rem] font-semibold text-navy">&copy; {new Date().getFullYear()} {brand.institutionName}. All rights reserved.</p>
+        <p className="text-[0.8125rem] font-medium text-slate-700">{brand.systemName} v{version}</p>
       </footer>
     </div>
   );
