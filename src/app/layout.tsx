@@ -18,10 +18,8 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export async function generateViewport(): Promise<Viewport> {
-  const b = await getBranding(await getDb());
-  return { themeColor: b.primaryColour, width: "device-width", initialScale: 1 };
-}
+// White matches the top bar, including where the installed app draws the window buttons.
+export const viewport: Viewport = { themeColor: "#ffffff", width: "device-width", initialScale: 1 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const { primaryColour: c } = await getBranding(await getDb());

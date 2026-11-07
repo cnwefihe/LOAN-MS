@@ -13,7 +13,8 @@ export default function manifest(): MetadataRoute.Manifest {
     // On computers the app's own top bar takes the place of the window's title bar.
     display_override: ["window-controls-overlay", "standalone"],
     background_color: "#ffffff",
-    theme_color: "#2E3A6E",
+    // White, so the window buttons on a computer blend into the white top bar.
+    theme_color: "#ffffff",
     icons: [
       { src: "/pwa/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/pwa/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
