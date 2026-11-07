@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
-import { users } from "@/db/schema";
+import { staffProfiles, users } from "@/db/schema";
 import { requireActor } from "@/lib/auth/session";
 import { buildNav } from "@/lib/nav";
 import { getWording, roleTitles } from "@/server/wording";
@@ -17,6 +17,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const db = await getDb();
   const { sections, unread } = await buildNav(db, actor);
   const [u] = await db.select({ dev: users.isDevFixture }).from(users).where(eq(users.id, actor.userId));
+  // The name saved under My details comes first: Microsoft resets the account name at each sign-in.
+  const [profile] = await db.select({ name: staffProfiles.payslipName }).from(staffProfiles).where(eq(staffProfiles.userId, actor.userId));
   const brand = await getBranding(db);
   const notice = await getSettings(db, ["system.announcement", "system.announcementTone"]);
   const roleNames = roleTitles(await getWording(db), actor.roles);
@@ -25,7 +27,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       sections={sections} unread={unread} devBanner={!!u?.dev}
       brand={{ systemName: brand.systemName, institutionName: brand.institutionName, logoWhite: logoUrl(brand, "logo-white"), crestWhite: logoUrl(brand, "crest-white"), version: await currentVersion(db) }}
       announcement={notice["system.announcement"] ? { text: notice["system.announcement"], tone: notice["system.announcementTone"] } : null}
-      user={{ name: actor.displayName, email: actor.email, roles: roleNames.length ? roleNames : ["Staff"] }}>
+      user={{ name: profile?.name?.trim() || actor.displayName, email: actor.email, roles: roleNames.length ? roleNames : ["Staff"] }}>
       <IdleGuard minutes={await idleMinutesFor(db, actor.roles)} />
       {children}
     </AppShell>
