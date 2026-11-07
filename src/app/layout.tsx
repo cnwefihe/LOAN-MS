@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description: `${b.institutionName} ${b.systemName}: staff loan applications, approvals, disbursement and repayment.`,
     applicationName: b.systemName,
     robots: { index: false, follow: false },
-    appleWebApp: { capable: true, title: "PAU Loans", statusBarStyle: "default" },
+    appleWebApp: { capable: true, title: "Loan Management System", statusBarStyle: "default" },
   };
 }
 

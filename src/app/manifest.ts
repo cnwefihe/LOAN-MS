@@ -4,8 +4,8 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "PAU Loan Management System",
-    short_name: "PAU Loans",
+    name: "Loan Management System",
+    short_name: "Loan Management System",
     description: "Staff loan applications, approvals, disbursement and repayment.",
     start_url: "/",
     scope: "/",
