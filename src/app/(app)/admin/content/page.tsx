@@ -14,10 +14,11 @@ export const metadata = { title: "Terms & templates" };
 
 const KINDS = [["loan_terms", "Loan terms & conditions"], ["guarantor_agreement", "Guarantor agreement"]] as const;
 
-const CATEGORIES = ["Applications", "Guarantors", "Loans", "Repayments", "Reminders", "Other"];
+const CATEGORIES = ["Accounts", "Applications", "Guarantors", "Loans", "Repayments", "Reminders", "Other"];
 
 function categoryOf(code: string) {
   const area = code.split(".")[0];
+  if (area === "account") return "Accounts";
   if (area === "application") return "Applications";
   if (area === "guarantor") return "Guarantors";
   if (area === "loan" || area === "restructure") return "Loans";

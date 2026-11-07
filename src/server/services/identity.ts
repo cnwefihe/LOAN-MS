@@ -6,6 +6,8 @@ import type { Permission, RoleCode } from "@/lib/auth/permissions";
 import type { Actor } from "../actor";
 import { audit } from "../audit";
 import { DomainError } from "../errors";
+import { notify } from "../notifications";
+import { getSetting } from "../settings";
 
 export async function loadActor(db: Executor, userId: string, ctx: { ip?: string | null; userAgent?: string | null } = {}): Promise<Actor | null> {
   const [u] = await db.select().from(users).where(eq(users.id, userId));
@@ -86,6 +88,8 @@ export async function provisionEntraUser(identity: EntraIdentity): Promise<strin
       [user] = await tx.select().from(users).where(and(sql`lower(${users.email}) = ${identity.email.toLowerCase()}`, sql`${users.entraOid} is null`));
     }
     const isNew = !user;
+    // Someone nominated as a guarantor has a record already, but this is still their first sign-in.
+    const firstSignIn = isNew || !user.entraOid;
     if (!user) {
       [user] = await tx.insert(users).values({
         entraOid: identity.oid, entraTenantId: identity.tenantId, email: identity.email.toLowerCase(),
@@ -118,6 +122,13 @@ export async function provisionEntraUser(identity: EntraIdentity): Promise<strin
       action: isNew ? "user.provisioned" : "user.signed_in", entityType: "user", entityId: user.id,
       summary: isNew ? "Profile created on first Microsoft sign-in" : "Signed in with Microsoft Entra ID",
     });
+    if (firstSignIn) {
+      const held = await tx.select({ name: roles.name }).from(userRoles).innerJoin(roles, eq(roles.id, userRoles.roleId)).where(eq(userRoles.userId, user.id));
+      await notify(tx, {
+        template: "account.created", userIds: [user.id], link: "/home", dedupeKey: `welcome:${user.id}`,
+        vars: { systemName: await getSetting(tx, "org.systemName"), email: user.email, roles: held.map((r) => r.name).join(", ") },
+      });
+    }
     return user.id;
   });
 }

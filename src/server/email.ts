@@ -99,6 +99,23 @@ export function emailStatus(): { configured: boolean; detail: string } {
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
+/** A block where every line is "Label: value" shows as a neat table; "- item" lines show as a list. */
+function block(p: string, colour: string): string {
+  const rows = p.split("\n");
+  if (rows.length >= 2 && rows.every((r) => /^[^:\n]{2,30}: \S/.test(r))) {
+    const cells = rows.map((r, i) => {
+      const at = r.indexOf(": ");
+      const line = i ? "border-top:1px solid #e2e8f0;" : "";
+      return `<tr><td style="${line}padding:9px 14px;width:36%;font-size:13px;color:#5f6f86;vertical-align:top">${esc(r.slice(0, at))}</td><td style="${line}padding:9px 14px;font-size:14px;font-weight:600;color:#172033;vertical-align:top">${esc(r.slice(at + 2))}</td></tr>`;
+    }).join("");
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;background:#f8fafc;border:1px solid #e2e8f0;border-left:3px solid ${colour};border-radius:6px">${cells}</table>`;
+  }
+  if (rows.every((r) => r.startsWith("- "))) {
+    return `<ul style="margin:0 0 14px;padding-left:20px">${rows.map((r) => `<li style="margin-bottom:4px">${esc(r.slice(2))}</li>`).join("")}</ul>`;
+  }
+  return `<p style="margin:0 0 14px">${esc(p).replace(/\n/g, "<br>")}</p>`;
+}
+
 /**
  * Composes the institutional HTML email from the plain-text body stored in the outbox. A final
  * "Open: <url>" line becomes a button. Inline styles only: email clients ignore stylesheets.
@@ -108,27 +125,31 @@ export function composeEmail(b: Branding, subject: string, text: string, hasLogo
   let link: string | null = null;
   const last = lines.findLastIndex((l) => /^Open: https?:\/\//.test(l.trim()));
   if (last >= 0) { link = lines[last].trim().slice(6); lines.splice(last, 1); }
-  const paras = lines.join("\n").trim().split(/\n{2,}/).map((p) => `<p style="margin:0 0 14px">${esc(p).replace(/\n/g, "<br>")}</p>`).join("");
   const c = b.primaryColour;
+  const content = lines.join("\n").trim().split(/\n{2,}/).map((p) => block(p, c)).join("");
   const footerNote = "This email and any attachments are confidential and intended only for the addressee. If you received it in error, please tell the sender and delete it. This is an automated message; please do not reply.";
   const html = `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(subject)}</title></head>
-<body style="margin:0;padding:0;background:#f5f7fa;font-family:'Segoe UI',Arial,sans-serif;color:#172033">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f7fa;padding:24px 12px"><tr><td align="center">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
-<tr><td style="padding:20px 28px;border-bottom:3px solid ${c}">
-${hasLogo ? `<img src="cid:brand-logo" alt="${esc(b.institutionName)}" height="44" style="display:block;height:44px;width:auto;border:0">` : `<strong style="font-size:18px;color:${c}">${esc(b.institutionName)}</strong>`}
-<div style="margin-top:8px;font-size:13px;font-weight:600;color:${c}">${esc(b.systemName)}</div></td></tr>
-<tr><td style="padding:24px 28px;font-size:15px;line-height:1.55">
-<h1 style="margin:0 0 16px;font-size:18px;line-height:1.3;color:#172033">${esc(subject)}</h1>
-${paras}
-${link ? `<p style="margin:22px 0 6px"><a href="${esc(link)}" style="display:inline-block;background:${c};color:#ffffff;text-decoration:none;font-weight:600;padding:10px 18px;border-radius:6px">Open in the ${esc(b.systemName)}</a></p><p style="margin:0;font-size:12px;color:#5f6f86">Or copy this link: ${esc(link)}</p>` : ""}
-<p style="margin:22px 0 0">${esc(b.emailSignature).replace(/\n/g, "<br>")}</p>
+<body style="margin:0;padding:0;background:#f1f3f8;font-family:'Segoe UI',Arial,sans-serif;color:#172033">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f3f8;padding:28px 12px"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #e2e8f0;border-top:5px solid ${c};border-radius:8px;overflow:hidden">
+<tr><td style="padding:22px 32px 18px;border-bottom:1px solid #e2e8f0">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td style="vertical-align:middle">${hasLogo ? `<img src="cid:brand-logo" alt="${esc(b.institutionName)}" height="44" style="display:block;height:44px;width:auto;border:0">` : `<strong style="font-size:17px;color:${c}">${esc(b.institutionName)}</strong>`}</td>
+<td align="right" style="vertical-align:middle;font-size:13px;font-weight:600;color:${c}">${esc(b.systemName)}</td>
+</tr></table></td></tr>
+<tr><td style="padding:28px 32px 24px;font-size:15px;line-height:1.6">
+<h1 style="margin:0 0 18px;font-size:20px;line-height:1.3;font-weight:600;color:${c}">${esc(subject)}</h1>
+${content}
+${link ? `<p style="margin:22px 0 6px"><a href="${esc(link)}" style="display:inline-block;background:${c};color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 22px;border-radius:6px">Open in the ${esc(b.systemName)}</a></p><p style="margin:0;font-size:12px;color:#5f6f86">Or copy this address: ${esc(link)}</p>` : ""}
+<p style="margin:24px 0 0;color:#172033">Kind regards,<br><strong>${esc(b.emailSignature).replace(/\n/g, "<br>")}</strong></p>
 </td></tr>
-<tr><td style="padding:16px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;line-height:1.5;color:#5f6f86">
-<strong style="color:#b91c1c">${esc(b.confidentialMarking)}.</strong> ${esc(b.footerNotice)}<br>${esc(footerNote)}<br>
-${esc(b.institutionName)}${b.address ? `, ${esc(b.address)}` : ""}${b.supportEmail ? `. Support: <a href="mailto:${esc(b.supportEmail)}" style="color:${c}">${esc(b.supportEmail)}</a>` : ""}
-</td></tr></table></td></tr></table></body></html>`;
-  const plain = `${lines.join("\n").trim()}${link ? `\n\nOpen: ${link}` : ""}\n\n${b.emailSignature}\n\n${b.confidentialMarking}. ${b.footerNotice}\n${footerNote}`;
+<tr><td style="padding:18px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;line-height:1.55;color:#5f6f86">
+<strong style="color:#172033">${esc(b.institutionName)}</strong>${b.address ? `<br>${esc(b.address)}` : ""}${b.supportEmail ? `<br>Support: <a href="mailto:${esc(b.supportEmail)}" style="color:${c}">${esc(b.supportEmail)}</a>` : ""}
+<div style="margin-top:12px;padding-top:12px;border-top:1px solid #e2e8f0"><strong style="color:#b91c1c">${esc(b.confidentialMarking)}.</strong> ${esc(b.footerNotice)}<br>${esc(footerNote)}</div>
+</td></tr></table>
+<p style="margin:14px 0 0;font-size:12px;color:#5f6f86;text-align:center">&copy; ${new Date().getFullYear()} ${esc(b.institutionName)}. All rights reserved.<br>${esc(b.systemName)}</p>
+</td></tr></table></body></html>`;
+  const plain = `${lines.join("\n").trim()}${link ? `\n\nOpen: ${link}` : ""}\n\nKind regards,\n${b.emailSignature}\n\n${b.institutionName}${b.address ? `, ${b.address}` : ""}\n${b.confidentialMarking}. ${b.footerNotice}\n${footerNote}`;
   return { html, text: plain };
 }
 

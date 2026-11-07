@@ -9,7 +9,8 @@ import { LOGO_VARIANTS, type LogoVariant } from "../branding";
 import { LOCKED_SUPER_ADMIN_PERMISSIONS, RETIRED_ROLE_CODES, ROLE_CODES, type Permission, type RoleCode } from "@/lib/auth/permissions";
 import { assertCan, type Actor } from "../actor";
 import { audit } from "../audit";
-import { SETTINGS, type SettingKey, type SettingGroup } from "../settings";
+import { SETTINGS, getSetting, type SettingKey, type SettingGroup } from "../settings";
+import { notify } from "../notifications";
 import { DomainError, NotFoundError } from "../errors";
 import { grantRole } from "./identity";
 
@@ -28,8 +29,15 @@ export async function searchUsers(db: Executor, actor: Actor, q?: string) {
 export async function setUserRole(db: Executor, actor: Actor, userId: string, roleCode: RoleCode, grant: boolean) {
   assertCan(actor, "admin.users.manage");
   return db.transaction(async (tx) => {
+    const roleEmail = async (template: string, name: string, description: string | null) => notify(tx, {
+      template, userIds: [userId], link: "/home",
+      vars: { systemName: await getSetting(tx, "org.systemName"), roleName: name, roleDescription: description || "See your dashboard for details.", actorName: actor.displayName },
+    });
     if (grant) {
-      await grantRole(tx, userId, roleCode, actor);
+      if (await grantRole(tx, userId, roleCode, actor)) {
+        const [added] = await tx.select().from(roles).where(eq(roles.code, roleCode));
+        await roleEmail("account.role_granted", added.name, added.description);
+      }
       return;
     }
     if (roleCode === "APPLICANT") throw new DomainError("Every staff member keeps the Applicant role. Deactivate the account instead.");
@@ -41,7 +49,10 @@ export async function setUserRole(db: Executor, actor: Actor, userId: string, ro
       if (userId === actor.userId) throw new DomainError("Ask another Super Administrator to remove your administrator role.");
     }
     const removed = await tx.delete(userRoles).where(and(eq(userRoles.userId, userId), eq(userRoles.roleId, role.id))).returning();
-    if (removed.length) await audit(tx, actor, { action: "user.role_revoked", entityType: "user", entityId: userId, summary: `Revoked ${roleCode}`, before: { role: roleCode } });
+    if (removed.length) {
+      await audit(tx, actor, { action: "user.role_revoked", entityType: "user", entityId: userId, summary: `Revoked ${roleCode}`, before: { role: roleCode } });
+      await roleEmail("account.role_removed", role.name, role.description);
+    }
   });
 }
 
@@ -49,9 +60,16 @@ export async function setUserActive(db: Executor, actor: Actor, userId: string, 
   assertCan(actor, "admin.users.manage");
   if (userId === actor.userId && !isActive) throw new DomainError("You cannot deactivate your own account.");
   return db.transaction(async (tx) => {
+    const [before] = await tx.select({ isActive: users.isActive }).from(users).where(eq(users.id, userId));
     await tx.update(users).set({ isActive, updatedAt: new Date() }).where(eq(users.id, userId));
     if (!isActive) await tx.update(sessions).set({ revokedAt: new Date() }).where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
     await audit(tx, actor, { action: isActive ? "user.activated" : "user.deactivated", entityType: "user", entityId: userId });
+    if (before && before.isActive !== isActive) {
+      await notify(tx, {
+        template: isActive ? "account.reactivated" : "account.deactivated", userIds: [userId], link: isActive ? "/home" : undefined,
+        vars: { systemName: await getSetting(tx, "org.systemName"), actorName: actor.displayName },
+      });
+    }
   });
 }
 
