@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const result = await msalClient(cfg).acquireTokenByCode({
-      code, scopes: ENTRA_SCOPES, redirectUri: redirectUri(cfg), codeVerifier: saved.verifier,
+      code, scopes: ENTRA_SCOPES, redirectUri: redirectUri(cfg), codeVerifier: saved.verifier, nonce: saved.nonce,
     });
     const claims = (result?.idTokenClaims ?? {}) as Record<string, string | undefined>;
     if (claims.tid !== cfg.tenantId) return fail(req, "wrong_tenant");
