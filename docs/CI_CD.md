@@ -1,6 +1,6 @@
 # CI/CD deployment with GitHub Actions
 
-Every push to `main` tests the code, builds a Docker image, publishes it to the GitHub Container Registry, and deploys it to the Proxmox VM.
+Every push to `main` tests the code, builds a Docker image, publishes it to Docker Hub, and deploys it to the Proxmox VM.
 
 ```
 push to main
@@ -80,6 +80,15 @@ echo "CRON_SECRET: $(openssl rand -hex 32)"
 | `SSH_USER` | `lmsadmin` |
 | `SSH_PASSWORD` | The `lmsadmin` password |
 | `SSH_KNOWN_HOSTS` | The `ssh-keyscan` output from Step 1 |
+
+### Docker Hub (required)
+
+Create a **private** repository named `loan-ms` on hub.docker.com, because the image contains the application. Then go to **Account settings > Personal access tokens** and create a token with **Read & Write** access.
+
+| Secret | Value |
+|---|---|
+| `DOCKERHUB_USERNAME` | Your Docker Hub username |
+| `DOCKERHUB_TOKEN` | The access token, not your password |
 
 ### Website (required)
 
@@ -184,7 +193,7 @@ Going back only replaces the app. It does not undo database changes, so take a b
 | `Host key verification failed` | Run `ssh-keyscan` again and update `SSH_KNOWN_HOSTS` |
 | SSH times out | Port forwarding or firewall. GitHub must reach the SSH port. |
 | `docker: permission denied` | The `SSH_USER` is not in the `docker` group. See section 2 of the Proxmox guide. |
-| `denied` when pulling the image | The workflow needs package access. Check the repo's **Settings > Actions > General > Workflow permissions**. |
+| `denied` when pushing or pulling the image | Check `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`, that the `loan-ms` repository exists, and that the token has Read & Write access. |
 | The certificate is not issued | Run `docker compose logs certbot`. Usually DNS is wrong or port 80 is blocked. It retries every hour. |
 | Secret changed, database will not connect | `POSTGRES_PASSWORD` cannot be changed by editing the secret alone, because the database keeps the first one. |
 

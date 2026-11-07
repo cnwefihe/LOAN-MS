@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 env:
-  IMAGE: ghcr.io/staff.member/loan-ms
+  IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/loan-ms
 
 jobs:
   verify:
@@ -46,9 +46,6 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    permissions:
-      contents: read
-      packages: write
     services:
       postgres:
         image: postgres:16-alpine
@@ -113,10 +110,13 @@ jobs:
           docker compose config --quiet
           rm .env
 
-      - name: Publish image
+      - name: Publish image to Docker Hub
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
           docker tag loan-ms:test "$IMAGE:${{ github.sha }}"
           docker tag loan-ms:test "$IMAGE:latest"
           docker push "$IMAGE:${{ github.sha }}"
@@ -132,9 +132,6 @@ jobs:
     concurrency:
       group: production
       cancel-in-progress: false
-    permissions:
-      contents: read
-      packages: read
     env:
       SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
       SSHPASS: ${{ secrets.SSH_PASSWORD }}
@@ -200,9 +197,12 @@ jobs:
           tar -czf - docker-compose.yml deploy | rssh "$SSH_TARGET" "tar -xzf - -C '$APP_DIR' && chmod +x '$APP_DIR'/deploy/*.sh"
 
       - name: Deploy
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | rssh "$SSH_TARGET" "docker login ghcr.io -u '${{ github.actor }}' --password-stdin"
-          rssh "$SSH_TARGET" "'$APP_DIR/deploy/deploy.sh'; status=\$?; docker logout ghcr.io; exit \$status"
+          echo "$DOCKERHUB_TOKEN" | rssh "$SSH_TARGET" "docker login -u '$DOCKERHUB_USERNAME' --password-stdin"
+          rssh "$SSH_TARGET" "'$APP_DIR/deploy/deploy.sh'; status=\$?; docker logout; exit \$status"
 
       - name: Check the live site
         env:
