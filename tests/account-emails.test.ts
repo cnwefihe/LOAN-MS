@@ -60,8 +60,12 @@ describe("account emails", () => {
     const [u] = await db.select().from(s.users).where(eq(s.users.email, person.email));
     await setUserActive(db, await admin(), u.id, false);
     await setUserActive(db, await admin(), u.id, true);
-    const subjects = (await mail(person.email)).map((m) => m.subject);
+    const sent = await mail(person.email);
+    const subjects = sent.map((m) => m.subject);
     expect(subjects).toContain("Your account has been deactivated");
+    const off = sent.find((m) => m.subject === "Your account has been deactivated")!;
+    expect(off.body).toContain("contact the Administrator.");
+    expect(off.body).not.toContain("support team");
     expect(subjects).toContain("Your account has been reactivated");
   });
 

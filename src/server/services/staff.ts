@@ -12,6 +12,12 @@ import { notify } from "../notifications";
 export const LIVE_LOAN_STATUSES = ["pending_disbursement", "active", "overdue", "defaulted"] as const;
 export const IN_FLIGHT_APP_STATUSES = ["pending_guarantor", "pending_hr", "pending_bursary", "pending_approval", "returned"] as const;
 
+/** The name saved under My details, which comes before the Microsoft account name. */
+export async function preferredName(db: Executor, userId: string, fallback: string): Promise<string> {
+  const [p] = await db.select({ name: staffProfiles.payslipName }).from(staffProfiles).where(eq(staffProfiles.userId, userId));
+  return p?.name?.trim() || fallback;
+}
+
 export async function getStaffRecord(db: Executor, userId: string) {
   const [row] = await db
     .select({ user: users, profile: staffProfiles, department: departments, school: schools, category: staffCategories })

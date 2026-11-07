@@ -11,6 +11,7 @@ import { assertCan, type Actor } from "../actor";
 import { audit } from "../audit";
 import { SETTINGS, getSetting, type SettingKey, type SettingGroup } from "../settings";
 import { notify } from "../notifications";
+import { preferredName } from "./staff";
 import { DomainError, NotFoundError } from "../errors";
 import { grantRole } from "./identity";
 
@@ -31,7 +32,7 @@ export async function setUserRole(db: Executor, actor: Actor, userId: string, ro
   return db.transaction(async (tx) => {
     const roleEmail = async (template: string, name: string, description: string | null) => notify(tx, {
       template, userIds: [userId], link: "/home",
-      vars: { systemName: await getSetting(tx, "org.systemName"), roleName: name, roleDescription: description || "See your dashboard for details.", actorName: actor.displayName },
+      vars: { systemName: await getSetting(tx, "org.systemName"), roleName: name, roleDescription: description || "See your dashboard for details.", actorName: await preferredName(tx, actor.userId, actor.displayName) },
     });
     if (grant) {
       if (await grantRole(tx, userId, roleCode, actor)) {
@@ -67,7 +68,7 @@ export async function setUserActive(db: Executor, actor: Actor, userId: string, 
     if (before && before.isActive !== isActive) {
       await notify(tx, {
         template: isActive ? "account.reactivated" : "account.deactivated", userIds: [userId], link: isActive ? "/home" : undefined,
-        vars: { systemName: await getSetting(tx, "org.systemName"), actorName: actor.displayName },
+        vars: { systemName: await getSetting(tx, "org.systemName"), actorName: await preferredName(tx, actor.userId, actor.displayName) },
       });
     }
   });

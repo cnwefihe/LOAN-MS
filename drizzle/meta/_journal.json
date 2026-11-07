@@ -141,6 +141,13 @@
       "when": 1793948480430,
       "tag": "0019_admin_edit_staff",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794034880430,
+      "tag": "0020_account_email_wording",
+      "breakpoints": true
     }
   ]
 }
