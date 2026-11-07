@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
-import { loanApplications, loanAccounts, scheduleInstalments, repaymentSchedules, applicationGuarantors, notifications, loanProducts } from "@/db/schema";
+import { loanApplications, loanAccounts, scheduleInstalments, repaymentSchedules, applicationGuarantors, notifications, loanProducts, staffProfiles } from "@/db/schema";
 import { requireActor } from "@/lib/auth/session";
 import { buildNav } from "@/lib/nav";
 import { dec } from "@/lib/finance/money";
@@ -15,6 +15,9 @@ export const metadata = { title: "Dashboard" };
 
 export default async function Dashboard() {
   const actor = await requireActor();
+  // Greet people by the name saved under My details, as the sidebar does.
+  const [saved] = await (await getDb()).select({ name: staffProfiles.payslipName }).from(staffProfiles).where(eq(staffProfiles.userId, actor.userId));
+  const greetName = (saved?.name?.trim() || actor.displayName).split(" ")[0];
   const db = await getDb();
   const loans = await db.select({ loan: loanAccounts, product: loanProducts.name }).from(loanAccounts).innerJoin(loanProducts, eq(loanProducts.id, loanAccounts.productId))
     .where(eq(loanAccounts.borrowerId, actor.userId)).orderBy(desc(loanAccounts.createdAt));
@@ -70,7 +73,7 @@ export default async function Dashboard() {
 
   return (
     <>
-      <PageHeader title={overview ? "Overview" : `Welcome, ${actor.displayName.split(" ")[0]}`} description={subtitle}
+      <PageHeader title={overview ? "Overview" : `Welcome, ${greetName}`} description={subtitle}
         actions={<><Link href="/eligibility" className="btn-secondary h-8 px-3 text-xs">Check eligibility</Link><Link href="/applications/new" className="btn-primary h-8 px-3 text-xs">New application</Link></>} />
 
       {overview && <ApprovalOverview db={db} actor={actor} aside={notices}><OverviewHeading>My loans</OverviewHeading>{myStats}</ApprovalOverview>}
