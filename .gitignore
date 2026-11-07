@@ -1,0 +1,23 @@
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Local development database (PGlite) and private document storage
+.data/
+storage/
+
+# Secrets
+.env
+.env.local
+.env.*.local
+
+# Browser tests
+.next-e2e/
+.next-prod/
+test-results/
+playwright-report/
+
+# Local screenshots
+/users-e2e.png

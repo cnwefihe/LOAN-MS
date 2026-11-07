@@ -1,0 +1,162 @@
+@import "tailwindcss";
+
+/* Design tokens. Brand colours are overridden at runtime from the administrator's branding settings (see app/layout.tsx). */
+@theme {
+  --color-navy: #2e3a6e;
+  --color-navy-800: #3d4878;
+  --color-navy-700: #4c5682;
+  --color-brand: #2e3a6e;
+  --color-brand-600: #252e58;
+  --color-brand-50: #f1f2f6;
+  --color-brand-100: #e0e1e9;
+  --color-brand-200: #c0c4d4;
+  --color-brand-300: #979db7;
+  --color-canvas: #f5f7fa;
+  --color-surface: #ffffff;
+  --color-ink: #172033;
+  /* Palette secondary text is #64748B (4.4:1 on the #F5F7FA canvas, below AA). This is the
+     closest shade that passes WCAG AA (4.5:1 or more) on every surface used: canvas, white, slate-50/100. */
+  --color-muted: #5f6f86;
+  --color-line: #e2e8f0;
+  --color-success: #15803d;
+  --color-success-50: #ecfdf3;
+  --color-warning: #d97706;
+  --color-warning-ink: #92400e; /* AA-compliant text on light amber */
+  --color-warning-50: #fffbeb;
+  --color-danger: #dc2626;
+  --color-danger-50: #fef2f2;
+
+  --font-sans: "Segoe UI", "Inter", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+html {
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Laptop screens (often at 125-150% display scaling): everything sized in rem is drawn slightly smaller so pages
+   are not cramped beside the sidebar. Wide monitors and phones keep the full size; browser zoom still applies. */
+@media (min-width: 1024px) and (max-width: 1439px) {
+  html { font-size: 87.5%; }
+}
+@media (min-width: 1440px) and (max-width: 1679px) {
+  html { font-size: 93.75%; }
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+/* Visible, consistent keyboard focus (WCAG 2.4.7 / 2.4.11) */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0.5rem;
+  z-index: 100;
+}
+.skip-link:focus {
+  left: 0.5rem;
+  background: var(--color-navy);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* Component-level utilities (Tailwind v4 @utility so they can compose via @apply). */
+@utility input {
+  @apply block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-ink shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-brand disabled:bg-slate-50 disabled:text-muted;
+}
+@utility label {
+  @apply mb-1 block text-sm font-medium text-ink;
+}
+@utility hint {
+  @apply mt-1 text-xs text-muted;
+}
+@utility btn {
+  @apply inline-flex min-h-9 items-center justify-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60;
+}
+@utility btn-primary {
+  @apply btn bg-brand text-white hover:bg-brand-600;
+}
+@utility btn-secondary {
+  @apply btn border border-slate-300 bg-white text-ink hover:bg-slate-50;
+}
+@utility btn-danger {
+  @apply btn bg-danger text-white hover:bg-red-700;
+}
+@utility btn-success {
+  @apply btn bg-success text-white hover:bg-green-800;
+}
+@utility btn-ghost {
+  @apply btn text-brand hover:bg-brand-50;
+}
+@utility card {
+  @apply min-w-0 rounded-lg border border-line bg-surface shadow-[0_1px_2px_rgba(16,24,40,0.04)];
+}
+@utility link {
+  @apply font-medium text-brand underline-offset-2 hover:underline;
+}
+/* Sidebar: brand navy with depth (a soft glow at the top, deepening towards the bottom). */
+.sidebar {
+  background:
+    radial-gradient(120% 45% at 0% 0%, rgb(255 255 255 / 0.10), transparent 70%),
+    radial-gradient(90% 35% at 100% 100%, rgb(255 255 255 / 0.05), transparent 70%),
+    linear-gradient(180deg, var(--color-navy) 0%, var(--color-brand-600) 100%);
+  box-shadow: inset -1px 0 0 rgb(255 255 255 / 0.06), 4px 0 24px -12px rgb(15 23 42 / 0.45);
+}
+/* Footer: a light band set apart from the page by a brand-coloured rule. */
+/* Wide tables scroll inside their card, with a slim scrollbar that is easy to see. */
+[role="region"] { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+
+.app-footer {
+  background: linear-gradient(180deg, var(--color-brand-50) 0%, #ffffff 100%);
+  border-top: 3px solid var(--color-navy-700);
+  box-shadow: 0 -4px 14px -10px rgb(15 23 42 / 0.25);
+}
+.sidebar-divider { height: 1px; background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.22), transparent); }
+.sidebar-scroll { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.25) transparent; }
+
+/* Plain fields: no resize handle or number arrows. */
+textarea { resize: none; }
+input[type="number"] { appearance: textfield; }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { appearance: none; margin: 0; }
+
+/* On phones, each table row becomes a card with the column heading beside its value. */
+@media (max-width: 639px) {
+  [role="region"]:has(> .responsive-table) { margin-inline: 0; overflow: visible; }
+  .responsive-table { display: block; }
+  .responsive-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .responsive-table tbody, .responsive-table tfoot, .responsive-table tr { display: block; }
+  .responsive-table tbody tr, .responsive-table tfoot tr { margin-block: 10px; padding: 4px 12px; border: 1px solid var(--color-line); border-radius: 8px; background: #fff; }
+  .responsive-table tbody tr:has(> th[colspan]) { margin-block: 14px 4px; padding: 0; border: 0; background: none; }
+  .responsive-table tbody th[colspan] { display: block; padding: 4px 0; border: 0; background: none; }
+  .responsive-table td { position: static !important; display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: none; min-width: 0; padding: 6px 0; border: 0; text-align: right; white-space: normal !important; }
+  .responsive-table td + td { border-top: 1px solid var(--color-line); }
+  .responsive-table td::before { content: attr(data-label); flex-shrink: 0; max-width: 45%; color: var(--color-muted); font-size: 0.75rem; font-weight: 400; text-align: left; }
+  .responsive-table td[data-label=""] { justify-content: flex-end; }
+  .responsive-table td[data-label=""]::before { display: none; }
+}

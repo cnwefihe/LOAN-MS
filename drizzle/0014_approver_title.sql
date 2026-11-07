@@ -1,0 +1,1 @@
+ALTER TABLE "departments" ADD COLUMN "approver_title" varchar(20) DEFAULT 'hod' NOT NULL;

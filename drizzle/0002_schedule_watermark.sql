@@ -1,0 +1,1 @@
+ALTER TABLE "repayment_schedules" ADD COLUMN "ledger_watermark" integer DEFAULT 0 NOT NULL;

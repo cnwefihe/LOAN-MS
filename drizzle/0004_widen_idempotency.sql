@@ -1,0 +1,2 @@
+ALTER TABLE "disbursements" ALTER COLUMN "idempotency_key" SET DATA TYPE varchar(160);--> statement-breakpoint
+ALTER TABLE "financial_transactions" ALTER COLUMN "idempotency_key" SET DATA TYPE varchar(160);

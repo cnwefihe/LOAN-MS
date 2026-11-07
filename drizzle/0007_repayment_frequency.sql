@@ -1,0 +1,1 @@
+ALTER TABLE "loan_accounts" ADD COLUMN "repayment_period_months" integer DEFAULT 1 NOT NULL;

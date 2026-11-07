@@ -1,0 +1,214 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/staff.member/loan-ms
+
+jobs:
+  verify:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit & integration tests (finance engine, lifecycle, servicing, adapters)
+        run: npm test
+      - name: Production build
+        run: npm run build
+      - name: Browser end-to-end & accessibility tests
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 14
+
+  image:
+    name: Build, smoke test and publish image
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: loans
+          POSTGRES_USER: loans
+          POSTGRES_PASSWORD: smoke-test-only
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U loans -d loans"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: loan-ms:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test against real PostgreSQL
+        run: |
+          cat > smoke.env <<EOF
+          NODE_ENV=production
+          DATABASE_URL=postgres://loans:smoke-test-only@127.0.0.1:5432/loans
+          DATABASE_SSL=disable
+          AUTH_SECRET=$(openssl rand -hex 48)
+          DATA_ENCRYPTION_KEY=$(openssl rand -base64 32)
+          CRON_SECRET=$(openssl rand -hex 32)
+          APP_BASE_URL=http://127.0.0.1:3000
+          STORAGE_BACKEND=local
+          STORAGE_DIR=/app/storage
+          EOF
+          sed -i 's/^ *//' smoke.env
+          docker run --rm --network host --env-file smoke.env loan-ms:test sh -c "node scripts/migrate.cjs && node scripts/seed.cjs"
+          docker run -d --name smoke --network host --env-file smoke.env loan-ms:test
+          for i in $(seq 1 30); do curl -fs http://127.0.0.1:3000/api/health && break || sleep 2; done
+          echo
+          curl -fs -o /dev/null http://127.0.0.1:3000/api/health
+          curl -fs -o /dev/null http://127.0.0.1:3000/login
+          curl -fs -o /dev/null http://127.0.0.1:3000/manifest.webmanifest
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:3000/api/auth/dev-login)" = "404"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:3000/api/cron/reminders)" = "401"
+          docker logs smoke 2>&1 | tail -20
+          docker rm -f smoke
+
+      - name: Check Nginx, Compose and shell scripts
+        run: |
+          for f in deploy/deploy.sh deploy/backup.sh deploy/scheduler.sh deploy/nginx/start.sh deploy/certbot/renew.sh; do sh -n "$f"; done
+          mkdir -p conf certs/live/example.test
+          openssl req -x509 -nodes -newkey rsa:2048 -days 1 -subj /CN=example.test \
+            -keyout certs/live/example.test/privkey.pem -out certs/live/example.test/fullchain.pem
+          for t in http-only https; do
+            sed 's/__DOMAIN__/example.test/g' deploy/nginx/templates/$t.conf > conf/default.conf
+            docker run --rm -v "$PWD/conf:/etc/nginx/conf.d:ro" -v "$PWD/certs:/etc/letsencrypt:ro" nginx:1.27-alpine nginx -t
+          done
+          printf 'APP_IMAGE=x\nPOSTGRES_PASSWORD=x\nDOMAIN=example.test\nLETSENCRYPT_EMAIL=a@example.test\n' > .env
+          docker compose config --quiet
+          rm .env
+
+      - name: Publish image
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker tag loan-ms:test "$IMAGE:${{ github.sha }}"
+          docker tag loan-ms:test "$IMAGE:latest"
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+
+  deploy:
+    name: Deploy to server
+    needs: image
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+    env:
+      SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
+      SSHPASS: ${{ secrets.SSH_PASSWORD }}
+      SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+      APP_DIR: ${{ secrets.APP_DIR || '/opt/lms' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH
+        env:
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          sudo apt-get install -y -qq sshpass
+          install -m 700 -d ~/.ssh
+          # Checking the server's identity stops the password being sent to an impostor.
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf 'Host *\n  Port %s\n  PubkeyAuthentication no\n  PreferredAuthentications password,keyboard-interactive\n  StrictHostKeyChecking yes\n' "$SSH_PORT" > ~/.ssh/config
+          # rssh runs ssh with the password from the SSHPASS variable.
+          mkdir -p ~/bin
+          printf '#!/bin/sh\nexec sshpass -e ssh "$@"\n' > ~/bin/rssh
+          chmod +x ~/bin/rssh
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Write settings to the server
+        env:
+          APP_IMAGE: ${{ env.IMAGE }}:${{ github.sha }}
+          DOMAIN: ${{ secrets.DOMAIN }}
+          LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          DATA_ENCRYPTION_KEY: ${{ secrets.DATA_ENCRYPTION_KEY }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          ENTRA_TENANT_ID: ${{ secrets.ENTRA_TENANT_ID }}
+          ENTRA_CLIENT_ID: ${{ secrets.ENTRA_CLIENT_ID }}
+          ENTRA_CLIENT_SECRET: ${{ secrets.ENTRA_CLIENT_SECRET }}
+          ALLOWED_EMAIL_DOMAINS: ${{ secrets.ALLOWED_EMAIL_DOMAIN }}
+          BOOTSTRAP_SUPER_ADMIN_EMAILS: ${{ secrets.BOOTSTRAP_SUPER_ADMIN_EMAIL }}
+          EMAIL_TRANSPORT: ${{ secrets.EMAIL_TRANSPORT }}
+          EMAIL_SENDER_ADDRESS: ${{ secrets.EMAIL_SENDER_ADDRESS }}
+          EMAIL_GRAPH_TENANT_ID: ${{ secrets.EMAIL_GRAPH_TENANT_ID }}
+          EMAIL_GRAPH_CLIENT_ID: ${{ secrets.EMAIL_GRAPH_CLIENT_ID }}
+          EMAIL_GRAPH_CLIENT_SECRET: ${{ secrets.EMAIL_GRAPH_CLIENT_SECRET }}
+          PAYROLL_API_BASE_URL: ${{ secrets.PAYROLL_API_BASE_URL }}
+          PAYROLL_API_KEY: ${{ secrets.PAYROLL_API_KEY }}
+          PAYROLL_LOAN_DEDUCTION_CODE: ${{ secrets.PAYROLL_LOAN_DEDUCTION_CODE }}
+        run: |
+          for name in DOMAIN LETSENCRYPT_EMAIL POSTGRES_PASSWORD AUTH_SECRET DATA_ENCRYPTION_KEY CRON_SECRET ENTRA_TENANT_ID ENTRA_CLIENT_ID ENTRA_CLIENT_SECRET ALLOWED_EMAIL_DOMAINS; do
+            if [ -z "$(printenv "$name")" ]; then echo "::error::Missing GitHub secret for $name"; exit 1; fi
+          done
+          rssh "$SSH_TARGET" "mkdir -p '$APP_DIR'"
+          {
+            printf "APP_BASE_URL='https://%s'\n" "$DOMAIN"
+            for name in APP_IMAGE DOMAIN LETSENCRYPT_EMAIL POSTGRES_PASSWORD AUTH_SECRET DATA_ENCRYPTION_KEY CRON_SECRET \
+                        ENTRA_TENANT_ID ENTRA_CLIENT_ID ENTRA_CLIENT_SECRET ALLOWED_EMAIL_DOMAINS BOOTSTRAP_SUPER_ADMIN_EMAILS \
+                        EMAIL_TRANSPORT EMAIL_SENDER_ADDRESS EMAIL_GRAPH_TENANT_ID EMAIL_GRAPH_CLIENT_ID EMAIL_GRAPH_CLIENT_SECRET \
+                        PAYROLL_API_BASE_URL PAYROLL_API_KEY PAYROLL_LOAN_DEDUCTION_CODE; do
+              printf "%s='%s'\n" "$name" "$(printenv "$name")"
+            done
+          } | rssh "$SSH_TARGET" "umask 077 && cat > '$APP_DIR/.env'"
+
+      - name: Copy deployment files
+        run: |
+          tar -czf - docker-compose.yml deploy | rssh "$SSH_TARGET" "tar -xzf - -C '$APP_DIR' && chmod +x '$APP_DIR'/deploy/*.sh"
+
+      - name: Deploy
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | rssh "$SSH_TARGET" "docker login ghcr.io -u '${{ github.actor }}' --password-stdin"
+          rssh "$SSH_TARGET" "'$APP_DIR/deploy/deploy.sh'; status=\$?; docker logout ghcr.io; exit \$status"
+
+      - name: Check the live site
+        env:
+          DOMAIN: ${{ secrets.DOMAIN }}
+        run: |
+          rssh "$SSH_TARGET" "cd '$APP_DIR' && docker compose ps"
+          # The first deployment can take a few minutes while the certificate is issued.
+          curl -fsS --retry 12 --retry-delay 10 --retry-all-errors --max-time 15 "https://$DOMAIN/api/health" \
+            || echo "::warning::The site is not answering over HTTPS yet. On a first deployment, check: docker compose logs certbot"

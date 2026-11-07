@@ -1,0 +1,59 @@
+{
+  "name": "loan-management-system",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Loan Management System: staff loan applications, approvals, disbursement and repayment",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed": "tsx scripts/seed.ts",
+    "db:reset": "tsx scripts/reset-dev-db.ts",
+    "jobs:servicing": "tsx scripts/run-servicing.ts",
+    "test:e2e": "playwright test",
+    "branding": "tsx scripts/build-branding.ts",
+    "docs:samples": "tsx scripts/sample-documents.ts"
+  },
+  "engines": {
+    "node": ">=20.11"
+  },
+  "dependencies": {
+    "@azure/identity": "^4.14.1",
+    "@azure/msal-node": "^7.1.2",
+    "@azure/storage-blob": "^12.34.0",
+    "@electric-sql/pglite": "^0.5.13",
+    "decimal.js": "^10.6.0",
+    "drizzle-orm": "^0.45.4",
+    "exceljs": "^4.4.0",
+    "lucide-react": "^1.66.0",
+    "next": "^16.4.3",
+    "pdf-lib": "^1.17.1",
+    "pg": "^8.23.1",
+    "qrcode": "^1.5.4",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "unpdf": "^1.0.6",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.64.1",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "azurite": "^3.37.0",
+    "drizzle-kit": "^0.31.11",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  }
+}

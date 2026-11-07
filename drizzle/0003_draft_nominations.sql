@@ -1,0 +1,1 @@
+ALTER TABLE "loan_applications" ADD COLUMN "nominated_guarantors" jsonb DEFAULT '[]'::jsonb NOT NULL;

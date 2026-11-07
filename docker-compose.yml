@@ -1,0 +1,115 @@
+# Loan Management System on one server. CI/CD set-up: docs/CI_CD.md
+# GitHub Actions writes the .env file beside this one from the repository secrets.
+name: pau-lms
+
+x-app: &app
+  image: ${APP_IMAGE:?Set APP_IMAGE in .env}
+  env_file: .env
+  environment:
+    NODE_ENV: production
+    DATABASE_URL: postgres://loans:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/loans
+    # The database is only reachable on the private "internal" network below.
+    DATABASE_SSL: disable
+    STORAGE_BACKEND: local
+    STORAGE_DIR: /app/storage
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: loans
+      POSTGRES_USER: loans
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U loans -d loans"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+
+  # Runs once on every deployment: applies database changes and installs base data.
+  # It never overwrites administrator changes and never installs the demo accounts.
+  migrate:
+    <<: *app
+    restart: "no"
+    command: ["sh", "-c", "node scripts/migrate.cjs && node scripts/seed.cjs"]
+    healthcheck:
+      disable: true
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [internal]
+
+  app:
+    <<: *app
+    restart: unless-stopped
+    volumes:
+      - documents:/app/storage
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks: [internal, web]
+
+  # Calls the two scheduled jobs: reminders every 5 minutes, loan checks every hour.
+  scheduler:
+    <<: *app
+    restart: unless-stopped
+    command: ["sh", "/scheduler.sh"]
+    volumes:
+      - ./deploy/scheduler.sh:/scheduler.sh:ro
+    healthcheck:
+      disable: true
+    depends_on:
+      app:
+        condition: service_healthy
+    networks: [internal]
+
+  # Reverse proxy and HTTPS. The only service with ports open to the outside.
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    command: ["sh", "/start.sh"]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
+    volumes:
+      - ./deploy/nginx/start.sh:/start.sh:ro
+      - ./deploy/nginx/templates:/templates:ro
+      - certificates:/etc/letsencrypt:ro
+      - acme-challenge:/var/www/certbot:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    networks: [web]
+
+  # Gets the Let's Encrypt certificate, then renews it before it expires.
+  certbot:
+    image: certbot/certbot:v2.11.0
+    restart: unless-stopped
+    entrypoint: ["sh", "/renew.sh"]
+    environment:
+      DOMAIN: ${DOMAIN}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:?Set LETSENCRYPT_EMAIL in .env}
+    volumes:
+      - ./deploy/certbot/renew.sh:/renew.sh:ro
+      - certificates:/etc/letsencrypt
+      - acme-challenge:/var/www/certbot
+    depends_on:
+      - nginx
+    networks: [web]
+
+networks:
+  internal:
+    internal: true
+  web:
+
+volumes:
+  db-data:
+  documents:
+  certificates:
+  acme-challenge:
