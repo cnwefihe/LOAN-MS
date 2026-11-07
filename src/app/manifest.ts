@@ -10,6 +10,8 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     scope: "/",
     display: "standalone",
+    // On computers the app's own top bar takes the place of the window's title bar.
+    display_override: ["window-controls-overlay", "standalone"],
     background_color: "#ffffff",
     theme_color: "#2E3A6E",
     icons: [

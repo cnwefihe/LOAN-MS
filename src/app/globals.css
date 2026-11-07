@@ -160,3 +160,17 @@ input[type="number"]::-webkit-outer-spin-button { appearance: none; margin: 0; }
   .responsive-table td[data-label=""] { justify-content: flex-end; }
   .responsive-table td[data-label=""]::before { display: none; }
 }
+
+/* Installed app on a computer: no separate title bar. The top bar can drag the window and
+   leaves room for the minimise, maximise and close buttons on the right. */
+@media (display-mode: window-controls-overlay) {
+  .app-topbar {
+    app-region: drag;
+    -webkit-app-region: drag;
+    padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 1rem);
+  }
+  .app-topbar a, .app-topbar button, .app-topbar input, .app-topbar [role="dialog"] {
+    app-region: no-drag;
+    -webkit-app-region: no-drag;
+  }
+}

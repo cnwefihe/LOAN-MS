@@ -316,7 +316,7 @@ export function AppShell({ sections, unread, user, devBanner, brand, announcemen
             {announcement.text}
           </div>
         )}
-        <header className="relative z-30 flex h-16 shrink-0 items-center gap-3 border-b border-line bg-white px-4 sm:px-6">
+        <header className="app-topbar relative z-30 flex h-16 shrink-0 items-center gap-3 border-b border-line bg-white px-4 sm:px-6">
           <button onClick={() => setMobileOpen(true)} className="rounded-md p-2 text-ink hover:bg-slate-100 lg:hidden" aria-label="Open navigation"><Menu aria-hidden className="h-5 w-5" /></button>
           <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-1">
             <HeaderSearch />
