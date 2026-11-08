@@ -3,7 +3,9 @@ import { Plus } from "lucide-react";
 import { getDb } from "@/db";
 import { schools, departments, staffCategories, users } from "@/db/schema";
 import { requireActor } from "@/lib/auth/session";
-import { Badge, Card, EmptyState, PageHeader, Table, Tabs, Th, Td } from "@/components/ui";
+import { Badge, Card, EmptyState, MENU_ACTION, MENU_FORM, PageHeader, Table, Tabs, Th, Td } from "@/components/ui";
+import { ActionForm } from "@/components/action-form";
+import { deleteOrgAction } from "@/app/actions/admin";
 import { SearchFilter } from "@/components/search-filter";
 import { paginate, Pagination } from "@/components/pagination";
 import { RowMenu } from "@/components/row-menu";
@@ -55,7 +57,7 @@ export default async function Organisation({ searchParams }: { searchParams: Pro
                   <Td>{r.approverTitle === "line_manager" ? "Line Manager" : "HOD"}</Td>
                   <Td>{r.headUserId ? people.find((p) => p.id === r.headUserId)?.name ?? "Inactive user" : <Badge tone="warning">Not set</Badge>}</Td>
                   <Td><Status on={r.isActive} /></Td>
-                  <Td right><RowMenu label={r.name} items={[{ label: "Edit", href: editHref(r.id) }]} /></Td>
+                  <Td right><RowMenu label={r.name} items={[{ label: "Edit", href: editHref(r.id) }]}><ActionForm inline className={MENU_FORM} action={deleteOrgAction.bind(null, "department", r.id)} submitLabel="Delete" submitClassName={`${MENU_ACTION} text-danger`} confirm={`Delete ${r.name}? This cannot be undone.`} /></RowMenu></Td>
                 </tr>
               ))}
             </tbody>
@@ -70,7 +72,7 @@ export default async function Organisation({ searchParams }: { searchParams: Pro
                   <Td className="font-mono text-xs text-muted">{r.code}</Td>
                   <Td right>{d.filter((x) => x.schoolId === r.id).length}</Td>
                   <Td><Status on={r.isActive} /></Td>
-                  <Td right><RowMenu label={r.name} items={[{ label: "Edit", href: editHref(r.id) }]} /></Td>
+                  <Td right><RowMenu label={r.name} items={[{ label: "Edit", href: editHref(r.id) }]}><ActionForm inline className={MENU_FORM} action={deleteOrgAction.bind(null, "school", r.id)} submitLabel="Delete" submitClassName={`${MENU_ACTION} text-danger`} confirm={`Delete ${r.name}? This cannot be undone.`} /></RowMenu></Td>
                 </tr>
               ))}
             </tbody>
@@ -84,7 +86,7 @@ export default async function Organisation({ searchParams }: { searchParams: Pro
                   <Td className="font-medium">{r.name}</Td>
                   <Td className="font-mono text-xs text-muted">{r.code}</Td>
                   <Td><Status on={r.isActive} /></Td>
-                  <Td right><RowMenu label={r.name} items={[{ label: "Edit", href: editHref(r.id) }]} /></Td>
+                  <Td right><RowMenu label={r.name} items={[{ label: "Edit", href: editHref(r.id) }]}><ActionForm inline className={MENU_FORM} action={deleteOrgAction.bind(null, "category", r.id)} submitLabel="Delete" submitClassName={`${MENU_ACTION} text-danger`} confirm={`Delete ${r.name}? This cannot be undone.`} /></RowMenu></Td>
                 </tr>
               ))}
             </tbody>

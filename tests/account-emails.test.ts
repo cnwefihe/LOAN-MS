@@ -14,7 +14,7 @@ import { getDb, type Database } from "@/db";
 import * as s from "@/db/schema";
 import { seedBase, seedFixtures } from "@/server/seed";
 import { loadActor, provisionEntraUser } from "@/server/services/identity";
-import { setUserActive, setUserRole } from "@/server/services/admin";
+import { clearDepartmentApprover, deleteOrgItem, setDepartmentApprover, setUserActive, setUserRole } from "@/server/services/admin";
 import { composeEmail } from "@/server/email";
 import { getBranding } from "@/server/branding";
 import { hrUpdateStaffRecord } from "@/server/services/staff";
@@ -88,5 +88,29 @@ describe("administrators and staff records", () => {
     const a = await admin();
     expect(a.permissions.has("hr.staff.edit")).toBe(true);
     await expect(hrUpdateStaffRecord(db, a, ids.admin, { designation: "Own change" } as never, "Test")).rejects.toThrow(/your own/);
+  });
+});
+
+describe("organisation: delete and approvers", () => {
+  it("deletes an unused school but refuses one still in use", async () => {
+    const a = await admin();
+    const [spare] = await db.insert(s.schools).values({ code: "TMP", name: "Temporary School", isActive: true }).returning();
+    await deleteOrgItem(db, a, "school", spare.id);
+    expect(await db.select().from(s.schools).where(eq(s.schools.id, spare.id))).toHaveLength(0);
+    const [used] = await db.select().from(s.departments).where(eq(s.departments.code, "SST-CS"));
+    await expect(deleteOrgItem(db, a, "school", used.schoolId!)).rejects.toThrow(/inactive instead/);
+    await expect(deleteOrgItem(db, a, "department", used.id)).rejects.toThrow(/staff record/);
+  });
+
+  it("makes someone the HOD of a department, then removes them", async () => {
+    const a = await admin();
+    const [u] = await db.select().from(s.users).where(eq(s.users.email, person.email));
+    const [dept] = await db.select().from(s.departments).where(eq(s.departments.code, "SST-CS"));
+    await setDepartmentApprover(db, a, dept.id, u.id, "hod");
+    let [now] = await db.select().from(s.departments).where(eq(s.departments.id, dept.id));
+    expect([now.headUserId, now.approverTitle]).toEqual([u.id, "hod"]);
+    await clearDepartmentApprover(db, a, dept.id, u.id);
+    [now] = await db.select().from(s.departments).where(eq(s.departments.id, dept.id));
+    expect(now.headUserId).toBeNull();
   });
 });

@@ -5,7 +5,7 @@ import { schools, departments, staffCategories, users } from "@/db/schema";
 import { requireActor } from "@/lib/auth/session";
 import { ActionForm } from "@/components/action-form";
 import { Card, PageHeader } from "@/components/ui";
-import { saveOrgAction } from "@/app/actions/admin";
+import { deleteOrgAction, saveOrgAction } from "@/app/actions/admin";
 
 export const metadata = { title: "Organisation" };
 
@@ -65,6 +65,14 @@ export default async function OrgRecord({ params }: { params: Promise<{ kind: st
           {!isNew && <label className="mt-4 flex items-center gap-2 text-sm"><input type="checkbox" name="isActive" defaultChecked={row?.isActive} className="h-4 w-4 accent-brand" />Active</label>}
         </ActionForm>
       </Card>
+      {!isNew && row && (
+        <Card className="mt-6 max-w-2xl" title={`Delete ${noun}`}>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <p className="max-w-md text-sm text-muted">Only possible when nothing uses it. Otherwise, make it inactive instead.</p>
+            <ActionForm inline action={deleteOrgAction.bind(null, kind, row.id)} submitLabel="Delete" submitClassName="btn-danger" confirm={`Delete ${row.name}? This cannot be undone.`} />
+          </div>
+        </Card>
+      )}
     </>
   );
 }

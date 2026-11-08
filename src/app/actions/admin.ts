@@ -9,7 +9,7 @@ import { POLICY_FIELD_LABELS, type PolicyParameters } from "@/lib/finance/policy
 import { DEFAULT_POLICY } from "@/lib/finance/defaults";
 import { processOutbox } from "@/server/email";
 import { assertCan } from "@/server/actor";
-import { setUserRole, setUserActive, revokeUserSessions, setRolePermissions, createRole, deleteRole, updateRoleDetails, upsertSchool, upsertDepartment, upsertCategory, upsertDocumentRequirement, publishTerms, updateTemplate, updateSetting,
+import { setUserRole, setUserActive, revokeUserSessions, setRolePermissions, createRole, deleteRole, updateRoleDetails, upsertSchool, upsertDepartment, upsertCategory, deleteOrgItem, setDepartmentApprover, clearDepartmentApprover, upsertDocumentRequirement, publishTerms, updateTemplate, updateSetting,
   revokeSession, requeueEmails, updateSettingsGroup, uploadBrandAsset, resetBrandAsset, sendTestEmail,
 } from "@/server/services/admin";
 import { createProduct, setProductActive, createDraftFrom, updateDraft, updateProductDetails, deleteProduct, discardDraft, submitPolicy, approvePolicy, rejectPolicy, retirePolicy } from "@/server/services/policies";
@@ -189,6 +189,30 @@ export async function rejectPolicyAction(versionId: string, _: Prev, fd: FormDat
     await rejectPolicy(await getDb(), actor, versionId, str(fd, "reason", true));
     return "Policy version rejected.";
   }, { revalidate: ["/admin/products"] });
+}
+
+export async function deleteOrgAction(kind: "school" | "department" | "category", id: string, _: Prev) {
+  return runAction(async (actor) => {
+    if (!["school", "department", "category"].includes(kind)) throw new DomainError("Unknown organisation type.");
+    await deleteOrgItem(await getDb(), actor, kind, id);
+    const tab = { school: "schools", department: "departments", category: "categories" }[kind];
+    return { redirectTo: `/admin/organisation?tab=${tab}`, message: "Deleted." };
+  }, { revalidate: ["/admin/organisation"] });
+}
+
+export async function assignApproverAction(userId: string, title: "hod" | "line_manager", _: Prev, fd: FormData) {
+  return runAction(async (actor) => {
+    const departmentId = str(fd, "departmentId", true);
+    await setDepartmentApprover(await getDb(), actor, departmentId, userId, title === "line_manager" ? "line_manager" : "hod");
+    return "Approver set.";
+  }, { revalidate: [`/admin/users/${userId}`, "/admin/organisation"] });
+}
+
+export async function removeApproverAction(userId: string, departmentId: string, _: Prev) {
+  return runAction(async (actor) => {
+    await clearDepartmentApprover(await getDb(), actor, departmentId, userId);
+    return "Approver removed.";
+  }, { revalidate: [`/admin/users/${userId}`, "/admin/organisation"] });
 }
 
 export async function saveOrgAction(kind: "school" | "department" | "category", id: string | null, _: Prev, fd: FormData) {

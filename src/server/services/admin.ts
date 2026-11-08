@@ -216,6 +216,62 @@ export async function upsertDepartment(db: Executor, actor: Actor, input: { id?:
   await audit(db, actor, { action: input.id ? "org.department_updated" : "org.department_created", entityType: "department", entityId: row.id, after: values });
 }
 
+/** Deletes a school, department or staff category that nothing uses. Anything in use is made inactive instead. */
+export async function deleteOrgItem(db: Executor, actor: Actor, kind: "school" | "department" | "category", id: string) {
+  assertCan(actor, "admin.org.manage");
+  return db.transaction(async (tx) => {
+    const count = async (q: Promise<{ n: number }[]>) => Number((await q)[0]?.n ?? 0);
+    const n = sql<number>`count(*)`;
+    if (kind === "school") {
+      const [row] = await tx.select().from(schools).where(eq(schools.id, id));
+      if (!row) throw new NotFoundError("School");
+      const depts = await count(tx.select({ n }).from(departments).where(eq(departments.schoolId, id)));
+      const staff = await count(tx.select({ n }).from(staffProfiles).where(eq(staffProfiles.schoolId, id)));
+      if (depts || staff) throw new DomainError(`${row.name} is still used by ${depts} department${depts === 1 ? "" : "s"} and ${staff} staff record${staff === 1 ? "" : "s"}. Move them first, or make it inactive instead.`);
+      await tx.delete(schools).where(eq(schools.id, id));
+      await audit(tx, actor, { action: "org.school_deleted", entityType: "school", entityId: id, summary: `Deleted ${row.name}`, before: row });
+    } else if (kind === "department") {
+      const [row] = await tx.select().from(departments).where(eq(departments.id, id));
+      if (!row) throw new NotFoundError("Department");
+      const staff = await count(tx.select({ n }).from(staffProfiles).where(eq(staffProfiles.departmentId, id)));
+      if (staff) throw new DomainError(`${row.name} still has ${staff} staff record${staff === 1 ? "" : "s"}. Move them first, or make it inactive instead.`);
+      await tx.delete(departments).where(eq(departments.id, id));
+      await audit(tx, actor, { action: "org.department_deleted", entityType: "department", entityId: id, summary: `Deleted ${row.name}`, before: row });
+    } else {
+      const [row] = await tx.select().from(staffCategories).where(eq(staffCategories.id, id));
+      if (!row) throw new NotFoundError("Category");
+      const staff = await count(tx.select({ n }).from(staffProfiles).where(eq(staffProfiles.categoryId, id)));
+      if (staff) throw new DomainError(`${row.name} still has ${staff} staff record${staff === 1 ? "" : "s"}. Move them first, or make it inactive instead.`);
+      await tx.delete(staffCategories).where(eq(staffCategories.id, id));
+      await audit(tx, actor, { action: "org.category_deleted", entityType: "category", entityId: id, summary: `Deleted ${row.name}`, before: row });
+    }
+  });
+}
+
+/** Makes someone the HOD or Line Manager of a department, replacing whoever approved for it before. */
+export async function setDepartmentApprover(db: Executor, actor: Actor, departmentId: string, userId: string, title: "hod" | "line_manager") {
+  assertCan(actor, "admin.org.manage");
+  return db.transaction(async (tx) => {
+    const [dept] = await tx.select().from(departments).where(eq(departments.id, departmentId));
+    if (!dept) throw new NotFoundError("Department");
+    const [person] = await tx.select({ isActive: users.isActive }).from(users).where(eq(users.id, userId));
+    if (!person?.isActive) throw new DomainError("Choose an active member of staff.");
+    await tx.update(departments).set({ headUserId: userId, approverTitle: title }).where(eq(departments.id, departmentId));
+    await audit(tx, actor, { action: "org.department_updated", entityType: "department", entityId: departmentId, summary: `Approver for ${dept.name} set`, before: { headUserId: dept.headUserId, approverTitle: dept.approverTitle }, after: { headUserId: userId, approverTitle: title } });
+  });
+}
+
+/** Removes someone as the approver of a department. The department then has no approver until another is chosen. */
+export async function clearDepartmentApprover(db: Executor, actor: Actor, departmentId: string, userId: string) {
+  assertCan(actor, "admin.org.manage");
+  return db.transaction(async (tx) => {
+    const [dept] = await tx.select().from(departments).where(eq(departments.id, departmentId));
+    if (!dept || dept.headUserId !== userId) throw new DomainError("This person is not the approver for that department.");
+    await tx.update(departments).set({ headUserId: null }).where(eq(departments.id, departmentId));
+    await audit(tx, actor, { action: "org.department_updated", entityType: "department", entityId: departmentId, summary: `Approver for ${dept.name} removed`, before: { headUserId: userId } });
+  });
+}
+
 export async function upsertCategory(db: Executor, actor: Actor, input: { id?: string; code: string; name: string; isActive: boolean }) {
   assertCan(actor, "admin.org.manage");
   const values = { code: input.code.trim().toUpperCase(), name: input.name.trim(), isActive: input.isActive };
