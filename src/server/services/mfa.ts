@@ -16,14 +16,20 @@ import { audit } from "../audit";
 import { assertCan, type Actor } from "../actor";
 import { DomainError } from "../errors";
 
-export const MFA_ROLES: RoleCode[] = ["HR_ADMIN", "BURSARY_OFFICER", "HR_DIRECTOR", "ACCOUNTS_ADMIN", "ACCOUNTS_OFFICER", "SUPER_ADMIN"];
-
 type UserRow = typeof users.$inferSelect;
 
-/** Whether this person must complete the second step before using the system. */
+/** Roles that need the second step when Settings > Security is set to "Approval and payment roles". */
+export const MFA_ROLES: RoleCode[] = ["HR_ADMIN", "BURSARY_OFFICER", "HR_DIRECTOR", "ACCOUNTS_ADMIN", "ACCOUNTS_OFFICER", "SUPER_ADMIN"];
+
+/**
+ * Whether this person must complete the second step before using the system, as set under
+ * Settings > Security. Someone Microsoft has already asked for a second step is not asked again (see the callback).
+ */
 export async function mfaRequiredFor(db: Executor, user: Pick<UserRow, "mfaEnabledAt">, roles: RoleCode[]): Promise<boolean> {
   if (user.mfaEnabledAt) return true; // turned on voluntarily, or already set up
-  if (!(await getSetting(db, "security.mfaRequired"))) return false;
+  const scope = await getSetting(db, "security.mfaScope");
+  if (scope === "everyone") return true;
+  if (scope === "off") return false;
   // Roles added by an administrator are treated as staff roles, so they need the second step too.
   return roles.some((r) => MFA_ROLES.includes(r) || !ROLE_CODES.includes(r));
 }

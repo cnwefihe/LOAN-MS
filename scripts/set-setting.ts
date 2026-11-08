@@ -1,6 +1,6 @@
 /**
  * Set one system setting from the command line (development and test set-up only):
- *   npx tsx scripts/set-setting.ts security.mfaRequired true
+ *   npx tsx scripts/set-setting.ts security.mfaScope everyone
  * In normal use, settings are changed by an administrator under Admin > Settings, which is audited.
  */
 import "./env";

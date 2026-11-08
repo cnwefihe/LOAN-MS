@@ -81,7 +81,7 @@ Entra admin centre > App registrations > New registration:
 
 Create a client secret (12-month expiry, with a rotation reminder) and store it in Key Vault as `ENTRA_CLIENT_SECRET`. Recommended: set *Assignment required* to Yes on the enterprise application and assign the all-staff group, and require MFA with Conditional Access.
 
-**Two-step verification.** It is **off** on a new installation so the system can be explored. Switch it on before go-live under Admin > Settings > Security ("Require two-step verification"). From then on HR Administrators, Bursary Officers, the HR Director, the Bursar, Accounts Payable Officers and Super Administrators must complete a second sign-in step before they can open any page or download anything.
+**Two-step verification.** Choose who needs it under Admin > Settings > Security: **Everyone** (the default), **Approval and payment roles**, or **No one**. Changing it needs confirmation and is recorded under Activity.
 - If Microsoft already performed MFA at sign-in (the token's `amr` claim contains `mfa`), that counts and they are not asked again. A Conditional Access policy requiring MFA for this application is therefore the smoothest option.
 - Otherwise they set up an authenticator app (Microsoft Authenticator recommended) on first sign-in, receive eight one-time recovery codes, and enter a six-digit code at each sign-in.
 - A Super Administrator can reset it under Administration > Users, for example after a lost phone. The requirement can only be switched off under Settings > Security, with explicit confirmation, and the change is audited.

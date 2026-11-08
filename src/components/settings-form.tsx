@@ -47,7 +47,7 @@ export function SettingsGroupForm({ group, values }: { group: SettingGroup; valu
                 <label htmlFor={id} className="label">{def.label}</label>
                 {options ? (
                   <select id={id} name={k} defaultValue={String(v)} className="input">
-                    {options.map((o) => <option key={o} value={o}>{optionLabel(o, type === "number")}</option>)}
+                    {options.map((o) => <option key={o} value={o}>{("optionLabels" in def ? (def.optionLabels as Record<string, string>)[o] : undefined) ?? optionLabel(o, type === "number")}</option>)}
                   </select>
                 ) : k.startsWith("reminders.") && k.endsWith("Minutes") ? (
                   <div className="flex gap-2">

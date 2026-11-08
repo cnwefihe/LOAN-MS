@@ -9,4 +9,4 @@ fs.rmSync(process.env.STORAGE_DIR ?? ".data/e2e-storage", { recursive: true, for
 execSync("npx tsx scripts/seed.ts --fixtures", { stdio: "inherit", env: process.env });
 execSync("npx tsx scripts/dev-walkthrough.ts", { stdio: "inherit", env: process.env });
 // Two-step verification is off by default; the browser tests run with it on, as at go-live.
-execSync("npx tsx scripts/set-setting.ts security.mfaRequired true", { stdio: "inherit", env: process.env });
+execSync("npx tsx scripts/set-setting.ts security.mfaScope staff", { stdio: "inherit", env: process.env });

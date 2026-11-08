@@ -148,6 +148,13 @@
       "when": 1794034880430,
       "tag": "0020_account_email_wording",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794121280430,
+      "tag": "0021_two_step_for_everyone",
+      "breakpoints": true
     }
   ]
 }

@@ -12,6 +12,7 @@ const optionalText = (max: number) => z.string().trim().max(max);
 const DAY = 1440;
 /** Stored in minutes; entered as minutes, hours or days. */
 const reminderMinutes = (maxDays: number) => z.number().int().min(1).max(maxDays * DAY);
+export const MFA_SCOPES = ["everyone", "staff", "off"] as const;
 const IDLE_CHOICES = ["5", "10", "30", "60"] as const;
 const idleMinutes = z.number().int().refine((m) => (IDLE_CHOICES as readonly string[]).includes(String(m)), "Choose one of the listed times.");
 const hexColour = z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Use a six-digit hex colour such as #2E3A6E.")
@@ -62,7 +63,7 @@ export const SETTINGS = {
 
   "security.idleMinutesUsers": { group: "Security", schema: idleMinutes, default: 10, sensitive: true, label: "Sign out users after", options: IDLE_CHOICES },
   "security.idleMinutesAdmin": { group: "Security", schema: idleMinutes, default: 10, sensitive: true, label: "Sign out administrators after", options: IDLE_CHOICES },
-  "security.mfaRequired": { group: "Security", schema: z.boolean(), default: false, sensitive: true, label: "Require two-step verification for approval and payment roles" },
+  "security.mfaScope": { group: "Security", schema: z.enum(MFA_SCOPES), default: "everyone", sensitive: true, label: "Require two-step verification for", options: MFA_SCOPES, optionLabels: { everyone: "Everyone", staff: "Approval and payment roles", off: "No one" } },
 
   "notifications.emailEnabled": { group: "Notifications", schema: z.boolean(), default: true, sensitive: false, label: "Send email notifications" },
   "notifications.emailSignature": { group: "Notifications", schema: text(200), default: "Bursary, Pan-Atlantic University", sensitive: false, label: "Email sign-off" },
@@ -75,7 +76,7 @@ export const SETTINGS = {
 
   "system.announcement": { group: "Announcements", schema: optionalText(400), default: "", sensitive: false, label: "Announcement" },
   "system.announcementTone": { group: "Announcements", schema: z.enum(["info", "warning"]), default: "info", sensitive: false, label: "Style", options: ["info", "warning"] },
-} as const satisfies Record<string, { group: SettingGroup; schema: z.ZodType; default: unknown; sensitive: boolean; label: string; options?: readonly string[] }>;
+} as const satisfies Record<string, { group: SettingGroup; schema: z.ZodType; default: unknown; sensitive: boolean; label: string; options?: readonly string[]; optionLabels?: Record<string, string> }>;
 
 export type SettingKey = keyof typeof SETTINGS;
 export type SettingValue<K extends SettingKey> = z.infer<(typeof SETTINGS)[K]["schema"]>;

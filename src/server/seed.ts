@@ -76,7 +76,7 @@ export async function seedBase(db: Executor) {
     await db.insert(systemSettings).values({ key, value: def.default as never, description: def.label, isSensitive: def.sensitive }).onConflictDoNothing();
   }
   // Replaced by separate limits for users and administrators.
-  await db.delete(systemSettings).where(inArray(systemSettings.key, ["security.sessionIdleMinutes", "security.sessionAbsoluteHours", "policy.requireSecondApprover"]));
+  await db.delete(systemSettings).where(inArray(systemSettings.key, ["security.sessionIdleMinutes", "security.sessionAbsoluteHours", "policy.requireSecondApprover", "security.mfaRequired"]));
   await seedSuggestedProducts(db);
   await seedSampleOrganisation(db);
   await ensureInitialRelease(db);

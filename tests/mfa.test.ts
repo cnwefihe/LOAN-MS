@@ -26,8 +26,8 @@ beforeAll(async () => {
   await db.transaction(async (tx) => {
     await seedBase(tx);
     Object.assign(ids, (await seedFixtures(tx)).ids);
-    // Off by default so a new installation can be explored; administrators switch it on before go-live.
-    await tx.update(s.systemSettings).set({ value: true as never }).where(eq(s.systemSettings.key, "security.mfaRequired"));
+    // These tests cover the "Approval and payment roles" choice; the others are checked below.
+    await tx.update(s.systemSettings).set({ value: "staff" as never }).where(eq(s.systemSettings.key, "security.mfaScope"));
   });
 });
 
@@ -48,7 +48,7 @@ describe("authenticator codes (RFC 6238)", () => {
 });
 
 describe("two-step verification", () => {
-  it("is required for HR, Accounts, approvers and administrators, not ordinary staff", async () => {
+  it("with approval and payment roles chosen, is required for HR, Accounts, approvers and administrators, not ordinary staff", async () => {
     expect(MFA_ROLES).toEqual(expect.arrayContaining(["HR_ADMIN", "BURSARY_OFFICER", "HR_DIRECTOR", "ACCOUNTS_ADMIN", "ACCOUNTS_OFFICER", "SUPER_ADMIN"]));
     for (const k of ["hradmin", "bursary", "hrdirector", "accounts", "accadmin", "admin"]) expect(await mfaRequiredFor(db, { mfaEnabledAt: null }, (await actor(k)).roles), k).toBe(true);
     expect(await mfaRequiredFor(db, { mfaEnabledAt: null }, (await actor("applicant")).roles)).toBe(false);
@@ -94,9 +94,11 @@ describe("two-step verification", () => {
 
   it("the requirement can be switched off only with confirmation, as a sensitive setting", async () => {
     const admin = await actor("admin");
-    await expect(updateSettingsGroup(db, admin, "Security", { "security.mfaRequired": false }, false)).rejects.toThrow(/confirmation/);
-    await updateSettingsGroup(db, admin, "Security", { "security.mfaRequired": false }, true);
+    await expect(updateSettingsGroup(db, admin, "Security", { "security.mfaScope": "off" }, false)).rejects.toThrow(/confirmation/);
+    await updateSettingsGroup(db, admin, "Security", { "security.mfaScope": "off" }, true);
     expect(await mfaRequiredFor(db, { mfaEnabledAt: null }, (await actor("hradmin")).roles)).toBe(false);
-    await updateSettingsGroup(db, admin, "Security", { "security.mfaRequired": true }, true);
+    await updateSettingsGroup(db, admin, "Security", { "security.mfaScope": "everyone" }, true);
+    for (const k of ["applicant", "guarantor1", "hradmin"]) expect(await mfaRequiredFor(db, { mfaEnabledAt: null }, (await actor(k)).roles), k).toBe(true);
+    await updateSettingsGroup(db, admin, "Security", { "security.mfaScope": "staff" }, true);
   });
 });

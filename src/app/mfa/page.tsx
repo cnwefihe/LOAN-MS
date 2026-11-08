@@ -29,7 +29,7 @@ export default async function MfaPage({ searchParams }: { searchParams: Promise<
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={logoUrl(brand, "logo")} alt={brand.institutionName} className="mx-auto h-12 w-auto" />
             <h1 className="mt-5 text-lg font-semibold text-navy">{setup ? "Set up two-step verification" : "Two-step verification"}</h1>
-            <p className="mt-1 text-sm text-muted">{setup ? "Required for your role. Protects loan, payment and staff records." : `Enter the six-digit code from your authenticator app, ${state.actor.displayName.split(" ")[0]}.`}</p>
+            <p className="mt-1 text-sm text-muted">{setup ? "Required by the University. Protects loan, payment and staff records." : `Enter the six-digit code from your authenticator app, ${state.actor.displayName.split(" ")[0]}.`}</p>
           </div>
 
           {setup ? (
