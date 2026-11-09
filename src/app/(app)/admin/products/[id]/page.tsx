@@ -11,7 +11,7 @@ import { ActionForm } from "@/components/action-form";
 import { Alert, Card, PageHeader, MENU_ACTION, MENU_FORM, Stat, StatGrid, StatusBadge, Badge, DateText, Table, Tabs, Th, Td } from "@/components/ui";
 import { RowMenu } from "@/components/row-menu";
 import { formatNaira } from "@/lib/finance/money";
-import { setProductActiveAction, newPolicyDraftAction, savePolicyDraftAction, submitPolicyAction, approvePolicyAction, rejectPolicyAction, retirePolicyAction, updateProductDetailsAction, deleteProductAction, discardDraftAction } from "@/app/actions/admin";
+import { setProductActiveAction, newPolicyDraftAction, savePolicyDraftAction, submitPolicyAction, approvePolicyAction, activatePolicyAction, rejectPolicyAction, retirePolicyAction, updateProductDetailsAction, deleteProductAction, discardDraftAction } from "@/app/actions/admin";
 import { PolicyEditor } from "@/components/policy-editor";
 
 export const metadata = { title: "Product policy" };
@@ -71,10 +71,17 @@ export default async function ProductPolicy({ params, searchParams }: { params: 
             <div className="space-y-6">
               <PolicyEditor initial={p} changeNote={selected.changeNote ?? ""} action={savePolicyDraftAction.bind(null, selected.id)} productName={product.name} />
               <Card>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm text-muted">Save the draft first. Once submitted, it can be approved.</p>
-                  <ActionForm action={submitPolicyAction.bind(null, selected.id)} submitLabel="Submit for approval" variant="primary" confirm="Submit this policy version for approval? You will not be able to edit it while pending." />
-                </div>
+                {can(actor, "admin.policy.approve") ? (
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm text-muted">Save the draft first, then activate it. New applications use it from then on; existing loans keep their terms.</p>
+                    <ActionForm action={activatePolicyAction.bind(null, selected.id)} submitLabel="Activate" variant="primary" confirm="Activate this policy version now? New applications will use it." />
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm text-muted">Save the draft first. Once submitted, an administrator who approves policies can activate it.</p>
+                    <ActionForm action={submitPolicyAction.bind(null, selected.id)} submitLabel="Submit for approval" variant="primary" confirm="Submit this policy version for approval? You will not be able to edit it while pending." />
+                  </div>
+                )}
               </Card>
             </div>
           ) : (

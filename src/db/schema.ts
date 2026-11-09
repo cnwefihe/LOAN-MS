@@ -57,6 +57,8 @@ export const users = pgTable("users", {
   entraTenantId: varchar("entra_tenant_id", { length: 64 }),
   email: varchar("email", { length: 320 }).notNull(),
   displayName: varchar("display_name", { length: 200 }).notNull(),
+  /** Set by an administrator: Microsoft no longer replaces the display name at sign-in. */
+  nameLocked: boolean("name_locked").notNull().default(false),
   givenName: varchar("given_name", { length: 100 }),
   surname: varchar("surname", { length: 100 }),
   isActive: boolean("is_active").notNull().default(true),

@@ -161,6 +161,21 @@ export async function submitPolicy(db: Executor, actor: Actor, versionId: string
  * Approve and activate a policy version. The previously active version is retired, but loans
  * already approved keep referencing their own version, so their terms are unchanged.
  */
+/** One step for an administrator who both drafts and approves: the draft becomes the active policy at once. */
+export async function activatePolicyDraft(db: Executor, actor: Actor, versionId: string) {
+  assertCan(actor, "admin.policy.manage");
+  assertCan(actor, "admin.policy.approve");
+  return db.transaction(async (tx) => {
+    const v = await getPolicyVersion(tx, versionId);
+    if (v.status !== "draft") throw new DomainError("Only a draft can be activated.");
+    const changeNote = v.changeNote?.trim() || "Policy updated";
+    const current = await getActivePolicy(tx, v.productId);
+    if (current) await tx.update(policyVersions).set({ status: "retired", retiredAt: new Date() }).where(eq(policyVersions.id, current.id));
+    await tx.update(policyVersions).set({ status: "active", changeNote, submittedBy: actor.userId, approvedBy: actor.userId, approvedAt: new Date(), effectiveFrom: new Date() }).where(eq(policyVersions.id, versionId));
+    await audit(tx, actor, { action: "policy.activated", entityType: "policy_version", entityId: versionId, summary: `Version ${v.version} activated`, before: current ? { activeVersion: current.version } : null, after: { activeVersion: v.version } });
+  });
+}
+
 export async function approvePolicy(db: Executor, actor: Actor, versionId: string) {
   assertCan(actor, "admin.policy.approve");
   return db.transaction(async (tx) => {

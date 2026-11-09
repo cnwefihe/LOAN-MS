@@ -6,11 +6,12 @@ import { Alert, Card, PageHeader } from "@/components/ui";
 import { ApplicationForm } from "@/components/application-form";
 import { latestPayslip } from "@/server/services/payslips";
 import { PayslipUpload } from "@/components/payslip-upload";
+import { payslipMonth } from "@/components/payslip-breakdown";
 import { formatDate } from "@/lib/finance/dates";
 
 export const metadata = { title: "New application" };
 
-export default async function NewApplication({ searchParams }: { searchParams: Promise<{ productId?: string; amount?: string; tenor?: string; advanceType?: string }> }) {
+export default async function NewApplication({ searchParams }: { searchParams: Promise<{ productId?: string; amount?: string; tenor?: string; advanceType?: string; slip?: string }> }) {
   const actor = await requireActor("application.create");
   const sp = await searchParams;
   const db = await getDb();
@@ -26,7 +27,7 @@ export default async function NewApplication({ searchParams }: { searchParams: P
         <div className="mb-4"><Alert tone="info" title="Add your bank details">The Bursary needs your salary bank account to disburse the loan. <a className="link" href="/profile">Update your profile</a>.</Alert></div>
       )}
       <Card title="Your payslip" description="Eligibility is worked out from your latest payslip." className="mb-6">
-        <PayslipUpload current={slip ? { id: slip.id, period: slip.period, uploadedOn: formatDate(slip.createdAt) } : null} />
+        <PayslipUpload current={slip && sp.slip === slip.id ? { id: slip.id, period: slip.period, uploadedOn: formatDate(slip.createdAt) } : null} previous={slip && sp.slip !== slip.id ? (slip.period ? payslipMonth(slip.period) : "most recent") : null} />
       </Card>
       <Card>
         {products.length ? (

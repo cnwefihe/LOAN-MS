@@ -29,9 +29,11 @@ const blockersOf = (r: StaffEligibility) => r.reasons.filter((x) => !x.startsWit
  * Eligibility calculator. The applicant uploads their latest payslip; what they can borrow is worked out
  * from it with the same rules the application uses. They may then enter an amount and a tenor.
  */
-export function EligibilityCalculator({ products, ctx, payslipOnFile, guarantees, asOf, initial }: {
+export function EligibilityCalculator({ products, ctx, standing, payslipOnFile, guarantees, asOf, initial }: {
   products: CalculatorProduct[];
   ctx: StaffContext;
+  /** Their record with the payslip already on file: only used to say straight away when they cannot apply at all. */
+  standing?: StaffContext;
   payslipOnFile: { id: string; period: string | null; uploadedOn: string } | null;
   guarantees: CalculatorGuarantee[];
   asOf: string;
@@ -51,14 +53,21 @@ export function EligibilityCalculator({ products, ctx, payslipOnFile, guarantees
   const result = useMemo(() => ctx.payslip ? assessForStaff(p, ctx, {
     requestedAmount: requested, tenorMonths: isAdvance ? 1 : months, asOf, advanceType: isAdvance ? advanceType : null,
   }) : null, [p, ctx, requested, months, asOf, isAdvance, advanceType]);
+  // Before a payslip is uploaded on this visit, someone who cannot apply at all (for example, because a loan is still open) is told at once.
+  const blocked = useMemo(() => {
+    if (ctx.payslip || !standing?.payslip) return null;
+    const r = assessForStaff(p, standing, { requestedAmount: undefined, tenorMonths: isAdvance ? 1 : months, asOf, advanceType: isAdvance ? advanceType : null });
+    return blockersOf(r).length ? r : null;
+  }, [p, ctx.payslip, standing, months, asOf, isAdvance, advanceType]);
+  const shown = result ?? blocked;
 
   const step = (n: number, done: boolean) => (
     <span aria-hidden className={cx("grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-semibold", done ? "bg-navy text-white" : "bg-brand-100 text-navy")}>{n}</span>
   );
 
   const answer = isAdvance
-    ? <AdvanceAnswer r={result} productId={productId} onUseMax={(v) => setAmount(Number(v).toLocaleString("en-GB"))} />
-    : <Answer r={result} p={p} months={months} productId={productId} onUseMax={(v) => setAmount(Number(v).toLocaleString("en-GB"))} />;
+    ? <AdvanceAnswer r={shown} productId={productId} onUseMax={(v) => setAmount(Number(v).toLocaleString("en-GB"))} />
+    : <Answer r={shown} p={p} months={months} productId={productId} onUseMax={(v) => setAmount(Number(v).toLocaleString("en-GB"))} />;
   // Loans always show the result under the details, with the working on the right. Advances have no working to show.
   const breakdown = !isAdvance;
 
@@ -139,7 +148,7 @@ export function EligibilityCalculator({ products, ctx, payslipOnFile, guarantees
       </div>
 
       {result && guarantees.length > 0 && <Guarantees items={guarantees} r={result} />}
-      {result && <IneligibleDialog reasons={blockersOf(result)} />}
+      {shown && <IneligibleDialog reasons={blockersOf(shown)} />}
     </div>
   );
 }

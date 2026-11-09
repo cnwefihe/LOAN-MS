@@ -7,7 +7,7 @@ import type { RoleCode } from "@/lib/auth/permissions";
 import { getWording } from "@/server/wording";
 import { ActionForm } from "@/components/action-form";
 import { Card, PageHeader, Badge, DateText, KeyValues, Table, Th, Td } from "@/components/ui";
-import { setUserRoleAction, setUserActiveAction, revokeSessionsAction, resetMfaAction, assignApproverAction, removeApproverAction } from "@/app/actions/admin";
+import { setDisplayNameAction, setUserRoleAction, setUserActiveAction, revokeSessionsAction, resetMfaAction, assignApproverAction, removeApproverAction } from "@/app/actions/admin";
 import { departments } from "@/db/schema";
 import { asc, eq } from "drizzle-orm";
 import { can } from "@/server/actor";
@@ -40,6 +40,13 @@ export default async function ManageUser({ params }: { params: Promise<{ id: str
               ["Last sign-in", u.lastLoginAt ? <DateText key="login" value={u.lastLoginAt} withTime /> : "Never"],
               ["Staff record", u.staff ? <Link key="staff" className="link" href={`/hr/staff/${u.id}`}>View</Link> : "-"],
             ]} />
+          </Card>
+          <Card title="Display name" description="Shown everywhere: the sidebar, activity, records and emails. Microsoft no longer changes it at sign-in.">
+            <ActionForm action={setDisplayNameAction.bind(null, u.id)} submitLabel="Save name" className="[&>div:last-child]:mt-3">
+              <label htmlFor="displayName" className="sr-only">Display name</label>
+              <input id="displayName" name="displayName" defaultValue={u.displayName} maxLength={200} className="input" />
+              <p className="hint">{u.nameLocked ? "Set here. Clear it and save to use the Microsoft account name again." : "Currently the Microsoft account name."}</p>
+            </ActionForm>
           </Card>
           <Card title="Access">
             <div className="flex flex-wrap gap-2">

@@ -114,7 +114,7 @@ export function PolicyEditor({ initial, changeNote, action, productName }: {
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{g.fields.map(field)}</div>
               </fieldset>
             ))}
-            <div><label htmlFor="changeNote" className="label">Change note (required to submit)</label><input id="changeNote" name="changeNote" defaultValue={changeNote} placeholder="For example: interest reduced to 4% from January" className="input" /></div>
+            <div><label htmlFor="changeNote" className="label">Change note (optional)</label><input id="changeNote" name="changeNote" defaultValue={changeNote} placeholder="For example: interest reduced to 4% from January" className="input" /></div>
           </div>
         </ActionForm>
       </Card>

@@ -98,7 +98,7 @@ export async function provisionEntraUser(identity: EntraIdentity): Promise<strin
     } else {
       if (!user.isActive) throw new DomainError("Your platform access has been deactivated. Contact the Bursary or Human Resources.");
       [user] = await tx.update(users).set({
-        entraOid: identity.oid, entraTenantId: identity.tenantId, displayName: identity.displayName,
+        entraOid: identity.oid, entraTenantId: identity.tenantId, displayName: user.nameLocked ? user.displayName : identity.displayName,
         givenName: identity.givenName ?? user.givenName, surname: identity.surname ?? user.surname, lastLoginAt: new Date(), updatedAt: new Date(),
       }).where(eq(users.id, user.id)).returning();
     }

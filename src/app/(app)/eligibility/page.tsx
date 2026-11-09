@@ -15,8 +15,11 @@ export default async function EligibilityPage({ searchParams }: { searchParams: 
   const sp = await searchParams;
   const db = await getDb();
   const products = await listOpenProducts(db);
-  const { payslipId: _, ...ctx } = await staffContext(db, actor.userId);
-  const slip = await latestPayslip(db, actor.userId);
+  const { payslipId: _, ...all } = await staffContext(db, actor.userId);
+  const latest = await latestPayslip(db, actor.userId);
+  // Each visit starts afresh: only a payslip uploaded on this visit is used.
+  const slip = latest && sp.slip === latest.id ? latest : null;
+  const ctx = slip ? all : { ...all, payslip: null };
   const exposure = await guarantorExposure(db, actor.userId);
 
   return (
@@ -27,6 +30,7 @@ export default async function EligibilityPage({ searchParams }: { searchParams: 
         <EligibilityCalculator
           products={products.map((p) => ({ id: p.id, name: p.name, params: p.params }))}
           ctx={ctx}
+          standing={all}
           payslipOnFile={slip ? { id: slip.id, period: slip.period, uploadedOn: formatDate(slip.createdAt) } : null}
           guarantees={exposure.items.map((g) => ({ reference: g.reference, applicantName: g.applicantName, currentExposure: g.currentExposure, monthlyCommitment: g.monthlyCommitment, monthsLeft: g.monthsLeft, disbursed: !!g.loanStatus && g.loanStatus !== "pending_disbursement" }))}
           asOf={todayLagos()}

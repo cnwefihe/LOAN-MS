@@ -9,10 +9,10 @@ import { POLICY_FIELD_LABELS, type PolicyParameters } from "@/lib/finance/policy
 import { DEFAULT_POLICY } from "@/lib/finance/defaults";
 import { processOutbox } from "@/server/email";
 import { assertCan } from "@/server/actor";
-import { setUserRole, setUserActive, revokeUserSessions, setRolePermissions, createRole, deleteRole, updateRoleDetails, upsertSchool, upsertDepartment, upsertCategory, deleteOrgItem, setDepartmentApprover, clearDepartmentApprover, upsertDocumentRequirement, publishTerms, updateTemplate, updateSetting,
+import { setUserRole, setUserActive, setDisplayName, revokeUserSessions, setRolePermissions, createRole, deleteRole, updateRoleDetails, upsertSchool, upsertDepartment, upsertCategory, deleteOrgItem, setDepartmentApprover, clearDepartmentApprover, upsertDocumentRequirement, publishTerms, updateTemplate, updateSetting,
   revokeSession, requeueEmails, updateSettingsGroup, uploadBrandAsset, resetBrandAsset, sendTestEmail,
 } from "@/server/services/admin";
-import { createProduct, setProductActive, createDraftFrom, updateDraft, updateProductDetails, deleteProduct, discardDraft, submitPolicy, approvePolicy, rejectPolicy, retirePolicy } from "@/server/services/policies";
+import { createProduct, setProductActive, createDraftFrom, updateDraft, updateProductDetails, deleteProduct, discardDraft, submitPolicy, approvePolicy, activatePolicyDraft, rejectPolicy, retirePolicy } from "@/server/services/policies";
 import { SETTINGS, SETTING_GROUPS, type SettingKey, type SettingGroup } from "@/server/settings";
 import { isLogoVariant, getBranding } from "@/server/branding";
 import { emailOutbox } from "@/db/schema";
@@ -25,6 +25,13 @@ export async function setUserRoleAction(userId: string, role: string, grant: boo
     await setUserRole(await getDb(), actor, userId, role as RoleCode, grant);
     return grant ? `${role} granted.` : `${role} revoked.`;
   }, { revalidate: ["/admin/users", `/admin/users/${userId}`] });
+}
+
+export async function setDisplayNameAction(userId: string, _: Prev, fd: FormData) {
+  return runAction(async (actor) => {
+    await setDisplayName(await getDb(), actor, userId, str(fd, "displayName"));
+    return "Name saved. It now shows across the system.";
+  }, { revalidate: ["/", `/admin/users/${userId}`] });
 }
 
 export async function setUserActiveAction(userId: string, active: boolean, _: Prev) {
@@ -167,6 +174,13 @@ export async function submitPolicyAction(versionId: string, _: Prev) {
   return runAction(async (actor) => {
     await submitPolicy(await getDb(), actor, versionId);
     return "Submitted for approval.";
+  }, { revalidate: ["/admin/products"] });
+}
+
+export async function activatePolicyAction(versionId: string, _: Prev) {
+  return runAction(async (actor) => {
+    await activatePolicyDraft(await getDb(), actor, versionId);
+    return "Policy activated. New applications use it from now on; existing loans keep their original terms.";
   }, { revalidate: ["/admin/products"] });
 }
 

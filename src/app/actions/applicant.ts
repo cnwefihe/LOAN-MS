@@ -38,8 +38,13 @@ export async function uploadPayslipAction(_: Prev, fd: FormData) {
   return runAction(async (actor) => {
     const f = file(fd, "payslip");
     if (!f) throw new DomainError("Choose your payslip PDF.");
-    await uploadPayslip(await getDb(), actor, f);
-    return { message: "Payslip read." };
+    const slip = await uploadPayslip(await getDb(), actor, f);
+    // Back to the same page, marked as uploaded on this visit, so it is shown.
+    const back = str(fd, "returnTo");
+    if (!back.startsWith("/") || back.startsWith("//")) return { message: "Payslip read." };
+    const url = new URL(back, "http://local");
+    url.searchParams.set("slip", slip.id);
+    return { redirectTo: url.pathname + url.search, message: "Payslip read." };
   }, { revalidate: ["/eligibility", "/applications", "/guarantor"] });
 }
 

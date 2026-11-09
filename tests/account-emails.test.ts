@@ -14,10 +14,11 @@ import { getDb, type Database } from "@/db";
 import * as s from "@/db/schema";
 import { seedBase, seedFixtures } from "@/server/seed";
 import { loadActor, provisionEntraUser } from "@/server/services/identity";
-import { clearDepartmentApprover, deleteOrgItem, setDepartmentApprover, setUserActive, setUserRole } from "@/server/services/admin";
+import { clearDepartmentApprover, deleteOrgItem, setDepartmentApprover, setDisplayName, setUserActive, setUserRole } from "@/server/services/admin";
 import { composeEmail } from "@/server/email";
 import { getBranding } from "@/server/branding";
 import { hrUpdateStaffRecord } from "@/server/services/staff";
+import { activatePolicyDraft, createDraftFrom } from "@/server/services/policies";
 
 let db: Database;
 const ids: Record<string, string> = {};
@@ -112,5 +113,34 @@ describe("organisation: delete and approvers", () => {
     await clearDepartmentApprover(db, a, dept.id, u.id);
     [now] = await db.select().from(s.departments).where(eq(s.departments.id, dept.id));
     expect(now.headUserId).toBeNull();
+  });
+});
+
+describe("policies with one administrator", () => {
+  it("activates a draft in one step, with a default change note", async () => {
+    const a = await admin();
+    const [product] = await db.select().from(s.loanProducts).limit(1);
+    const draft = await createDraftFrom(db, a, product.id);
+    await activatePolicyDraft(db, a, draft.id);
+    const versions = await db.select().from(s.policyVersions).where(eq(s.policyVersions.productId, product.id));
+    const active = versions.filter((v) => v.status === "active");
+    expect(active).toHaveLength(1);
+    expect(active[0].id).toBe(draft.id);
+    expect(active[0].changeNote).toBeTruthy();
+  });
+});
+
+describe("display names", () => {
+  it("keeps a name an administrator set, even after the next Microsoft sign-in", async () => {
+    const a = await admin();
+    const [u] = await db.select().from(s.users).where(eq(s.users.email, person.email));
+    await setDisplayName(db, a, u.id, "Administrator");
+    await provisionEntraUser(person);
+    let [now] = await db.select().from(s.users).where(eq(s.users.id, u.id));
+    expect(now.displayName).toBe("Administrator");
+    await setDisplayName(db, a, u.id, "");
+    await provisionEntraUser(person);
+    [now] = await db.select().from(s.users).where(eq(s.users.id, u.id));
+    expect(now.displayName).toBe("Ada New");
   });
 });

@@ -57,6 +57,20 @@ export async function setUserRole(db: Executor, actor: Actor, userId: string, ro
   });
 }
 
+/** The name shown everywhere for this person. Blank goes back to the Microsoft account name at the next sign-in. */
+export async function setDisplayName(db: Executor, actor: Actor, userId: string, name: string) {
+  assertCan(actor, "admin.users.manage");
+  const clean = name.trim().replace(/\s+/g, " ");
+  if (clean.length > 200) throw new DomainError("Keep the name to 200 characters or fewer.");
+  return db.transaction(async (tx) => {
+    const [before] = await tx.select({ displayName: users.displayName }).from(users).where(eq(users.id, userId));
+    if (!before) throw new NotFoundError("User");
+    if (clean) await tx.update(users).set({ displayName: clean, nameLocked: true, updatedAt: new Date() }).where(eq(users.id, userId));
+    else await tx.update(users).set({ nameLocked: false, updatedAt: new Date() }).where(eq(users.id, userId));
+    await audit(tx, actor, { action: "user.renamed", entityType: "user", entityId: userId, summary: clean ? `Display name set to "${clean}"` : "Display name returned to the Microsoft account name", before, after: { displayName: clean || null } });
+  });
+}
+
 export async function setUserActive(db: Executor, actor: Actor, userId: string, isActive: boolean) {
   assertCan(actor, "admin.users.manage");
   if (userId === actor.userId && !isActive) throw new DomainError("You cannot deactivate your own account.");

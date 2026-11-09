@@ -34,7 +34,8 @@ export function PayslipBreakdown({ a, period, guarantees, instalment, who = "you
     { label: "Basic + medical", amount: a.payForLending, tone: "total" },
     { label: "tax (PAYE)", amount: a.tax, tone: "less" },
     { label: "pension", amount: a.pension, tone: "less" },
-    { label: "NHF", amount: a.nhf, tone: "less", note: dec(a.nhf).greaterThan(0) ? undefined : "Not deducted" },
+    // NHF only appears for people who contribute to it, as shown on their payslip.
+    ...(dec(a.nhf).greaterThan(0) ? [{ label: "NHF", amount: a.nhf, tone: "less" } as Row] : []),
     { label: "Net pay", amount: a.netPay, tone: "key" },
     { label: `Deduction limit (${a.capPercent}% of net pay)`, amount: a.limit, tone: "total" },
     ...a.commitments.map((c): Row => ({

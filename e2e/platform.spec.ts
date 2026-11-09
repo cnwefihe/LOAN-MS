@@ -207,7 +207,6 @@ test.describe.serial("application lifecycle through the UI", () => {
     await signIn(page, "Seun Bakare"); // no loan yet
     await page.goto("/eligibility");
     // A payslip that is not theirs is refused, with the reason.
-    await page.getByRole("button", { name: "Replace" }).click();
     await page.getByLabel("Your latest payslip (PDF)").setInputFiles({ name: "payslip.pdf", mimeType: "application/pdf", buffer: Buffer.from(await renderPayslipPdf(samplePayslip({ name: "Someone Else", code: "DEV-9999", grade: "Lecturer II Step 4", period: "2026-10", basic: "350000", medical: "24500", tax: "52500", pension: "28000" }))) });
     await page.getByRole("button", { name: "Read payslip" }).click();
     await expect(page.getByText(/does not match your profile/)).toBeVisible();
