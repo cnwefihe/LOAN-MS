@@ -14,7 +14,7 @@ import { seedBase, seedFixtures } from "@/server/seed";
 import { loadActor } from "@/server/services/identity";
 import { saveDraft, submitApplication } from "@/server/services/applications";
 import { respondToGuarantee } from "@/server/services/guarantors";
-import { storeDocument } from "@/server/services/documents";
+import { canAccessDocument, storeDocument } from "@/server/services/documents";
 import { remindWaitingWork } from "@/server/services/reminders";
 import { updateSettingsGroup } from "@/server/services/admin";
 import { addDays, todayLagos } from "@/lib/finance/dates";
@@ -42,6 +42,16 @@ beforeAll(async () => {
     const [u] = await db.select().from(s.users).where(eq(s.users.id, g.guarantorId));
     await respondToGuarantee(db, (await loadActor(db, g.guarantorId, { ip: null, userAgent: null }))!, g.id, { decision: "accept", typedName: u.displayName, confirmations: [true, true, true], relationship: "Colleague", phone: "08030000000" });
   }
+});
+
+describe("guarantors and the borrower's documents", () => {
+  it("a guarantor cannot open the borrower's payslip", async () => {
+    const g = await A("guarantor1");
+    const docs = await db.select().from(s.documents).where(eq(s.documents.requirementCode, "PAYSLIP"));
+    const onApplication = docs.filter((d) => d.applicationId);
+    expect(onApplication.length).toBeGreaterThan(0);
+    for (const d of onApplication) expect(await canAccessDocument(db, g, d)).toBe(false);
+  });
 });
 
 describe("work reminders", () => {

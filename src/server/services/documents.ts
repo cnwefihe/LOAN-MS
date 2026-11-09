@@ -109,7 +109,9 @@ export async function canAccessDocument(db: Executor, actor: Actor, doc: typeof 
     inArray(applicationGuarantors.status, ["pending", "accepted", "clarification_requested"]),
   ));
   if (!g) return false;
-  if (doc.category === "applicant_supporting" || doc.category === "loan_agreement") return true;
+  // The borrower's payslip holds their salary, which a guarantor does not need (see the privacy notice).
+  if (doc.category === "applicant_supporting") return doc.requirementCode !== "PAYSLIP";
+  if (doc.category === "loan_agreement") return true;
   if (doc.category === "guarantor_agreement" || doc.category === "guarantor_supporting") return doc.applicationGuarantorId === g.id;
   return false;
 }

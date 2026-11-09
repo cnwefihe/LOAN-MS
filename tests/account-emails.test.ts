@@ -18,6 +18,7 @@ import { clearDepartmentApprover, deleteOrgItem, setDepartmentApprover, setDispl
 import { composeEmail } from "@/server/email";
 import { getBranding } from "@/server/branding";
 import { hrUpdateStaffRecord } from "@/server/services/staff";
+import { DEFAULT_PRIVACY_BODY } from "@/lib/privacy-default";
 import { activatePolicyDraft, createDraftFrom } from "@/server/services/policies";
 
 let db: Database;
@@ -142,5 +143,15 @@ describe("display names", () => {
     await provisionEntraUser(person);
     [now] = await db.select().from(s.users).where(eq(s.users.id, u.id));
     expect(now.displayName).toBe("Ada New");
+  });
+});
+
+describe("privacy notice", () => {
+  it("a new installation publishes exactly the current notice", async () => {
+    const [n] = await db.select().from(s.termsDocuments).where(eq(s.termsDocuments.kind, "privacy_notice"));
+    expect(n.isActive).toBe(true);
+    expect(n.body).toBe(DEFAULT_PRIVACY_BODY);
+    expect(n.body).toContain("## What guarantors see");
+    expect(n.body).not.toContain("Section 11");
   });
 });

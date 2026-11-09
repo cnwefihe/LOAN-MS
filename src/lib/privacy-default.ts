@@ -52,9 +52,12 @@ Payroll | Deduction instructions, to implement repayments
 Internal Audit and Internal Control | Records needed for control testing and audit
 System administrators | Configuration and support. They cannot read salary, bank or document content in the ordinary course; any exceptional access is approved and logged.
 Data Protection Officer | Records needed to handle rights requests, complaints and incidents
-Guarantors | Only the loan details relevant to their obligation (Section 11)
+Guarantors | Only the loan details relevant to their obligation (see "What guarantors see" below)
 
 Every access to documents is logged. Data is not sold or shared outside the University except where required by law.
+
+## What guarantors see
+A guarantor sees what they need to decide and to understand their obligation: the borrower's name, department, designation, length of service and contact details (phone, email and residential address); the loan purpose, amount, tenor, instalment and total repayable; the share they guarantee; the loan's repayment status; and the loan agreement and the documents supporting the loan purpose. A guarantor does not see the borrower's salary, payslip or bank details.
 
 ## How long we keep it
 Loan, ledger and audit records are kept for the period set in the University's records-retention schedule for financial records. Operational data (read notifications, expired sessions, delivered email copies) is deleted automatically after the periods configured by the administrators.
