@@ -9,14 +9,15 @@ import { saveTemplateAction } from "@/app/actions/admin";
 
 export const metadata = { title: "Notification template" };
 
-export default async function EditTemplate({ params }: { params: Promise<{ code: string }> }) {
+export default async function EditTemplate({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ from?: string }> }) {
   await requireActor("admin.content.manage");
   const { code } = await params;
+  const sp = await searchParams;
   const [t] = await (await getDb()).select().from(notificationTemplates).where(eq(notificationTemplates.code, code));
   if (!t) notFound();
   return (
     <>
-      <PageHeader title={t.name} crumbs={[{ label: "Administration", href: "/admin" }, { label: "Templates", href: "/admin/content?tab=templates" }, { label: t.name }]} />
+      <PageHeader title={t.name} crumbs={[{ label: "Administration", href: "/admin" }, { label: "Templates", href: (sp.from?.startsWith("/admin/content") ? sp.from : "/admin/content?tab=templates") }, { label: t.name }]} />
       <Card className="max-w-3xl" description="Placeholders such as {{reference}} and {{amount}} are filled in automatically." title="Message">
         <ActionForm action={saveTemplateAction.bind(null, t.code)} submitLabel="Save template">
           <label htmlFor="subject" className="label">Subject</label>

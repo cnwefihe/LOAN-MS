@@ -11,16 +11,17 @@ export const metadata = { title: "Edit terms" };
 
 const LABELS = { loan_terms: "Loan terms & conditions", guarantor_agreement: "Guarantor agreement" } as const;
 
-export default async function EditTerms({ params }: { params: Promise<{ kind: string }> }) {
+export default async function EditTerms({ params, searchParams }: { params: Promise<{ kind: string }>; searchParams: Promise<{ from?: string }> }) {
   await requireActor("admin.content.manage");
   const { kind } = await params;
+  const sp = await searchParams;
   if (kind !== "loan_terms" && kind !== "guarantor_agreement") notFound();
   const db = await getDb();
   const list = await db.select().from(termsDocuments).where(eq(termsDocuments.kind, kind)).orderBy(desc(termsDocuments.version));
   const active = list.find((t) => t.isActive);
   return (
     <>
-      <PageHeader title={LABELS[kind]} crumbs={[{ label: "Administration", href: "/admin" }, { label: "Templates", href: "/admin/content" }, { label: LABELS[kind] }]} />
+      <PageHeader title={LABELS[kind]} crumbs={[{ label: "Administration", href: "/admin" }, { label: "Templates", href: (sp.from?.startsWith("/admin/content") ? sp.from : "/admin/content") }, { label: LABELS[kind] }]} />
       {active?.body.includes("[PLACEHOLDER") && <div className="mb-6"><Alert tone="warning" title="Placeholder text">Replace with the approved institutional text before go-live.</Alert></div>}
       <div className="grid items-start gap-6 xl:grid-cols-3">
         <Card title="Current text" description="Publishing creates a new version. It applies to new submissions only." className="xl:col-span-2">

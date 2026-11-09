@@ -12,9 +12,10 @@ export const metadata = { title: "Document requirement" };
 const UUID = /^[0-9a-f-]{36}$/i;
 
 /** Handles both a new requirement ("new") and an existing one. */
-export default async function EditRequirement({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditRequirement({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string }> }) {
   await requireActor("admin.content.manage");
   const { id } = await params;
+  const sp = await searchParams;
   const isNew = id === "new";
   if (!isNew && !UUID.test(id)) notFound();
   const db = await getDb();
@@ -24,7 +25,7 @@ export default async function EditRequirement({ params }: { params: Promise<{ id
   const title = r?.label ?? "New requirement";
   return (
     <>
-      <PageHeader title={title} crumbs={[{ label: "Administration", href: "/admin" }, { label: "Templates", href: "/admin/content?tab=documents" }, { label: title }]} />
+      <PageHeader title={title} crumbs={[{ label: "Administration", href: "/admin" }, { label: "Templates", href: (sp.from?.startsWith("/admin/content") ? sp.from : "/admin/content?tab=documents") }, { label: title }]} />
       <Card className="max-w-2xl">
         <ActionForm action={saveRequirementAction.bind(null, r?.id ?? null)} submitLabel={isNew ? "Add requirement" : "Save requirement"}>
           <label htmlFor="label" className="label">Label shown to staff</label>

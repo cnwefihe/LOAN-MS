@@ -40,6 +40,9 @@ function Subject({ text }: { text: string }) {
 export default async function Content({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; category?: string; page?: string; size?: string }> }) {
   await requireActor("admin.content.manage");
   const { tab = "terms", q, category, page, size } = await searchParams;
+  // Edit pages link back here with the same tab, search, filter and page.
+  const here = new URLSearchParams(Object.entries({ tab, q, category, page, size }).filter(([, v]) => v) as [string, string][]).toString();
+  const back = `?from=${encodeURIComponent(`/admin/content?${here}`)}`;
   const db = await getDb();
   const [terms, reqs, templates, products] = await Promise.all([
     db.select().from(termsDocuments).orderBy(termsDocuments.kind, desc(termsDocuments.version)),
@@ -73,7 +76,7 @@ export default async function Content({ searchParams }: { searchParams: Promise<
                     <Td>{active ? `Version ${active.version}` : "-"}</Td>
                     <Td>{active ? <DateText value={active.createdAt} /> : "-"}</Td>
                     <Td>{!active ? <Badge tone="warning">None active</Badge> : active.body.includes("[PLACEHOLDER") ? <Badge tone="warning">Placeholder text</Badge> : <Badge tone="success">Active</Badge>}</Td>
-                    <Td right><RowMenu label={label} items={[{ label: "Edit", href: `/admin/content/terms/${kind}` }]} /></Td>
+                    <Td right><RowMenu label={label} items={[{ label: "Edit", href: `/admin/content/terms/${kind}${back}` }]} /></Td>
                   </tr>
                 );
               })}
@@ -96,7 +99,7 @@ export default async function Content({ searchParams }: { searchParams: Promise<
                     <Td>{r.appliesTo === "guarantor" ? "Guarantor" : "Applicant"}</Td>
                     <Td>{r.isRequired ? "Yes" : "No"}</Td>
                     <Td>{r.isActive ? <Badge tone="success">Active</Badge> : <Badge>Inactive</Badge>}</Td>
-                    <Td right><RowMenu label={r.label} items={[{ label: "Edit", href: `/admin/content/documents/${r.id}` }]} /></Td>
+                    <Td right><RowMenu label={r.label} items={[{ label: "Edit", href: `/admin/content/documents/${r.id}${back}` }]} /></Td>
                   </tr>
                 ))}
               </tbody>
@@ -121,7 +124,7 @@ export default async function Content({ searchParams }: { searchParams: Promise<
                       <Td className="max-w-md truncate text-muted"><Subject text={t.subject} /></Td>
                       <Td>{t.sendEmail ? "Email and in-app" : "In-app only"}</Td>
                       <Td>{t.isActive ? <Badge tone="success">Active</Badge> : <Badge>Disabled</Badge>}</Td>
-                      <Td right><RowMenu label={t.name} items={[{ label: "Edit", href: `/admin/content/templates/${t.code}` }]} /></Td>
+                      <Td right><RowMenu label={t.name} items={[{ label: "Edit", href: `/admin/content/templates/${t.code}${back}` }]} /></Td>
                     </tr>
                   </Fragment>
                 ))}
