@@ -43,7 +43,9 @@ export default async function Settings({ searchParams }: { searchParams: Promise
           </ul>
         </nav>
         {/* Keyed so a change of section shows that section's saved values. */}
-        <Card key={active} title={active} description={DESCRIPTIONS[active]}>
+        <Card key={active} title={active} description={active === "Privacy"
+          ? <>The contact shown in the privacy notice. To change the notice itself, go to <Link href="/admin/content/terms/privacy_notice" className="link">Templates &gt; Privacy notice</Link>.</>
+          : DESCRIPTIONS[active]}>
           <SettingsGroupForm group={active} values={values} />
         </Card>
       </div>

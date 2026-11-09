@@ -12,7 +12,7 @@ import { RowMenu } from "@/components/row-menu";
 
 export const metadata = { title: "Terms & templates" };
 
-const KINDS = [["loan_terms", "Loan terms & conditions"], ["guarantor_agreement", "Guarantor agreement"]] as const;
+const KINDS = [["loan_terms", "Loan terms & conditions"], ["guarantor_agreement", "Guarantor agreement"], ["privacy_notice", "Privacy notice"]] as const;
 
 const CATEGORIES = ["Accounts", "Applications", "Guarantors", "Loans", "Repayments", "Reminders", "Other"];
 
@@ -75,7 +75,7 @@ export default async function Content({ searchParams }: { searchParams: Promise<
                     <Td>{active?.title ?? "-"}</Td>
                     <Td>{active ? `Version ${active.version}` : "-"}</Td>
                     <Td>{active ? <DateText value={active.createdAt} /> : "-"}</Td>
-                    <Td>{!active ? <Badge tone="warning">None active</Badge> : active.body.includes("[PLACEHOLDER") ? <Badge tone="warning">Placeholder text</Badge> : <Badge tone="success">Active</Badge>}</Td>
+                    <Td>{!active ? (kind === "privacy_notice" ? <Badge tone="warning">Draft wording</Badge> : <Badge tone="warning">None active</Badge>) : active.body.includes("[PLACEHOLDER") ? <Badge tone="warning">Placeholder text</Badge> : <Badge tone="success">Active</Badge>}</Td>
                     <Td right><RowMenu label={label} items={[{ label: "Edit", href: `/admin/content/terms/${kind}${back}` }]} /></Td>
                   </tr>
                 );

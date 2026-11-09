@@ -254,10 +254,13 @@ export async function saveRequirementAction(id: string | null, _: Prev, fd: Form
 
 export async function publishTermsAction(_: Prev, fd: FormData) {
   return runAction(async (actor) => {
-    const kind = str(fd, "kind") === "guarantor_agreement" ? "guarantor_agreement" : "loan_terms";
+    const raw = str(fd, "kind");
+    const kind = raw === "guarantor_agreement" || raw === "privacy_notice" ? raw : "loan_terms";
     const t = await publishTerms(await getDb(), actor, { kind, title: str(fd, "title", true), body: str(fd, "body", true) });
-    return `Published ${kind.replace("_", " ")} v${t.version}. New submissions and acceptances will use this version.`;
-  }, { revalidate: ["/admin/content", "/admin/content/terms/loan_terms", "/admin/content/terms/guarantor_agreement"] });
+    return kind === "privacy_notice"
+      ? `Published privacy notice version ${t.version}. It now shows on the privacy page.`
+      : `Published ${kind.replace("_", " ")} v${t.version}. New submissions and acceptances will use this version.`;
+  }, { revalidate: ["/admin/content", "/admin/content/terms/loan_terms", "/admin/content/terms/guarantor_agreement", "/admin/content/terms/privacy_notice", "/privacy"] });
 }
 
 export async function saveTemplateAction(code: string, _: Prev, fd: FormData) {
