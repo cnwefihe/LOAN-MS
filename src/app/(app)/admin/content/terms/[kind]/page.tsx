@@ -30,7 +30,7 @@ export default async function EditTerms({ params, searchParams }: { params: Prom
       <PageHeader title={LABELS[kind]} crumbs={[{ label: "Administration", href: "/admin" }, { label: "Templates", href: (sp.from?.startsWith("/admin/content") ? sp.from : "/admin/content") }, { label: LABELS[kind] }]} />
       {active?.body.includes("[PLACEHOLDER") && <div className="mb-6"><Alert tone="warning" title="Placeholder text">Replace with the approved institutional text before go-live.</Alert></div>}
       <div className="grid items-start gap-6 xl:grid-cols-3">
-        <Card title="Current text" description={privacy ? "Shown on the privacy page. Start a line with ## for a heading and - for a list item. {institution}, {system} and {dpo} are filled in automatically." : "Publishing creates a new version. It applies to new submissions only."} className="xl:col-span-2">
+        <Card title="Current text" description={privacy ? "Shown on the privacy page. Start a line with ## for a heading or - for a list item. Separate table cells with | (first row is the header). Wrap words in ** for bold. {dpo} is filled in with the DPO email from Settings." : "Publishing creates a new version. It applies to new submissions only."} className="xl:col-span-2">
           <ActionForm action={publishTermsAction} submitLabel="Publish as new version" confirm={privacy ? "Publish this privacy notice? It replaces the one staff see now." : "Publish this version? It applies to new submissions only."}>
             <input type="hidden" name="kind" value={kind} />
             <label htmlFor="title" className="label">Title</label><input id="title" name="title" defaultValue={title} required className="input" />

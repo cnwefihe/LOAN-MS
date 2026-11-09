@@ -162,6 +162,13 @@
       "when": 1794213597313,
       "tag": "0022_display_name_locked",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1794300000000,
+      "tag": "0023_privacy_notice",
+      "breakpoints": true
     }
   ]
 }

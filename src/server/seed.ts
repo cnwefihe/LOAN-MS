@@ -80,7 +80,8 @@ export async function seedBase(db: Executor) {
   await seedSuggestedProducts(db);
   await seedSampleOrganisation(db);
   await ensureInitialRelease(db);
-  const [anyTerms] = await db.select({ id: termsDocuments.id }).from(termsDocuments).limit(1);
+  // Loan terms and the guarantor agreement; the privacy notice is published separately.
+  const [anyTerms] = await db.select({ id: termsDocuments.id }).from(termsDocuments).where(inArray(termsDocuments.kind, ["loan_terms", "guarantor_agreement"])).limit(1);
   if (!anyTerms) {
     await db.insert(termsDocuments).values([
       {
