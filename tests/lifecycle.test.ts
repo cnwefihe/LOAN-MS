@@ -29,6 +29,7 @@ import { recordHrDecision } from "@/server/services/hr";
 import { decideApplication } from "@/server/services/approvals";
 import { reviewByBursary } from "@/server/services/bursary";
 import { storeDocument } from "@/server/services/documents";
+import { removeTestApplication } from "@/server/services/cleanup";
 import {
   recordDisbursement, submitRepaymentClaim, confirmRepaymentClaim, recordRepayment, approvePendingTransaction,
   proposeEarlySettlement, runServicing, requestRestructure, decideRestructure, getLoanDetail,
@@ -296,6 +297,22 @@ describe("full loan lifecycle", () => {
     const policy = (await getActivePolicy(db, productId))!.params;
     const forHr = await computeEligibilityFor(db, u.id, policy, { requestedAmount: "100000", tenorMonths: 6, excludeApplicationId: r.id });
     expect(forHr.reasons.join(" ")).toMatch(/minimum of .* of service/);
+  });
+
+  it("a test application can be removed with everything recorded about it, but not one that became a loan", async () => {
+    const [u] = await db.select().from(s.users).where(eq(s.users.email, "recent.joiner.dev@example.edu.ng"));
+    const [app] = await db.select().from(s.loanApplications).where(eq(s.loanApplications.applicantId, u.id));
+    const slips = await db.select().from(s.staffPayslips).where(eq(s.staffPayslips.userId, u.id));
+    await removeTestApplication(db, app.reference, { confirm: false });
+    expect(await db.select().from(s.loanApplications).where(eq(s.loanApplications.id, app.id))).toHaveLength(1);
+    const counts = await removeTestApplication(db, app.reference, { confirm: true });
+    expect(counts.find(([l]) => l === "application")?.[1]).toBe(1);
+    expect(await db.select().from(s.loanApplications).where(eq(s.loanApplications.id, app.id))).toHaveLength(0);
+    expect(await db.select().from(s.auditLogs).where(eq(s.auditLogs.entityId, app.id))).toHaveLength(0);
+    expect(await db.select().from(s.staffPayslips).where(eq(s.staffPayslips.userId, u.id))).toHaveLength(slips.length);
+    const [loan] = await db.select().from(s.loanAccounts).limit(1);
+    const [loanApp] = await db.select().from(s.loanApplications).where(eq(s.loanApplications.id, loan.applicationId));
+    await expectErr(removeTestApplication(db, loanApp.reference, { confirm: true }), /became a loan/);
   });
 
   it("HR's Confirmed / Not confirmed switch decides loan eligibility on the server", async () => {

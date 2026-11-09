@@ -15,7 +15,8 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build \
  && npx esbuild scripts/migrate.ts --bundle --platform=node --format=cjs --outfile=dist/migrate.cjs --external:pg-native --external:@electric-sql/pglite \
- && npx esbuild scripts/seed.ts --bundle --platform=node --format=cjs --outfile=dist/seed.cjs --external:pg-native --external:@electric-sql/pglite
+ && npx esbuild scripts/seed.ts --bundle --platform=node --format=cjs --outfile=dist/seed.cjs --external:pg-native --external:@electric-sql/pglite \
+ && npx esbuild scripts/delete-application.ts --bundle --platform=node --format=cjs --outfile=dist/delete-application.cjs --external:pg-native --external:@electric-sql/pglite
 
 FROM node:22-alpine AS runtime
 WORKDIR /app
@@ -28,6 +29,7 @@ COPY --from=build /app/drizzle ./drizzle
 # The migration and seed scripts carry their own libraries: the server bundle does not include them.
 COPY --from=build /app/dist/migrate.cjs ./scripts/migrate.cjs
 COPY --from=build /app/dist/seed.cjs ./scripts/seed.cjs
+COPY --from=build /app/dist/delete-application.cjs ./scripts/delete-application.cjs
 RUN mkdir -p /app/storage && chown -R app:app /app/storage
 USER app
 EXPOSE 3000
