@@ -15,7 +15,7 @@ export default async function EligibilityPage({ searchParams }: { searchParams: 
   const sp = await searchParams;
   const db = await getDb();
   const products = await listOpenProducts(db);
-  const { payslipId: _, ...all } = await staffContext(db, actor.userId);
+  const { payslipId: _, ...all } = await staffContext(db, actor.userId, { checkRecord: false });
   const latest = await latestPayslip(db, actor.userId);
   // Each visit starts afresh: only a payslip uploaded on this visit is used.
   const slip = latest && sp.slip === latest.id ? latest : null;

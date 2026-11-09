@@ -25,7 +25,7 @@ import { attachPayslip, getPayslip, latestPayslip } from "./payslips";
 export type SalarySnapshot = SalaryFigures & { source: string };
 
 /** Everything about a staff member that eligibility depends on (also sent to the live calculator). */
-export async function staffContext(db: Executor, userId: string, opts: { excludeApplicationId?: string; payslipId?: string | null } = {}): Promise<StaffContext & { payslipId: string | null }> {
+export async function staffContext(db: Executor, userId: string, opts: { excludeApplicationId?: string; payslipId?: string | null; checkRecord?: boolean } = {}): Promise<StaffContext & { payslipId: string | null }> {
   const rec = await getStaffRecord(db, userId);
   // The payslip the application was assessed on, or else the latest one uploaded.
   const slip = opts.payslipId ? await getPayslip(db, opts.payslipId) : await latestPayslip(db, userId);
@@ -37,12 +37,13 @@ export async function staffContext(db: Executor, userId: string, opts: { exclude
     payslip: slip?.data ?? null, payslipId: slip?.id ?? null,
     serviceMonths: rec.serviceMonths, employmentStatus: rec.profile?.employmentStatus ?? null, guaranteeCommitment,
     openCount: obligations.liveLoanCount + obligations.inFlightApplications, oneLoanAtATime: rules["lending.oneLoanAtATime"],
+    checkRecord: opts.checkRecord ?? true,
   };
 }
 
 export async function computeEligibilityFor(
   db: Executor, userId: string, policy: PolicyParameters,
-  opts: { requestedAmount?: string; tenorMonths?: number; excludeApplicationId?: string; payslipId?: string | null; advanceType?: AdvanceType | null },
+  opts: { requestedAmount?: string; tenorMonths?: number; excludeApplicationId?: string; payslipId?: string | null; advanceType?: AdvanceType | null; checkRecord?: boolean },
 ): Promise<StaffEligibility & { payslipId: string | null }> {
   const ctx = await staffContext(db, userId, opts);
   const r = assessForStaff(policy, ctx, { requestedAmount: opts.requestedAmount, tenorMonths: opts.tenorMonths, asOf: todayLagos(), advanceType: opts.advanceType });
@@ -58,7 +59,7 @@ export async function quoteForApplicant(db: Executor, actor: Actor, input: { pro
   assertCan(actor, "application.create");
   const policy = await getActivePolicy(db, input.productId);
   if (!policy) throw new DomainError("This loan product is not currently open for applications.");
-  return computeEligibilityFor(db, actor.userId, policy.params, input);
+  return computeEligibilityFor(db, actor.userId, policy.params, { ...input, checkRecord: false });
 }
 
 /* ───────────────────────── Drafts ───────────────────────── */
@@ -96,7 +97,7 @@ export async function saveDraft(db: Executor, actor: Actor, input: DraftInput) {
     const nominated = isAdvance ? [] : emails;
     // Assessed on the latest payslip uploaded.
     const elig = await computeEligibilityFor(tx, actor.userId, policy.params, {
-      requestedAmount: input.requestedAmount, tenorMonths, excludeApplicationId: input.applicationId, advanceType,
+      requestedAmount: input.requestedAmount, tenorMonths, excludeApplicationId: input.applicationId, advanceType, checkRecord: false,
     });
     if (!elig.payslipId) throw new DomainError("Upload your latest payslip first.");
     const values = {
@@ -164,7 +165,7 @@ export async function submitApplication(db: Executor, actor: Actor, applicationI
     if (!policy) throw new DomainError("This loan product is no longer open for applications.");
     const p = policy.params;
     const elig = await computeEligibilityFor(tx, actor.userId, p, {
-      requestedAmount: app.requestedAmount, tenorMonths: app.tenorMonths, excludeApplicationId: app.id, ...assessedWith(app),
+      requestedAmount: app.requestedAmount, tenorMonths: app.tenorMonths, excludeApplicationId: app.id, ...assessedWith(app), checkRecord: false,
     });
     if (!elig.eligible) throw new DomainError(`This application is not eligible: ${elig.reasons.join(" ")}`);
     if (!elig.quote) throw new DomainError("Could not compute a repayment quote.");

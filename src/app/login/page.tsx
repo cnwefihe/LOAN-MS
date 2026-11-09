@@ -52,7 +52,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     <div className="flex min-h-screen flex-col bg-canvas">
       <div className="h-1.5 bg-navy" aria-hidden />
       <main id="main" className="flex flex-1 flex-col items-center justify-center px-4 py-10">
-        <div className="w-full max-w-sm rounded-lg border border-line bg-white px-8 py-9 shadow-sm">
+        {/* Same size as the two-step verification card. */}
+        <div className="flex min-h-[30.5rem] w-full max-w-sm flex-col justify-center rounded-lg border border-line bg-white px-8 py-8 shadow-sm">
           <div className="text-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={logoUrl(brand, "logo")} alt={brand.institutionName} className="mx-auto h-16 w-auto" />
