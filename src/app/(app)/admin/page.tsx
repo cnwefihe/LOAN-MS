@@ -3,6 +3,7 @@ import { and, desc, eq, inArray, isNull, lt, notInArray, sql } from "drizzle-orm
 import { getDb } from "@/db";
 import { users, auditLogs, policyVersions, departments, financialTransactions, loanAccounts, loanApplications, loanProducts, emailOutbox, repaymentClaims, sessions } from "@/db/schema";
 import { requireActor } from "@/lib/auth/session";
+import { can } from "@/server/actor";
 import { connectionStatus } from "@/server/integrations/status";
 import { AlertTriangle, CheckCircle2, ClipboardCheck, FileText, Wallet, type LucideIcon } from "lucide-react";
 import { Card, Money, PageHeader, DateText, Badge } from "@/components/ui";
@@ -68,7 +69,7 @@ export default async function AdminHome() {
   const toReview = [
     { label: "Policies awaiting approval", n: Number(pend.n), href: "/admin/products" },
     { label: "Pending authorisations", n: Number(checker.n), href: "/accounts/approvals" },
-    { label: `Applications waiting over ${durationText(escalateMinutes)}`, n: stuck.length, href: "/hr/applications?status=" },
+    { label: `Applications waiting over ${durationText(escalateMinutes)}`, n: stuck.length, href: can(actor, "hr.queue.view") ? "/hr/applications?status=" : "/reports?tab=library" },
     { label: "Departments with no Line Manager", n: noHead.length, href: "/admin/organisation" },
     { label: "Undelivered emails", n: Number(mail.n), href: "/admin/outbox" },
     { label: "Overdue or defaulted loans", n: overdue.length, href: "/accounts/loans?status=overdue" },
@@ -76,11 +77,11 @@ export default async function AdminHome() {
   const autoRunning = !!lastAuto && Date.now() - lastAuto.at.getTime() < 2 * DAY_MS;
   const atStatus = (s: string) => pipeline.find((x) => x.status === s)?.n ?? 0;
   const stages = [
-    { label: "Human Resources", n: atStatus("pending_hr"), href: "/hr/applications" },
+    { label: "Human Resources", n: atStatus("pending_hr"), href: can(actor, "hr.queue.view") ? "/hr/applications" : undefined },
     { label: "Bursary", n: atStatus("pending_bursary") },
-    { label: "Line Manager", n: atStage(1), href: "/approvals" },
-    { label: "HR Director", n: atStage(2), href: "/approvals" },
-    { label: "Bursar", n: atStage(3), href: "/approvals" },
+    { label: "Line Manager", n: atStage(1), href: can(actor, "approval.queue.view") ? "/approvals" : undefined },
+    { label: "HR Director", n: atStage(2), href: can(actor, "approval.queue.view") ? "/approvals" : undefined },
+    { label: "Bursar", n: atStage(3), href: can(actor, "approval.queue.view") ? "/approvals" : undefined },
     { label: "Payment", n: Number(awaitingPayment.n), href: "/accounts/disbursements" },
   ];
   const inProgress = stages.reduce((sum, x) => sum + x.n, 0);

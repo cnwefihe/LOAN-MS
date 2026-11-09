@@ -132,10 +132,12 @@ describe("PDF security markings", () => {
 });
 
 describe("administrator privileges", () => {
-  it("the Super Administrator role holds every administration permission plus oversight of all queues", () => {
+  it("the Super Administrator role holds every administration permission and portfolio oversight, but no staff pay data", () => {
     const granted = ROLE_DEFINITIONS.SUPER_ADMIN.permissions;
     for (const p of ALL_PERMISSIONS.filter((x) => x.startsWith("admin."))) expect(granted).toContain(p);
-    for (const p of ["hr.queue.view", "approval.queue.view", "accounts.view", "reports.export", "documents.view_all"] as const) expect(granted).toContain(p);
+    for (const p of ["accounts.view", "reports.export"] as const) expect(granted).toContain(p);
+    // As the privacy notice states: no salaries, payslips, staff records or uploaded documents.
+    for (const p of ["hr.queue.view", "hr.staff.view", "hr.staff.edit", "approval.queue.view", "documents.view_all"] as const) expect(granted).not.toContain(p);
     expect(granted).not.toContain("transaction.approve"); // segregation of duties
   });
 

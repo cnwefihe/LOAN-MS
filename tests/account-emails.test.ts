@@ -85,10 +85,10 @@ describe("account emails", () => {
 });
 
 describe("administrators and staff records", () => {
-  it("lets a Super Administrator edit another person's record, but not their own", async () => {
+  it("keeps salaries, staff records and documents away from administrators", async () => {
     const a = await admin();
-    expect(a.permissions.has("hr.staff.edit")).toBe(true);
-    await expect(hrUpdateStaffRecord(db, a, ids.admin, { designation: "Own change" } as never, "Test")).rejects.toThrow(/your own/);
+    for (const p of ["hr.staff.view", "hr.staff.edit", "hr.queue.view", "approval.queue.view", "documents.view_all"] as const) expect(a.permissions.has(p), p).toBe(false);
+    await expect(hrUpdateStaffRecord(db, a, ids.applicant, { designation: "Change" } as never, "Test")).rejects.toThrow();
   });
 });
 

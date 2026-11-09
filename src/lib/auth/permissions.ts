@@ -98,7 +98,7 @@ export const ROLE_DEFINITIONS: Record<RoleCode, { name: string; description: str
     permissions: [
       "admin.users.manage", "admin.roles.manage", "admin.policy.manage", "admin.policy.approve", "admin.org.manage",
       "admin.content.manage", "admin.settings.manage", "admin.audit.view", "reports.view", "reports.export", "accounts.view",
-      "hr.queue.view", "hr.staff.view", "hr.staff.edit", "approval.queue.view", "documents.view_all", "servicing.run",
+      "servicing.run",
     ],
   },
 };

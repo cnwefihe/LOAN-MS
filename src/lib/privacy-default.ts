@@ -50,7 +50,7 @@ Approving authority | Application, repayment capacity indicators and guarantor d
 Bursary / Finance | Bank details, disbursement, repayment and ledger records
 Payroll | Deduction instructions, to implement repayments
 Internal Audit and Internal Control | Records needed for control testing and audit
-System administrators | Configuration and support. [CONFIRM: they cannot read salary, bank or document content in the ordinary course; any exceptional access is approved and logged.]
+System administrators | Configuration and support. They cannot read salary, bank or document content in the ordinary course; any exceptional access is approved and logged.
 Data Protection Officer | Records needed to handle rights requests, complaints and incidents
 Guarantors | Only the loan details relevant to their obligation (Section 11)
 

@@ -38,7 +38,7 @@ export default async function ManageUser({ params }: { params: Promise<{ id: str
               ["Status", <span key="status" className="flex gap-1">{u.isActive ? <Badge tone="success">Active</Badge> : <Badge tone="danger">Inactive</Badge>}{u.isDevFixture && <Badge tone="warning">Dev fixture</Badge>}</span>],
               ["Two-step verification", u.mfaEnabledAt ? "On" : "Off"],
               ["Last sign-in", u.lastLoginAt ? <DateText key="login" value={u.lastLoginAt} withTime /> : "Never"],
-              ["Staff record", u.staff ? <Link key="staff" className="link" href={`/hr/staff/${u.id}`}>View</Link> : "-"],
+              ...(can(actor, "hr.staff.view") ? [["Staff record", u.staff ? <Link key="staff" className="link" href={`/hr/staff/${u.id}`}>View</Link> : "-"] as [string, React.ReactNode]] : []),
             ]} />
           </Card>
           <Card title="Display name" description="Shown everywhere: the sidebar, activity, records and emails. Microsoft no longer changes it at sign-in.">

@@ -169,6 +169,13 @@
       "when": 1794300000000,
       "tag": "0023_privacy_notice",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794390000000,
+      "tag": "0024_admin_no_staff_data",
+      "breakpoints": true
     }
   ]
 }
