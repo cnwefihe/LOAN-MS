@@ -87,12 +87,12 @@ export default async function AdminHome() {
   const inProgress = stages.reduce((sum, x) => sum + x.n, 0);
   const dot = (ok: boolean) => <span aria-hidden className={`h-2 w-2 rounded-full ${ok ? "bg-success" : "bg-warning"}`} />;
   const mailOk = Number(mail.n) === 0;
-  const system: { label: string; value: React.ReactNode; href: string; ok: boolean }[] = [
+  const system: { label: string; value: React.ReactNode; href?: string; ok: boolean }[] = [
     { label: "Active users", value: Number(u.n), href: "/admin/users", ok: true },
     { label: "Active sessions", value: Number(sess.n), href: "/admin/audit?tab=sessions", ok: true },
     { label: "Open loan products", value: Number(p.n), href: "/admin/products", ok: true },
     { label: "Undelivered emails", value: Number(mail.n), href: "/admin/outbox", ok: mailOk },
-    { label: "Automatic daily check", value: autoRunning ? "Running" : "Not running", href: "/accounts/servicing", ok: autoRunning },
+    { label: "Automatic hourly check", value: autoRunning ? "Running" : "Not running", ok: autoRunning },
     { label: "Connections", value: `${ready} of ${connections.length}`, href: "/admin/connections", ok: ready === connections.length },
   ];
   return (
@@ -153,11 +153,12 @@ export default async function AdminHome() {
             <ul className="divide-y divide-line">
               {system.map((s) => (
                 <li key={s.label}>
-                  <Link href={s.href} className="flex items-center gap-2.5 px-5 py-2.5 text-sm hover:bg-slate-50">
-                    {dot(s.ok)}
-                    <span className="text-muted">{s.label}</span>
-                    <span className="tabular ml-auto font-medium text-ink">{s.value}</span>
-                  </Link>
+                  {(() => {
+                    const row = <>{dot(s.ok)}<span className="text-muted">{s.label}</span><span className="tabular ml-auto font-medium text-ink">{s.value}</span></>;
+                    return s.href
+                      ? <Link href={s.href} className="flex items-center gap-2.5 px-5 py-2.5 text-sm hover:bg-slate-50">{row}</Link>
+                      : <div className="flex items-center gap-2.5 px-5 py-2.5 text-sm">{row}</div>;
+                  })()}
                 </li>
               ))}
             </ul>
