@@ -176,6 +176,13 @@
       "when": 1794390000000,
       "tag": "0024_admin_no_staff_data",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1794480000000,
+      "tag": "0025_privacy_mfa",
+      "breakpoints": true
     }
   ]
 }
