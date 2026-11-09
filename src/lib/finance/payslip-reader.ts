@@ -68,16 +68,40 @@ export function parsePayslipText(items: TextItem[]): Payslip {
       .map((i) => i.str.trim()).join(" ").replace(/\s+/g, " ").trim();
   };
 
-  // Label … amount rows in a section, up to the row whose label is `end`.
+  // Label … amount rows in a section, up to the row whose label is `end`. A long label can wrap onto
+  // two lines, with the amount beside the last line or on its own between them: lines of words with
+  // no amount, close to an amount, belong to that amount's label.
+  const WRAP = 13; // points between wrapped lines; separate items sit further apart
   const section = (from: number, end: string) => {
     const lines: PayslipLine[] = [];
     let totalLine: string | null = null;
-    for (const r of all.slice(from + 1)) {
+    const words = (r: TextItem[]) => r.map((i) => i.str.trim()).join(" ").replace(/\s+/g, " ").trim();
+    const rest = all.slice(from + 1);
+    const used = new Set<number>();
+    let above: { text: string; y: number }[] = [];
+    for (let k = 0; k < rest.length; k++) {
+      if (used.has(k)) continue;
+      const r = rest[k];
       const amount = r.at(-1)!;
-      if (r.length < 2 || !AMOUNT.test(amount.str.trim())) continue; // column headings
-      const label = r.slice(0, -1).map((i) => i.str.trim()).join(" ").replace(/\s+/g, " ").trim();
+      if (!AMOUNT.test(amount.str.trim())) {
+        if (/(amount|description)/i.test(words(r))) { above = []; continue; } // column headings
+        // Words only: part of the next label, unless it is too far away (column headings).
+        above = [...above.filter((a) => a.y - r[0].y <= WRAP * (above.length + 1)), { text: words(r), y: r[0].y }];
+        continue;
+      }
+      const near = above.filter((a) => a.y - amount.y <= WRAP * above.length + 1).map((a) => a.text);
+      above = [];
+      const own = words(r.slice(0, -1));
+      const below: string[] = [];
+      if (!own) {
+        // Amount on its own: the rest of the label may also be on the line beneath.
+        const next = rest[k + 1];
+        if (next && !AMOUNT.test(next.at(-1)!.str.trim()) && amount.y - next[0].y <= WRAP) { below.push(words(next)); used.add(k + 1); }
+      }
+      const label = [...near, own, ...below].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+      if (!label) continue;
       const value = m(amount.str.trim().replace(/,/g, ""));
-      if (squash(label) === squash(end)) { totalLine = value; break; }
+      if (squash(label) === squash(end) || squash(own) === squash(end)) { totalLine = value; break; }
       lines.push({ label: label.replace(/[.:]+$/, ""), amount: value });
     }
     return { lines, total: totalLine };

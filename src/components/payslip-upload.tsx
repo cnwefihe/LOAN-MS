@@ -22,7 +22,7 @@ export function PayslipUpload({ current, previous }: { current: { id: string; pe
       {current && !another ? (
         <div className="flex items-center justify-between gap-3 rounded-md border border-line px-3 py-2">
           <p className="flex items-center gap-2 text-sm"><FileCheck2 aria-hidden className="h-4 w-4 shrink-0 text-success" /><span><b className="block font-medium text-ink">{current.period ? payslipMonth(current.period) : "Payslip"} payslip</b><span className="text-xs text-muted">Uploaded {current.uploadedOn}</span></span></p>
-          <button type="button" className="link text-sm" onClick={() => setAnother(true)}>Upload another</button>
+          <button type="button" className="link text-sm" onClick={() => setAnother(true)}>Replace</button>
         </div>
       ) : (
         <ActionForm action={uploadPayslipAction} submitLabel="Read payslip" encType="multipart/form-data">

@@ -55,6 +55,24 @@ describe("payslip reader", () => {
   });
 });
 
+describe("payslip reader, labels that wrap onto two lines", () => {
+  const base = LAYOUT.filter(([, y]) => y !== 339 && y !== 316);
+  const total = (n: string): [number, number, string][] => [[29, 316, "Total Deductions"], [480, 316, n]];
+
+  it("reads an amount printed between the two lines of its label", () => {
+    const layout: [number, number, string][] = [...base, [25, 344, "November 2026 Cafeteria"], [480, 339, "11,030.00"], [25, 334, "Meal Deduction"], ...total("82,530.00")];
+    const p = parsePayslipText(layout.map(([x, y, str]) => ({ x, y, str })));
+    expect(p.deductions.at(-1)).toEqual({ label: "November 2026 Cafeteria Meal Deduction", amount: "11030.00" });
+    expect(p.totals.deductions).toBe("82530.00");
+  });
+
+  it("reads an amount printed beside the second line of its label", () => {
+    const layout: [number, number, string][] = [...base, [25, 349, "November 2026 Cafeteria Meal"], [25, 339, "Deduction"], [480, 339, "11,030.00"], ...total("82,530.00")];
+    const p = parsePayslipText(layout.map(([x, y, str]) => ({ x, y, str })));
+    expect(p.deductions.at(-1)).toEqual({ label: "November 2026 Cafeteria Meal Deduction", amount: "11030.00" });
+  });
+});
+
 describe("payslip reader, headings split into words", () => {
   it("still finds the employee code and pay grade", () => {
     const split = items.flatMap((i) => i.str === "E M P L O Y E E C O D E" ? [{ ...i, str: "E M P L O Y E E" }, { ...i, x: i.x + 75, str: "C O D E" }]
