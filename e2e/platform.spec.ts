@@ -458,7 +458,12 @@ test.describe("responsive layout", () => {
       await signIn(page, "Adaeze Okafor");
       await check(["/dashboard", "/products", "/eligibility", "/applications", "/applications/new", "/loans", "/profile", "/notifications"]);
       await signIn(page, "Emeka Nwosu");
-      await check(["/admin", "/admin/users", "/admin/products", "/admin/branding", "/admin/settings", "/admin/outbox", "/admin/audit", "/reports", "/verify", "/hr", "/approvals", "/accounts", "/accounts/loans"]);
+      await check(["/admin", "/admin/users", "/admin/products", "/admin/branding", "/admin/settings", "/admin/outbox", "/admin/audit", "/reports", "/verify", "/accounts", "/accounts/loans"]);
+      // Administrators cannot open HR or approval pages (no salaries or payslips), so the people who use them are checked.
+      await signIn(page, "Kunle Adeyemi");
+      await check(["/hr", "/hr/applications", "/hr/staff"]);
+      await signIn(page, "Bisi Lawal");
+      await check(["/approvals", "/accounts/approvals"]);
       expect(problems).toEqual([]);
       if (width < 1024) {
         // The menu button works once the page has finished loading; retry the click until it does.

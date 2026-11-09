@@ -65,7 +65,7 @@ Loan, ledger and audit records are kept for the period set in the University's r
 ## How we protect your data
 We apply technical and organisational measures proportionate to the risk, including:
 
-- Sign-in through your institutional Microsoft account, with MFA.
+- Sign-in through your institutional Microsoft account, with Multi-Factor Authentication.
 - Encryption of data in transit. Documents and bank account numbers are additionally encrypted at rest, and the database and backups are encrypted at rest.
 - Role-based access checked on the server for every request, with periodic access reviews.
 - Financial entries designed to be tamper-resistant: they are not edited in place, and corrections are made by traceable reversal entries. Access to documents and sensitive actions is logged, and the logs are protected from alteration.
