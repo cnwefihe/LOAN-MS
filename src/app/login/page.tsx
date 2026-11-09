@@ -53,11 +53,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <div className="h-1.5 bg-navy" aria-hidden />
       <main id="main" className="flex flex-1 flex-col items-center justify-center px-4 py-10">
         {/* Same size as the two-step verification card. */}
-        <div className="flex min-h-[30.5rem] w-full max-w-sm flex-col justify-center rounded-lg border border-line bg-white px-8 py-8 shadow-sm">
+        <div className="flex min-h-[26rem] w-full max-w-sm flex-col justify-center rounded-lg border border-line bg-white px-8 py-8 shadow-sm">
           <div className="text-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logoUrl(brand, "logo")} alt={brand.institutionName} className="mx-auto h-16 w-auto" />
-            <h1 className="mt-6 text-xl font-semibold text-navy">{brand.systemName}</h1>
+            <img src={logoUrl(brand, "logo")} alt={brand.institutionName} className="mx-auto h-12 w-auto" />
+            <h1 className="mt-5 text-lg font-semibold text-navy">{brand.systemName}</h1>
             <p className="mt-1 text-sm text-muted">Staff sign-in</p>
           </div>
 
