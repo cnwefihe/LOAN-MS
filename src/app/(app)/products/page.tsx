@@ -34,7 +34,7 @@ function loanFacts(x: PolicyParameters, docs: string[]) {
   ];
   const terms: [string, React.ReactNode][] = [
     ["How much you may borrow", `Based on your latest payslip. Your total monthly deductions, including this loan, are subject to a maximum of ${x.maxDeductionPercent}% of net pay.`],
-    ["Who may apply", `${staffLabel(x.eligibleEmploymentStatuses)} with a minimum of ${serviceLength(x.minServiceMonths)} of service.`],
+    ["Who may apply", `${staffLabel(x.eligibleEmploymentStatuses)}, subject to verification by Human Resources.`],
     ["Guarantors", x.requiredGuarantors
       ? `${x.requiredGuarantors === 2 ? "Two" : "One"}${x.guarantorMustBeConfirmed ? " confirmed" : ""} ${x.requiredGuarantors === 1 ? "member" : "members"} of staff, each with a minimum of ${serviceLength(x.guarantorMinServiceMonths)} of service.`
       : "Not required."],
@@ -57,7 +57,7 @@ function advanceFacts(x: PolicyParameters, docs: string[]) {
       <li>Salary: a part payment from your net pay.</li>
       <li>Leave allowance or 13th month pay: a part payment from one month&apos;s basic salary.</li>
     </ul>],
-    ["Who may apply", `${staffLabel(x.eligibleEmploymentStatuses)}${x.minServiceMonths ? ` with a minimum of ${serviceLength(x.minServiceMonths)} of service` : ""}.`],
+    ["Who may apply", `${staffLabel(x.eligibleEmploymentStatuses)}, subject to verification by Human Resources.`],
     ["Recovery", "Deducted in full from that payment."],
     ["Documents", <DocList key="d" docs={docs} />],
   ];

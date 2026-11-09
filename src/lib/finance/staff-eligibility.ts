@@ -50,12 +50,19 @@ export interface AssessOptions {
   advanceType?: AdvanceType | null;
 }
 
+/**
+ * Length of service and employment status come from the Human Resources record, which Human
+ * Resources checks and updates when they verify the application. They do not stop anyone applying:
+ * what a staff member may borrow is worked out from the payslip alone.
+ */
+const fromPayslipOnly = (p: PolicyParameters): PolicyParameters => ({ ...p, minServiceMonths: 0 }); // and no employment status is passed in
+
 export const payslipRules = (p: PolicyParameters): PayslipRules => ({ capPercent: p.maxDeductionPercent, cafeteriaAmount: p.cafeteriaAmount });
 
 /** An assessment with nothing to go on, so the screens can still show why. */
 function blocked(policy: PolicyParameters, ctx: StaffContext, reasons: string[], payslip: PayslipAssessment | null): StaffEligibility {
   const r = assessEligibility({
-    policy, salary: { basic: 0, gross: 0, net: 0 }, serviceMonths: ctx.serviceMonths, employmentStatus: ctx.employmentStatus,
+    policy: fromPayslipOnly(policy), salary: { basic: 0, gross: 0, net: 0 }, serviceMonths: ctx.serviceMonths, employmentStatus: null,
     existingMonthlyDeductions: 0, activeLoanCount: 0,
   });
   return { ...r, eligible: false, reasons: [...reasons, ...r.reasons.filter((x) => x !== "Salary information is missing." && !x.startsWith("Existing"))], payslip, guaranteeCommitment: ctx.guaranteeCommitment };
@@ -68,9 +75,9 @@ export function assessForStaff(policy: PolicyParameters, ctx: StaffContext, opts
   if (policy.productType === "advance") return assessAdvance(policy, ctx, slip, opts);
 
   const result = assessEligibility({
-    policy: { ...policy, affordabilityRule: "deduction_cap", deductionBasis: "net", ...(ctx.oneLoanAtATime ? { maxActiveLoans: 1 } : {}) },
+    policy: { ...fromPayslipOnly(policy), affordabilityRule: "deduction_cap", deductionBasis: "net", ...(ctx.oneLoanAtATime ? { maxActiveLoans: 1 } : {}) },
     salary: { basic: slip.basic, gross: slip.payForLending, net: slip.netPay },
-    serviceMonths: ctx.serviceMonths, employmentStatus: ctx.employmentStatus,
+    serviceMonths: ctx.serviceMonths, employmentStatus: null,
     existingMonthlyDeductions: m(dec(slip.committed).plus(ctx.guaranteeCommitment)),
     activeLoanCount: ctx.openCount,
     requestedAmount: opts.requestedAmount, tenorMonths: opts.tenorMonths, asOf: opts.asOf,
@@ -101,8 +108,8 @@ function assessAdvance(policy: PolicyParameters, ctx: StaffContext, slip: Paysli
   const printedNet = p.totals.net ?? m(dec(p.earnings.reduce((s, l) => s.plus(l.amount), dec(0))).minus(p.deductions.reduce((s, l) => s.plus(l.amount), dec(0))));
   const payment = type === "salary" ? m(printedNet) : slip.basic;
   const result = assessEligibility({
-    policy: { ...policy, affordabilityRule: "take_home_floor", minTakeHomePercent: 0, minTenorMonths: 1, maxTenorMonths: 1, interestMethod: "interest_free", annualInterestRate: 0 },
-    salary: { basic: slip.basic, gross: payment, net: payment }, serviceMonths: ctx.serviceMonths, employmentStatus: ctx.employmentStatus,
+    policy: { ...fromPayslipOnly(policy), affordabilityRule: "take_home_floor", minTakeHomePercent: 0, minTenorMonths: 1, maxTenorMonths: 1, interestMethod: "interest_free", annualInterestRate: 0 },
+    salary: { basic: slip.basic, gross: payment, net: payment }, serviceMonths: ctx.serviceMonths, employmentStatus: null,
     existingMonthlyDeductions: 0, activeLoanCount: 0,
     requestedAmount: opts.requestedAmount, tenorMonths: 1, asOf: opts.asOf,
   });

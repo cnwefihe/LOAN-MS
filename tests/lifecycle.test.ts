@@ -283,7 +283,7 @@ describe("full loan lifecycle", () => {
     expect(closed.length).toBe(3); // borrower + 2 guarantors
   });
 
-  it("staff below the minimum service are ineligible", async () => {
+  it("length of service does not stop staff applying; the payslip decides (Human Resources verifies the record)", async () => {
     const [u] = await db.insert(s.users).values({ email: "recent.joiner.dev@example.edu.ng", displayName: "Recent Joiner", isDevFixture: true }).returning();
     const [role] = await db.select().from(s.roles).where(eq(s.roles.code, "APPLICANT"));
     await db.insert(s.userRoles).values({ userId: u.id, roleId: role.id });
@@ -291,16 +291,17 @@ describe("full loan lifecycle", () => {
     const recent = (await loadActor(db, u.id, { ip: "127.0.0.1", userAgent: "vitest" }))!;
     await expectErr(saveDraft(db, recent, { productId, requestedAmount: "100000", tenorMonths: 6, purpose: "Testing eligibility rules", guarantorEmails: [] }), /Upload your latest payslip first/);
     await recordSamplePayslip(db, recent, u.id, samplePayslip({ name: "Recent Joiner", code: "DEV-9001", grade: "Officer", period: todayLagos().slice(0, 7), basic: "300000", medical: "20000", tax: "30000", pension: "24000" }));
-    await expectErr(saveDraft(db, recent, { productId, requestedAmount: "100000", tenorMonths: 6, purpose: "Testing eligibility rules", guarantorEmails: [] })
-      .then((r) => { if (!r.eligibility.eligible) throw new Error(r.eligibility.reasons.join(" ")); }), /minimum of .* of service/);
+    const r = await saveDraft(db, recent, { productId, requestedAmount: "100000", tenorMonths: 6, purpose: "Testing eligibility rules", guarantorEmails: [] });
+    expect(r.eligibility.reasons.join(" ")).not.toMatch(/service/);
+    expect(r.eligibility.eligible).toBe(true);
   });
 
-  it("HR's Confirmed / Not confirmed switch decides loan eligibility on the server", async () => {
+  it("HR's Confirmed / Not confirmed switch does not stop staff applying", async () => {
     const policy = (await getActivePolicy(db, productId))!.params;
     const check = async () => (await computeEligibilityFor(db, A.guarantor2.userId, policy, { requestedAmount: "100000", tenorMonths: 12 })).reasons.join(" ");
     await expectErr(setStaffConfirmation(db, A.guarantor2, A.guarantor1.userId, false), /not authorised/);
     await setStaffConfirmation(db, A.hradmin, A.guarantor2.userId, false);
-    expect(await check()).toMatch(/does not show you as confirmed/);
+    expect(await check()).not.toMatch(/confirmed/);
     await setStaffConfirmation(db, A.hradmin, A.guarantor2.userId, true);
     expect(await check()).not.toMatch(/confirmed/);
   });
