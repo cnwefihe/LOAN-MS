@@ -93,19 +93,22 @@ export default async function Profile() {
               ? <p className="text-sm">Set up on <DateText value={mfa.enabledAt} />. You enter a code from your authenticator app when you sign in. {mfa.codesLeft} recovery codes left.</p>
               : <><p className="text-sm">For additional security, confirm each sign-in with a code from an authenticator app on your phone.</p><a href="/mfa?setup=1" className="btn-secondary mt-3">Set up</a></>}
           </Card>
-          <Card className="flex-1" title="Privacy and help" description="Nigeria Data Protection Act 2023">
-            <p className="text-sm text-slate-700">Your details are used only for your loans and advances, and seen only by staff whose role requires it.</p>
-            <ul className="mt-2 space-y-1.5 text-sm">
-              <li><a href="/privacy" className="link inline-flex items-center gap-1.5"><ShieldCheck aria-hidden className="h-4 w-4" />Privacy notice</a></li>
-              <li><a href="/api/me/export" className="link inline-flex items-center gap-1.5"><Download aria-hidden className="h-4 w-4" />Download my data</a></li>
+          <Card className="flex-1" title="Privacy and help" description="Your details are used only for your loans and advances, and seen only by staff whose role requires it." bodyClassName="p-0!">
+            <ul className="divide-y divide-line">
+              {[
+                { href: "/privacy", icon: ShieldCheck, title: "Privacy notice", text: "How your data is used, and your rights under the Nigeria Data Protection Act 2023." },
+                { href: "/api/me/export", icon: Download, title: "Download my data", text: "A PDF of every record held about you." },
+                { href: `mailto:${contact["privacy.dpoEmail"]}`, icon: Mail, title: "Data Protection Officer", text: contact["privacy.dpoEmail"] },
+                { href: `mailto:${contact["org.hrEmail"]}`, icon: LifeBuoy, title: "Help with a loan", text: `Human Resources, ${contact["org.hrEmail"]}` },
+              ].map((x) => (
+                <li key={x.title}>
+                  <a href={x.href} className="flex items-start gap-3 px-5 py-3 hover:bg-slate-50">
+                    <x.icon aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-navy" />
+                    <span className="min-w-0"><span className="block text-sm font-medium text-ink">{x.title}</span><span className="block break-words text-xs text-muted">{x.text}</span></span>
+                  </a>
+                </li>
+              ))}
             </ul>
-            <p className="mt-2 text-xs text-muted">Data questions: <a className="link" href={`mailto:${contact["privacy.dpoEmail"]}`}>{contact["privacy.dpoEmail"]}</a></p>
-            <div className="mt-3 border-t border-line pt-3">
-              <p className="flex items-center gap-1.5 text-sm font-semibold text-ink"><LifeBuoy aria-hidden className="h-4 w-4 text-navy" />Need help with a loan? Contact Human Resources.</p>
-              <ul className="mt-1.5 space-y-1.5 text-sm">
-                <li><a className="link inline-flex items-center gap-1.5" href={`mailto:${contact["org.hrEmail"]}`}><Mail aria-hidden className="h-4 w-4" />{contact["org.hrEmail"]}</a></li>
-              </ul>
-            </div>
           </Card>
         </div>
       </div>

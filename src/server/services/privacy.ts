@@ -10,6 +10,11 @@ import {
   restructureRequests, notifications, documents, sessions, auditLogs, applicationMessages, scheduleInstalments,
 } from "@/db/schema";
 import { getBranding } from "../branding";
+import { PdfBuilder, lagosStamp } from "../pdf";
+import { formatNaira } from "@/lib/finance/money";
+import { formatDate, formatDateTime } from "@/lib/finance/dates";
+import { humanise } from "@/lib/text";
+import { getWording } from "../wording";
 import type { Actor } from "../actor";
 import { audit } from "../audit";
 
@@ -57,4 +62,84 @@ export async function exportMyData(db: Executor, actor: Actor) {
     sessions: sess.map((x) => strip(x, ["tokenHash"])),
     activityLog: activity.map((a) => strip(a, ["before", "after"])),
   };
+}
+
+/**
+ * The same records as a readable PDF: the University's document layout, one section for each kind of
+ * record. The export is registered like every other issued document so it can be verified later.
+ */
+export async function myDataPdf(db: Executor, actor: Actor): Promise<Buffer> {
+  const d = await exportMyData(db, actor);
+  const [u, p] = [d.identity as Record<string, unknown>, d.staffProfile as Record<string, unknown> | null];
+  const naira = (v: unknown) => (v === null || v === undefined || v === "" ? "-" : formatNaira(v as string));
+  const day = (v: unknown) => (v ? formatDate(v as string | Date) : "-");
+  const when = (v: unknown) => (v ? formatDateTime(v as string | Date) : "-");
+  const txt = (v: unknown) => (v === null || v === undefined || v === "" ? "-" : String(v));
+  const none = (pdf: PdfBuilder, what: string) => pdf.note(`No ${what}.`);
+  const roleNames = (await getWording(db)).role as Record<string, { name: string } | undefined>;
+
+  const pdf = await PdfBuilder.create(db, { kind: "data_export", title: "My data", numbered: true, subtitle: `${txt(u.displayName)} | ${lagosStamp()}` });
+  pdf.note(d.notice);
+
+  pdf.heading("About you");
+  pdf.keyValues([
+    ["Name", txt(u.displayName)], ["Email", txt(u.email)], ["Account created", day(u.createdAt)], ["Last sign-in", when(u.lastLoginAt)],
+    ["Roles", d.roles.map((r) => roleNames[r.code]?.name ?? humanise(r.code)).join(", ") || "-"],
+  ]);
+
+  pdf.heading("Staff record");
+  if (!p) none(pdf, "staff record");
+  else pdf.keyValues([
+    ["Staff number", txt(p.staffNumber)], ["Name on payslip", txt(p.payslipName)], ["Designation", txt(p.designation)], ["Pay grade", txt(p.payGrade)],
+    ["Employment status", humanise(p.employmentStatus ?? "not recorded")], ["Employment date", day(p.employmentDate)], ["Confirmation date", day(p.confirmationDate)],
+    ["Phone", txt(p.phone)], ["Residential address", txt(p.residentialAddress)], ["Bank", txt(p.bankName)], ["Account name", txt(p.bankAccountName)],
+    ["Monthly net pay on record", naira(p.monthlyNet)],
+  ]);
+
+  pdf.heading("Applications");
+  if (!d.applications.length) none(pdf, "applications");
+  else pdf.table(["Reference", "Status", "Amount", "Tenor", "Purpose", "Created"],
+    d.applications.map((a) => [a.reference, humanise(a.status), naira(a.requestedAmount), a.tenorMonths ? `${a.tenorMonths} months` : "-", txt(a.purpose), day(a.createdAt)]),
+    ["left", "left", "right", "right", "left", "left"]);
+
+  pdf.heading("Loans");
+  if (!d.loans.length) none(pdf, "loans");
+  else pdf.table(["Account", "Status", "Principal", "Instalment", "Repaid", "Outstanding", "Disbursed"],
+    d.loans.map((l) => [l.accountNumber, humanise(l.status), naira(l.principal), naira(l.monthlyInstalment), naira(l.totalRepaid), naira(l.principalOutstanding), day(l.disbursedAt)]),
+    ["left", "left", "right", "right", "right", "right", "left"]);
+
+  if (d.repaymentSchedules.length) {
+    pdf.heading("Repayment schedule");
+    pdf.table(["No.", "Due", "Amount due", "Paid", "Status"],
+      [...d.repaymentSchedules].sort((a, b) => a.dueDate.localeCompare(b.dueDate)).map((i) => [String(i.sequence), day(i.dueDate), naira(i.totalDue), naira((Number(i.principalPaid) + Number(i.interestPaid)).toFixed(2)), humanise(i.status)]),
+      ["right", "left", "right", "right", "left"]);
+  }
+  if (d.financialTransactions.length) {
+    pdf.heading("Payments and other transactions");
+    pdf.table(["Reference", "Type", "Amount", "Date", "Status"],
+      d.financialTransactions.map((t) => [txt(t.reference), humanise(t.type), naira(t.amount), day(t.valueDate), humanise(t.status)]),
+      ["left", "left", "right", "left", "left"]);
+  }
+
+  pdf.heading("Loans you guarantee");
+  if (!d.guaranteesGiven.length) none(pdf, "guarantees");
+  else pdf.table(["Status", "Amount guaranteed", "Invited", "Responded"],
+    d.guaranteesGiven.map((g) => [humanise(g.status), naira(g.guaranteedAmount), day(g.invitedAt), day(g.respondedAt)]),
+    ["left", "right", "left", "left"]);
+
+  pdf.heading("Documents");
+  if (!d.documents.length) none(pdf, "documents");
+  else pdf.table(["Title", "File", "Uploaded"], d.documents.map((x) => [txt(x.title), txt(x.fileName), day(x.createdAt)]));
+
+  pdf.heading("Messages and notifications");
+  pdf.keyValues([["Messages on your applications", String(d.applicationMessages.length)], ["Notifications", String(d.notifications.length)]]);
+  if (d.notifications.length) pdf.table(["Date", "Notification"], d.notifications.slice(0, 50).map((n) => [when(n.createdAt), txt(n.title)]));
+
+  pdf.heading("Sign-ins and activity");
+  if (d.sessions.length) pdf.table(["Signed in", "Last active", "Device"],
+    d.sessions.slice(0, 30).map((s) => [when(s.createdAt), when((s as Record<string, unknown>).lastSeenAt), txt((s as Record<string, unknown>).userAgent).slice(0, 60)]));
+  if (d.activityLog.length) pdf.table(["Date", "What you did"], d.activityLog.slice(0, 100).map((a) => [when(a.createdAt), txt(a.summary ?? a.action)]));
+  if (d.activityLog.length > 100) pdf.note(`The ${d.activityLog.length - 100} earlier actions are kept on record and available from the Data Protection Officer.`);
+
+  return pdf.finish(db, actor, { entityType: "user", entityId: actor.userId, subjectUserId: actor.userId });
 }

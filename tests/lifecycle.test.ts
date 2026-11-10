@@ -30,6 +30,7 @@ import { decideApplication } from "@/server/services/approvals";
 import { reviewByBursary } from "@/server/services/bursary";
 import { storeDocument } from "@/server/services/documents";
 import { removeTestApplication } from "@/server/services/cleanup";
+import { myDataPdf } from "@/server/services/privacy";
 import {
   recordDisbursement, submitRepaymentClaim, confirmRepaymentClaim, recordRepayment, approvePendingTransaction,
   proposeEarlySettlement, runServicing, requestRestructure, decideRestructure, getLoanDetail,
@@ -313,6 +314,13 @@ describe("full loan lifecycle", () => {
     const [loan] = await db.select().from(s.loanAccounts).limit(1);
     const [loanApp] = await db.select().from(s.loanApplications).where(eq(s.loanApplications.id, loan.applicationId));
     await expectErr(removeTestApplication(db, loanApp.reference, { confirm: true }), /became a loan/);
+  });
+
+  it("staff can download their data as a PDF, registered like other issued documents", async () => {
+    const bytes = await myDataPdf(db, A.applicant);
+    expect(bytes.subarray(0, 5).toString()).toBe("%PDF-");
+    const issued = await db.select().from(s.issuedDocuments).where(and(eq(s.issuedDocuments.kind, "data_export"), eq(s.issuedDocuments.subjectUserId, A.applicant.userId)));
+    expect(issued.length).toBe(1);
   });
 
   it("HR's Confirmed / Not confirmed switch decides loan eligibility on the server", async () => {
