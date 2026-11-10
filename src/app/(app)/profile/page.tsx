@@ -9,7 +9,7 @@ import { payslipMonth } from "@/components/payslip-breakdown";
 import { guarantorExposure } from "@/server/services/guarantors";
 import { type RoleCode } from "@/lib/auth/permissions";
 import { getWording } from "@/server/wording";
-import { Download, LifeBuoy, Mail, ShieldCheck } from "lucide-react";
+import { Download, LifeBuoy, Mail, Monitor, ShieldCheck } from "lucide-react";
 import { getSettings } from "@/server/settings";
 import { ActionForm } from "@/components/action-form";
 import { Alert, Badge, Card, KeyValues, Money, PageHeader, DateText } from "@/components/ui";
@@ -29,7 +29,7 @@ export default async function Profile() {
   const exp = await guarantorExposure(db, actor.userId);
   const p = rec.profile;
   const slip = await latestPayslip(db, actor.userId);
-  const contact = await getSettings(db, ["org.hrEmail", "privacy.dpoEmail"]);
+  const contact = await getSettings(db, ["org.hrEmail", "org.ictEmail", "privacy.dpoEmail"]);
   return (
     <>
       <PageHeader title="My profile" crumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Profile" }]}
@@ -100,6 +100,7 @@ export default async function Profile() {
                 { href: "/api/me/export", icon: Download, title: "Download my data", text: "A PDF of every record held about you." },
                 { href: `mailto:${contact["privacy.dpoEmail"]}`, icon: Mail, title: "Data Protection Officer", text: contact["privacy.dpoEmail"] },
                 { href: `mailto:${contact["org.hrEmail"]}`, icon: LifeBuoy, title: "Help with a loan", text: `Human Resources, ${contact["org.hrEmail"]}` },
+                { href: `mailto:${contact["org.ictEmail"]}`, icon: Monitor, title: "ICT Administrator Support", text: contact["org.ictEmail"] },
               ].map((x) => (
                 <li key={x.title}>
                   <a href={x.href} className="flex items-start gap-3 px-5 py-3 hover:bg-slate-50">

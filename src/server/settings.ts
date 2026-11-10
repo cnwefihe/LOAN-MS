@@ -29,6 +29,7 @@ export const SETTINGS = {
   "branding.primaryColour": { group: "Organisation and branding", schema: hexColour, default: "#2E3A6E", sensitive: false, label: "Primary colour" },
   "org.supportEmail": { group: "Organisation and branding", schema: z.string().email(), default: "bursary@example.edu.ng", sensitive: false, label: "Support email" },
   "org.hrEmail": { group: "Organisation and branding", schema: z.string().email(), default: "hr@example.edu.ng", sensitive: false, label: "Human Resources email" },
+  "org.ictEmail": { group: "Organisation and branding", schema: z.string().email(), default: "staff.member@example.edu.ng", sensitive: false, label: "ICT support email" },
   "org.supportPhone": { group: "Organisation and branding", schema: optionalText(40), default: "", sensitive: false, label: "Support telephone (optional)" },
   "org.address": { group: "Organisation and branding", schema: optionalText(200), default: "Km 52 Lekki-Epe Expressway, Ibeju-Lekki, Lagos, Nigeria", sensitive: false, label: "Postal address" },
 
