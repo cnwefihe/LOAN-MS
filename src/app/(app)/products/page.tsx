@@ -3,7 +3,7 @@ import { getDb } from "@/db";
 import { requireActor } from "@/lib/auth/session";
 import { getLoanPolicy, listOpenProducts, requiredDocsLabels } from "@/server/services/policies";
 import type { PolicyParameters } from "@/lib/finance/policy";
-import { Card, PageHeader, EmptyState } from "@/components/ui";
+import { Card, PageHeader, EmptyState, Tabs } from "@/components/ui";
 import { monthsText } from "@/lib/finance/dates";
 import { RichText } from "@/components/rich-text";
 
@@ -25,31 +25,60 @@ function DocList({ docs }: { docs: string[] }) {
 }
 const ordinal = (n: number) => `${n}${n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th"}`;
 
+type Panel = [string, [string, React.ReactNode][]];
+
+/**
+ * Two panels of terms side by side: the label on the left of each row and the text beside it. On wide
+ * screens both panels share one set of rows, so the rows at the same level are the same height and line up.
+ */
+function TermsPanels({ panels }: { panels: Panel[] }) {
+  const rows = Math.max(...panels.map(([, r]) => r.length));
+  return (
+    <div className="grid gap-5 xl:grid-cols-2 xl:gap-y-0" style={{ "--rows": rows + 1 } as React.CSSProperties}>
+      {panels.map(([title, items]) => (
+        <section key={title} aria-label={title} className="min-w-0 overflow-hidden rounded-lg border border-line xl:row-span-(--rows) xl:grid xl:grid-rows-subgrid">
+          <h3 className="border-b border-line bg-slate-50 px-4 py-2.5 text-sm font-semibold text-navy">{title}</h3>
+          <dl className="divide-y divide-line xl:contents">
+            {items.map(([k, v]) => (
+              <div key={k} className="grid gap-1 border-line px-4 py-3 sm:grid-cols-[9.5rem_minmax(0,1fr)] sm:gap-4 xl:border-b xl:last:border-b-0">
+                <dt className="text-sm font-semibold text-ink">{k}</dt>
+                <dd className="break-words text-sm leading-relaxed text-slate-600">{v}</dd>
+              </div>
+            ))}
+            {Array.from({ length: rows - items.length }, (_, i) => <div key={`pad-${i}`} aria-hidden className="hidden xl:block" />)}
+          </dl>
+        </section>
+      ))}
+    </div>
+  );
+}
+
 /** The headline facts and the detailed terms for a loan. */
 function loanFacts(x: PolicyParameters, docs: string[]) {
+  const free = x.interestMethod === "interest_free";
   const headline: [string, React.ReactNode, string][] = [
-    ["Amount", "Set by your payslip", `Repayments within ${x.maxDeductionPercent}% of net pay`],
-    ["Interest", x.interestMethod === "interest_free" ? "None" : `${x.annualInterestRate}% a year`, x.interestMethod === "interest_free" ? "Interest-free" : x.interestMethod === "flat" ? "On the original loan amount" : "On the reducing balance"],
-    ["Tenor", x.minTenorMonths === x.maxTenorMonths ? months(x.maxTenorMonths) : `${x.minTenorMonths} to ${monthsText(x.maxTenorMonths)}`, "Deducted monthly from salary"],
+    ["Amount", "Set by your payslip", `Within ${x.maxDeductionPercent}% of net pay`],
+    ["Interest", free ? "None" : `${x.annualInterestRate}% a year`, free ? "Interest-free" : x.interestMethod === "flat" ? "On the original amount" : "On the reducing balance"],
+    ["Tenor", x.minTenorMonths === x.maxTenorMonths ? months(x.maxTenorMonths) : `${x.minTenorMonths} to ${monthsText(x.maxTenorMonths)}`, "Monthly salary deduction"],
   ];
-  const terms: [string, React.ReactNode][] = [
-    ["How much you may borrow", `Based on your latest payslip. Your total monthly deductions, including this loan, are subject to a maximum of ${x.maxDeductionPercent}% of net pay.`],
+  const eligibility: [string, React.ReactNode][] = [
+    ["Amount", `Set by your latest payslip. Total deductions, including this loan, within ${x.maxDeductionPercent}% of net pay.`],
     ["Who may apply", `${staffLabel(x.eligibleEmploymentStatuses)}, subject to verification by Human Resources.`],
-    ["Purpose", "State clearly on the application form what the loan is for."],
+    ["Purpose", "Stated clearly on the application form."],
     ["Guarantors", x.requiredGuarantors
-      ? `${x.requiredGuarantors === 2 ? "Two guarantors" : "One guarantor"} from the managerial cadre, chosen from the list when you apply. Each must be a confirmed employee with at least ${months(x.guarantorMinServiceMonths)} of continuous service, and their deductions, with their share of this loan, must stay within ${x.guarantorMaxDeductionPercent}% of their net pay.`
+      ? `${x.requiredGuarantors === 2 ? "Two" : "One"} from the managerial cadre list: confirmed, with ${months(x.guarantorMinServiceMonths)}' service and deductions within ${x.guarantorMaxDeductionPercent}% of net pay.`
       : "Not required."],
-    ["Repayment", `Equal monthly ${x.interestMethod === "interest_free" ? "instalments" : "instalments of principal and interest"}, deducted from salary over the tenor you choose, up to ${monthsText(x.maxTenorMonths)}. After the first deduction is confirmed, each later one is recorded automatically.`],
-    ["Repayment date", `The ${ordinal(x.repaymentDayOfMonth)} of each month, starting the month after the loan is paid out${x.gracePeriodMonths ? `, after a further ${months(x.gracePeriodMonths)}` : ""}.`],
-    ["Payment", "By direct credit to your salary account. Approval is subject to the availability of funds."],
     ["Documents", <DocList key="d" docs={docs} />],
-    ["Early repayment", x.interestMethod === "interest_free"
-      ? "You may repay the whole balance at any time: the loan principal less your total repayments. Part payments are taken only from salary."
-      : "You may repay the whole balance at any time: the loan principal plus interest to date, less your total repayments. Interest for the remaining months is not charged. Part payments are taken only from salary."],
-    ["If you leave the University", `Any outstanding balance is deducted in full from your final pay, or is payable at once by you${x.requiredGuarantors ? " or your guarantors" : ""}.`],
-    ["Another loan", "Only after this loan is fully repaid."],
   ];
-  return { headline, terms };
+  const repayment: [string, React.ReactNode][] = [
+    ["Payment", "Credited to your salary account, subject to available funds."],
+    ["Repayment", `Equal monthly salary deductions over up to ${monthsText(x.maxTenorMonths)}; automatic after the first is confirmed.`],
+    ["Due date", `The ${ordinal(x.repaymentDayOfMonth)} of each month, from the month after payout${x.gracePeriodMonths ? ` plus ${months(x.gracePeriodMonths)}` : ""}.`],
+    ["Early repayment", free ? "Any time: principal less repayments made." : "Any time: principal plus interest to date, less repayments made."],
+    ["Leaving the University", `Balance deducted from final pay, or payable by you${x.requiredGuarantors ? " or your guarantors" : ""}.`],
+    ["Another loan", "Only after this one is fully repaid."],
+  ];
+  return { headline, panels: [["Eligibility", eligibility], ["Repayment", repayment]] as Panel[] };
 }
 
 /** The headline facts and the detailed terms for an advance against pay. */
@@ -59,70 +88,69 @@ function advanceFacts(x: PolicyParameters, docs: string[]) {
     ["Interest", "None", "Interest-free"],
     ["Recovery", "One deduction", "From that payment"],
   ];
-  const terms: [string, React.ReactNode][] = [
-    ["How much you may request", <ul key="r" className="list-disc space-y-1 pl-5">
-      <li>Salary: a part payment from your net pay.</li>
-      <li>Leave allowance or 13th month pay: a part payment from one month&apos;s basic salary.</li>
+  const eligibility: [string, React.ReactNode][] = [
+    ["Amount", <ul key="r" className="list-disc space-y-1 pl-5">
+      <li>Salary: part of your net pay.</li>
+      <li>Leave allowance or 13th month: part of one month&apos;s basic salary.</li>
     </ul>],
     ["Who may apply", `${staffLabel(x.eligibleEmploymentStatuses)}, subject to verification by Human Resources.`],
-    ["Recovery", "Deducted in full from that payment."],
     ["Documents", <DocList key="d" docs={docs} />],
   ];
-  return { headline, terms };
+  const recovery: [string, React.ReactNode][] = [
+    ["Recovery", "In full from that payment."],
+    ["Interest", "None."],
+    ["Guarantors", "Not required."],
+  ];
+  return { headline, panels: [["Eligibility", eligibility], ["Recovery", recovery]] as Panel[] };
 }
 
-export default async function Products() {
+export default async function Products({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   await requireActor("application.create");
+  const sp = await searchParams;
   const db = await getDb();
   const products = await listOpenProducts(db);
   const docs = await requiredDocsLabels(db);
   const policy = await getLoanPolicy(db);
-  const several = products.length > 1;
+  const key = (code: string) => code.toLowerCase();
+  // One product at a time, chosen from the tabs; the loan policy has its own tab.
+  const tab = sp.tab === "policy" || products.some((p) => key(p.code) === sp.tab) ? sp.tab! : products[0] ? key(products[0].code) : "policy";
+  const p = products.find((x) => key(x.code) === tab);
   return (
     <>
       <PageHeader title="Loans and advances" crumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Loans and advances" }]}
-        description="Compare what is available before you apply." />
-      {products.length === 0 ? <EmptyState title="Nothing is open for applications at present" description="Please check again later or contact the Bursary." /> : (
-        // One product a row on laptop screens, so the terms have room; side by side on wide screens.
-        <div className={`grid gap-6 ${several ? "2xl:grid-cols-2" : ""}`}>
-          {products.map((p) => {
-            const x = p.params;
-            const required = docs.filter((d) => d.productId === null || d.productId === p.id).map((d) => d.label);
-            const isAdvance = x.productType === "advance";
-            const { headline, terms } = isAdvance ? advanceFacts(x, required) : loanFacts(x, required);
-            return (
-              <Card key={p.id} className="flex min-w-0 flex-col" bodyClassName="flex flex-1 flex-col p-5" title={<span className="text-base">{p.name}</span>} description={p.description ?? undefined}>
-                <div className="-mx-5 -mt-5 mb-5 grid grid-cols-1 divide-y divide-line border-b border-line bg-brand-50/60 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-                  {headline.map(([k, v, note]) => (
-                    <div key={k} className="min-w-0 px-5 py-4">
-                      <p className="text-[13px] font-medium text-slate-700">{k}</p>
-                      <p className="tabular mt-1 text-base font-semibold text-navy">{v}</p>
-                      <p className="text-xs text-muted">{note}</p>
-                    </div>
-                  ))}
+        description="Choose a product to see its terms before you apply." />
+      {products.length === 0 && <div className="mb-6"><EmptyState title="Nothing is open for applications at present" description="Please check again later or contact the Bursary." /></div>}
+      <Tabs base="/products" active={tab} tabs={[...products.map((x) => ({ key: key(x.code), label: x.name })), { key: "policy", label: "Loan policy" }]} />
+      {p ? (() => {
+        const x = p.params;
+        const required = docs.filter((d) => d.productId === null || d.productId === p.id).map((d) => d.label);
+        const isAdvance = x.productType === "advance";
+        const { headline, panels } = isAdvance ? advanceFacts(x, required) : loanFacts(x, required);
+        return (
+          <Card title={<span className="text-base">{p.name}</span>} description={p.description ?? undefined}
+            actions={<>
+              <Link href={`/eligibility?productId=${p.id}`} className="btn-secondary h-9">{isAdvance ? "Preview advance" : "Check eligibility"}</Link>
+              <Link href={`/applications/new?productId=${p.id}`} className="btn-primary h-9">Apply</Link>
+            </>}>
+            <div className="-mx-5 -mt-5 mb-5 grid grid-cols-1 divide-y divide-line border-b border-line bg-brand-50/60 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+              {headline.map(([k, v, note]) => (
+                <div key={k} className="min-w-0 px-5 py-3.5">
+                  <p className="text-[13px] font-medium text-slate-700">{k}</p>
+                  <p className="tabular mt-0.5 text-base font-semibold text-navy">{v}</p>
+                  <p className="text-xs text-muted">{note}</p>
                 </div>
-                <dl className={`grid flex-1 content-start gap-x-8 gap-y-5 sm:grid-cols-2 xl:grid-cols-3 ${several ? "2xl:grid-cols-2" : ""}`}>
-                  {terms.map(([k, v]) => (
-                    <div key={k} className="min-w-0">
-                      <dt className="text-[15px] font-semibold text-ink">{k}</dt>
-                      <dd className="mt-1 break-words text-sm leading-relaxed text-slate-600">{v}</dd>
-                    </div>
-                  ))}
-                </dl>
-                <div className="mt-6 flex flex-wrap gap-2 border-t border-line pt-4">
-                  <Link href={`/applications/new?productId=${p.id}`} className="btn-primary">Apply</Link>
-                  <Link href={`/eligibility?productId=${p.id}`} className="btn-secondary">{isAdvance ? "Preview advance" : "Check eligibility"}</Link>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+              ))}
+            </div>
+            <TermsPanels panels={panels} />
+          </Card>
+        );
+      })() : (
+        <Card title={policy.title} description="The University's policy on staff loans. It applies to every product.">
+          <div className="gap-10 text-sm leading-relaxed text-slate-700 xl:columns-2 [&_h3]:mb-2 [&_h3]:text-[15px] [&_h3]:font-semibold [&_h3]:text-navy [&_section]:mb-5 [&_section]:break-inside-avoid">
+            <RichText text={policy.body} headingLevel={3} />
+          </div>
+        </Card>
       )}
-      <Card title={policy.title} description="The University's policy on staff loans. It applies to every product above." className="mt-6">
-        <div className="gap-10 text-sm leading-relaxed text-slate-700 xl:columns-2 [&_h3]:mb-2 [&_h3]:text-[15px] [&_h3]:font-semibold [&_h3]:text-navy [&_section]:mb-5 [&_section]:break-inside-avoid">
-          <RichText text={policy.body} headingLevel={3} />
-        </div>
-      </Card>
     </>
   );
 }

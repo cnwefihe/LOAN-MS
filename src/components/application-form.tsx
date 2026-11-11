@@ -68,8 +68,8 @@ export function ApplicationForm({ products, initial, applicationId, applicant, d
         <GuarantorChoice initialCount={selected?.params.productType === "advance" ? 0 : selected?.params.requiredGuarantors ?? 0} options={guarantorOptions} initial={initial.guarantors ?? []}>
             <h2 id="s3" className="text-sm font-semibold text-navy">3. Guarantors</h2>
             <p className="mt-1 text-xs text-muted">
-              Choose two guarantors from the managerial cadre, after you have spoken with them. Each request is sent to them when you submit.
-              {selected ? ` A guarantor must be a confirmed employee on the University payroll with at least ${monthsText(selected.params.guarantorMinServiceMonths)} of continuous service, whose employment runs beyond the final repayment date. Their total deductions, including their share of this loan should you default, must not exceed ${selected.params.guarantorMaxDeductionPercent}% of their net pay, and they may guarantee no more than ${selected.params.maxGuaranteesPerGuarantor === 1 ? "one active loan" : `${selected.params.maxGuaranteesPerGuarantor} active loans`}.` : ""}
+              Choose two managerial staff you have spoken with; each receives your request when you submit.
+              {selected ? ` Each must be confirmed, with ${selected.params.guarantorMinServiceMonths} months' service and employment beyond your final repayment, deductions within ${selected.params.guarantorMaxDeductionPercent}% of net pay, and no more than ${selected.params.maxGuaranteesPerGuarantor} active guarantees.` : ""}
             </p>
         </GuarantorChoice>
         <p className="text-xs text-muted">Next, upload your documents and submit.</p>
