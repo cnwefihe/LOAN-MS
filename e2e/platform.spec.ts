@@ -210,7 +210,7 @@ test.describe.serial("application lifecycle through the UI", () => {
     await expect(page.getByRole("link", { name: "Report repayment" })).toHaveCount(0);
     await page.getByRole("link", { name: "Repay early" }).click();
     await expect(page.getByRole("heading", { name: "Amount to pay today" })).toBeVisible();
-    await expect(page.getByText("Interest you save")).toBeVisible();
+    await expect(page.getByText("Loan balance to repay")).toBeVisible();
   });
 
   test("eligibility calculator: payslip in, a plain answer out", async ({ page }) => {

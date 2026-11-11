@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Download } from "lucide-react";
 import { getDb } from "@/db";
 import { requireActor } from "@/lib/auth/session";
+import { dec, m } from "@/lib/finance/money";
 import { can } from "@/server/actor";
 import { earlyRepaymentAccount, earlyRepaymentQuote, getEarlyRepayment } from "@/server/services/loans";
 import { confirmEarlyRepaymentAction, declineEarlyRepaymentAction } from "@/app/actions/payroll";
@@ -34,7 +35,8 @@ export default async function EarlyRepayment({ params }: { params: Promise<{ id:
         <Card title="Payment">
           <KeyValues columns={2} items={[
             ["Amount paid", <Money key="a" value={r.amount} className="font-semibold" />], ["Quoted on", <DateText key="q" value={r.quoteDate} />],
-            ["Principal", <Money key="p" value={r.principal} />], ["Interest to date", <Money key="i" value={r.interest} />],
+            ["Loan principal", <Money key="p" value={r.principal} />], ["Plus interest to date", <Money key="i" value={r.interest} />],
+            ["Less total repayments", <Money key="t" value={m(dec(r.principal).plus(r.interest).minus(r.amount))} />], ["Balance to repay", <Money key="b" value={r.amount} />],
             ["Interest saved", <Money key="s" value={r.interestSaved} />], ["Transfer reference", r.payerReference ?? "-"],
             ["Paid into", account.ready ? `${account.bankName}, ${account.accountNumber}` : "-"], ["Sent", <DateText key="c" value={r.createdAt} withTime />],
           ]} />

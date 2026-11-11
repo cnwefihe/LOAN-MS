@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Executor } from "@/db";
-import { departments, loanApplications, applicationGuarantors, loanAccounts, repaymentClaims, financialTransactions, notifications, policyVersions, earlyRepayments } from "@/db/schema";
+import { departments, loanApplications, applicationGuarantors, loanAccounts, repaymentClaims, financialTransactions, notifications, earlyRepayments } from "@/db/schema";
 import { can, canAny, type Actor } from "@/server/actor";
 import { canVerifyDocuments } from "@/server/services/verification";
 import { getWording } from "@/server/wording";
@@ -102,8 +102,7 @@ export async function buildNav(db: Executor, actor: Actor): Promise<{ sections: 
   if (can(actor, "admin.roles.manage")) admin.push({ href: "/admin/roles", label: "Roles", icon: "shield" });
   if (can(actor, "admin.org.manage")) admin.push({ href: "/admin/organisation", label: "Organisation", icon: "building" });
   if (canAny(actor, "admin.policy.manage", "admin.policy.approve")) {
-    const pend = await count(db, db.select({ n }).from(policyVersions).where(eq(policyVersions.status, "pending_approval")));
-    admin.push({ href: "/admin/products", label: "Products", icon: "package", badge: pend });
+    admin.push({ href: "/admin/products", label: "Products", icon: "package" });
   }
   if (can(actor, "admin.content.manage")) admin.push({ href: "/admin/content", label: "Templates", icon: "book" });
   if (can(actor, "admin.settings.manage")) admin.push({ href: "/admin/branding", label: "Branding", icon: "palette" }, { href: "/admin/settings", label: "Settings", icon: "settings" }, { href: "/admin/releases", label: "Versions", icon: "tag" });

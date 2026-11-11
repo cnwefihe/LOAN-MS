@@ -1,4 +1,4 @@
-import { and, desc, eq, max } from "drizzle-orm";
+import { and, desc, eq, inArray, max } from "drizzle-orm";
 import type { Executor } from "@/db";
 import { loanProducts, policyVersions, termsDocuments, documentRequirements, loanApplications, loanAccounts } from "@/db/schema";
 import { parsePolicy, policyParametersSchema, type PolicyParameters } from "@/lib/finance/policy";
@@ -53,7 +53,6 @@ export async function createProduct(db: Executor, actor: Actor, input: { code: s
   if (!/^[A-Z0-9_-]{2,30}$/.test(code)) throw new DomainError("Product code must be 2 to 30 characters: letters, digits, hyphens or underscores.");
   return db.transaction(async (tx) => {
     const [p] = await tx.insert(loanProducts).values({ code, name: input.name.trim(), description: input.description?.trim() || null, createdBy: actor.userId, isActive: false }).returning();
-    await tx.insert(policyVersions).values({ productId: p.id, version: 1, status: "draft", parameters: DEFAULT_POLICY, changeNote: "Initial draft", createdBy: actor.userId });
     await audit(tx, actor, { action: "product.created", entityType: "loan_product", entityId: p.id, after: p });
     return p;
   });
@@ -64,7 +63,7 @@ export async function setProductActive(db: Executor, actor: Actor, productId: st
   return db.transaction(async (tx) => {
     const [before] = await tx.select().from(loanProducts).where(eq(loanProducts.id, productId));
     if (!before) throw new NotFoundError("Product");
-    if (isActive && !(await getActivePolicy(tx, productId))) throw new DomainError("Activate a policy version before opening this product to applications.");
+    if (isActive && !(await getActivePolicy(tx, productId))) throw new DomainError("Save the loan terms before opening this product to applications.");
     await tx.update(loanProducts).set({ isActive, updatedAt: new Date() }).where(eq(loanProducts.id, productId));
     await audit(tx, actor, { action: isActive ? "product.activated" : "product.deactivated", entityType: "loan_product", entityId: productId, before: { isActive: before.isActive }, after: { isActive } });
   });
@@ -99,6 +98,37 @@ export async function deleteProduct(db: Executor, actor: Actor, productId: strin
     await tx.delete(policyVersions).where(eq(policyVersions.productId, productId));
     await tx.delete(loanProducts).where(eq(loanProducts.id, productId));
     await audit(tx, actor, { action: "product.deleted", entityType: "loan_product", entityId: productId, before: p, summary: `${p.code}: ${p.name}` });
+  });
+}
+
+/**
+ * Save a product's loan terms; they apply to new applications at once. There are no versions to manage:
+ * while no application uses the current terms they are changed in place. Once applications or loans
+ * use them, the new terms are kept as a fresh record, so those applications and loans keep exactly the
+ * terms they were made on.
+ */
+export async function saveProductTerms(db: Executor, actor: Actor, productId: string, raw: unknown) {
+  assertCan(actor, "admin.policy.manage");
+  const parsed = policyParametersSchema.safeParse(raw);
+  if (!parsed.success) throw new DomainError(parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "));
+  return db.transaction(async (tx) => {
+    const [product] = await tx.select().from(loanProducts).where(eq(loanProducts.id, productId));
+    if (!product) throw new NotFoundError("Product");
+    const versions = await tx.select().from(policyVersions).where(eq(policyVersions.productId, productId)).orderBy(desc(policyVersions.version));
+    const current = versions.find((v) => v.status === "active") ?? versions[0];
+    const now = new Date();
+    const live = { status: "active" as const, changeNote: "Terms updated", submittedBy: actor.userId, approvedBy: actor.userId, approvedAt: now, effectiveFrom: now };
+    const [usedApp] = current ? await tx.select({ id: loanApplications.id }).from(loanApplications).where(eq(loanApplications.policyVersionId, current.id)).limit(1) : [];
+    const [usedLoan] = current ? await tx.select({ id: loanAccounts.id }).from(loanAccounts).where(eq(loanAccounts.policyVersionId, current.id)).limit(1) : [];
+    if (current && !usedApp && !usedLoan) {
+      await tx.update(policyVersions).set({ parameters: parsed.data, ...live }).where(eq(policyVersions.id, current.id));
+    } else {
+      if (current?.status === "active") await tx.update(policyVersions).set({ status: "retired", retiredAt: now }).where(eq(policyVersions.id, current.id));
+      await tx.insert(policyVersions).values({ productId, version: (versions[0]?.version ?? 0) + 1, parameters: parsed.data, createdBy: actor.userId, ...live });
+    }
+    // Leftovers from the old draft-and-approve steps are no longer used.
+    await tx.delete(policyVersions).where(and(eq(policyVersions.productId, productId), inArray(policyVersions.status, ["draft", "pending_approval", "rejected"])));
+    await audit(tx, actor, { action: "product.terms_updated", entityType: "loan_product", entityId: productId, before: current ? current.parameters : null, after: parsed.data, summary: `${product.name}: loan terms updated` });
   });
 }
 

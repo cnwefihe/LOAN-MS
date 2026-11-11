@@ -49,15 +49,13 @@ export default async function RepayEarly({ params }: { params: Promise<{ id: str
       <div className="grid gap-6 lg:grid-cols-2">
         <Card title="Amount to pay today" description={<>Valid for payment today, <DateText value={q.asOf} />.</>}>
           <p className="text-3xl font-semibold text-navy"><Money value={q.settlementAmount} /></p>
-          <div className="mt-4">
-            <KeyValues columns={2} items={[
-              ["Principal still owed", <Money key="p" value={q.principal} />],
-              ["Interest to date", <Money key="i" value={q.interestDue} />],
-              ...(Number(q.overpaymentCredit) > 0 ? [["Credit already paid", <>- <Money key="c" value={q.overpaymentCredit} /></>] as [string, React.ReactNode]] : []),
-              ["Interest you save", <Money key="s" value={q.interestSaved} />],
-            ]} />
-          </div>
-          <p className="hint mt-4">Interest is charged on the reducing balance up to now only. You do not pay interest for the months you no longer borrow for.</p>
+          <dl className="mt-4 divide-y divide-line text-sm">
+            <div className="flex justify-between py-2"><dt className="text-muted">Loan principal</dt><dd><Money value={q.loanPrincipal} /></dd></div>
+            <div className="flex justify-between py-2"><dt className="text-muted">Plus interest to date</dt><dd><Money value={q.interestToDate ?? "0"} /></dd></div>
+            <div className="flex justify-between py-2"><dt className="text-muted">Less total repayments</dt><dd>- <Money value={q.totalRepaid} /></dd></div>
+            <div className="flex justify-between py-2 font-semibold"><dt>Loan balance to repay</dt><dd><Money value={q.settlementAmount} /></dd></div>
+          </dl>
+          <p className="hint mt-4">Interest to date is on the reducing balance: the interest of every instalment already due, plus this month&apos;s interest for the days up to today. Interest for the remaining months is not charged, which saves you <Money value={q.interestSaved} />.</p>
         </Card>
         <Card title="1. Pay into this account">
           {account.ready ? (

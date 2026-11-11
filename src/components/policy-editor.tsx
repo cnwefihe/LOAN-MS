@@ -53,11 +53,11 @@ function toPolicy(v: Record<string, unknown>): unknown {
   return out;
 }
 
-export function PolicyEditor({ initial, changeNote, action, productName }: {
+export function PolicyEditor({ initial, action, productName, description }: {
   initial: PolicyParameters;
-  changeNote: string;
   action: (prev: ActionResult | null, fd: FormData) => Promise<ActionResult>;
   productName: string;
+  description?: React.ReactNode;
 }) {
   const [v, setV] = useState<Record<string, unknown>>(() => {
     const o: Record<string, unknown> = {};
@@ -105,8 +105,8 @@ export function PolicyEditor({ initial, changeNote, action, productName }: {
 
   return (
     <div className="grid gap-6 xl:grid-cols-3">
-      <Card title="Edit draft" description="The preview updates as you type." className="xl:col-span-2">
-        <ActionForm action={action} submitLabel="Save draft">
+      <Card title="Loan terms" description={description} className="xl:col-span-2">
+        <ActionForm action={action} submitLabel="Save">
           <div className="space-y-7">
             {GROUPS.map((g) => (
               <fieldset key={g.title}>
@@ -114,14 +114,13 @@ export function PolicyEditor({ initial, changeNote, action, productName }: {
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{g.fields.map(field)}</div>
               </fieldset>
             ))}
-            <div><label htmlFor="changeNote" className="label">Change note (optional)</label><input id="changeNote" name="changeNote" defaultValue={changeNote} placeholder="For example: interest reduced to 4% from January" className="input" /></div>
           </div>
         </ActionForm>
       </Card>
 
       <div className="space-y-6 xl:sticky xl:top-0 xl:self-start">
         <Card title="Check" actions={parsed.success ? <Badge tone="success">Valid</Badge> : <Badge tone="danger">{parsed.error.issues.length} to fix</Badge>}>
-          {parsed.success ? <p className="text-sm text-muted">All values are consistent. Save, then submit for approval.</p> : (
+          {parsed.success ? <p className="text-sm text-muted">All values are consistent and ready to save.</p> : (
             <ul className="list-disc space-y-1 pl-4 text-sm text-danger">
               {parsed.error.issues.map((i, n) => <li key={n}>{POLICY_FIELD_LABELS[i.path[0] as Key] ?? String(i.path[0])}: {i.message.replace(/^Expected number, received nan$/i, "enter a number")}</li>)}
             </ul>

@@ -12,7 +12,7 @@ import { assertCan } from "@/server/actor";
 import { setUserRole, setUserActive, setDisplayName, revokeUserSessions, setRolePermissions, createRole, deleteRole, updateRoleDetails, upsertSchool, upsertDepartment, upsertCategory, deleteOrgItem, setDepartmentApprover, clearDepartmentApprover, upsertDocumentRequirement, publishTerms, updateTemplate, updateSetting,
   revokeSession, requeueEmails, updateSettingsGroup, uploadBrandAsset, resetBrandAsset, sendTestEmail,
 } from "@/server/services/admin";
-import { createProduct, setProductActive, createDraftFrom, updateDraft, updateProductDetails, deleteProduct, discardDraft, submitPolicy, approvePolicy, activatePolicyDraft, rejectPolicy, retirePolicy } from "@/server/services/policies";
+import { createProduct, setProductActive, saveProductTerms, updateProductDetails, deleteProduct } from "@/server/services/policies";
 import { SETTINGS, SETTING_GROUPS, type SettingKey, type SettingGroup } from "@/server/settings";
 import { isLogoVariant, getBranding } from "@/server/branding";
 import { emailOutbox } from "@/db/schema";
@@ -102,7 +102,7 @@ export async function updateRoleDetailsAction(roleId: string, _: Prev, fd: FormD
 export async function createProductAction(_: Prev, fd: FormData) {
   return runAction(async (actor) => {
     const p = await createProduct(await getDb(), actor, { code: str(fd, "code", true), name: str(fd, "name", true), description: str(fd, "description") });
-    return { redirectTo: `/admin/products/${p.id}`, message: "Product created with a draft policy." };
+    return { redirectTo: `/admin/products/${p.id}`, message: "Product created. Set its loan terms and save." };
   }, { revalidate: ["/admin/products"] });
 }
 
@@ -127,27 +127,14 @@ export async function deleteProductAction(productId: string, _: Prev) {
   }, { revalidate: ["/admin/products", "/products"] });
 }
 
-export async function discardDraftAction(versionId: string, _: Prev) {
-  return runAction(async (actor) => {
-    const productId = await discardDraft(await getDb(), actor, versionId);
-    return { redirectTo: `/admin/products/${productId}`, message: "Draft discarded." };
-  }, { revalidate: ["/admin/products"] });
-}
-
-export async function newPolicyDraftAction(productId: string, fromVersionId: string | null, _: Prev) {
-  return runAction(async (actor) => {
-    const d = await createDraftFrom(await getDb(), actor, productId, fromVersionId ?? undefined);
-    return { redirectTo: `/admin/products/${productId}?version=${d.id}`, message: `Draft v${d.version} created.` };
-  }, { revalidate: ["/admin/products"] });
-}
-
 const NUMBER_FIELDS: (keyof PolicyParameters)[] = [
   "minServiceMonths", "maxActiveLoans", "annualInterestRate", "minTenorMonths", "maxTenorMonths",
   "maxDeductionPercent", "requiredGuarantors", "guarantorMinServiceMonths", "maxGuaranteesPerGuarantor", "repaymentDayOfMonth", "gracePeriodMonths",
   "overdueAfterDays", "defaultAfterDays", "reminderDaysBeforeDue", "maxRestructuredTenorMonths",
 ];
 
-export async function savePolicyDraftAction(versionId: string, _: Prev, fd: FormData) {
+/** Save a product's loan terms. They apply to new applications at once; existing loans keep their terms. */
+export async function saveProductTermsAction(productId: string, _: Prev, fd: FormData) {
   return runAction(async (actor) => {
     const raw: Record<string, unknown> = {};
     for (const k of NUMBER_FIELDS) {
@@ -165,44 +152,9 @@ export async function savePolicyDraftAction(versionId: string, _: Prev, fd: Form
     raw.allowRestructuring = bool(fd, "allowRestructuring");
     raw.eligibleEmploymentStatuses = fd.getAll("eligibleEmploymentStatuses").map(String);
     raw.requiredDocumentCodes = str(fd, "requiredDocumentCodes").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
-    await updateDraft(await getDb(), actor, versionId, raw, str(fd, "changeNote"));
-    return "Draft saved and validated.";
-  }, { revalidate: ["/admin/products"] });
-}
-
-export async function submitPolicyAction(versionId: string, _: Prev) {
-  return runAction(async (actor) => {
-    await submitPolicy(await getDb(), actor, versionId);
-    return "Submitted for approval.";
-  }, { revalidate: ["/admin/products"] });
-}
-
-export async function activatePolicyAction(versionId: string, _: Prev) {
-  return runAction(async (actor) => {
-    await activatePolicyDraft(await getDb(), actor, versionId);
-    return "Policy activated. New applications use it from now on; existing loans keep their original terms.";
-  }, { revalidate: ["/admin/products"] });
-}
-
-export async function approvePolicyAction(versionId: string, _: Prev) {
-  return runAction(async (actor) => {
-    await approvePolicy(await getDb(), actor, versionId);
-    return "Policy version approved and activated. Existing loans keep their original terms.";
-  }, { revalidate: ["/admin/products"] });
-}
-
-export async function retirePolicyAction(versionId: string, _: Prev, fd: FormData) {
-  return runAction(async (actor) => {
-    await retirePolicy(await getDb(), actor, versionId, str(fd, "reason"));
-    return "Policy deactivated and product closed to new applications. Existing loans are unaffected.";
-  }, { revalidate: ["/admin/products"] });
-}
-
-export async function rejectPolicyAction(versionId: string, _: Prev, fd: FormData) {
-  return runAction(async (actor) => {
-    await rejectPolicy(await getDb(), actor, versionId, str(fd, "reason", true));
-    return "Policy version rejected.";
-  }, { revalidate: ["/admin/products"] });
+    await saveProductTerms(await getDb(), actor, productId, raw);
+    return "Saved. New applications use these terms from now on; existing loans keep the terms they were approved on.";
+  }, { revalidate: ["/admin/products", "/products"] });
 }
 
 export async function deleteOrgAction(kind: "school" | "department" | "category", id: string, _: Prev) {

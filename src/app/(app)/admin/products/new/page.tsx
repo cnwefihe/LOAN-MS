@@ -18,7 +18,7 @@ export default async function NewProduct() {
           <input id="code" name="code" required pattern="[A-Za-z0-9_\-]{2,30}" className="input" placeholder="e.g. HOUSING" />
           <label htmlFor="description" className="label mt-3">Description</label>
           <textarea id="description" name="description" rows={3} className="input" />
-          <p className="hint">Created closed, with a draft policy to configure and approve.</p>
+          <p className="hint">Created closed. Set its loan terms and save, then open it.</p>
         </ActionForm>
       </Card>
     </>

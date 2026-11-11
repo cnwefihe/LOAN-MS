@@ -26,7 +26,7 @@ import {
 } from "@/server/services/loans";
 import { fundPosition, setFundPool } from "@/server/services/funds";
 import { currentSchedule } from "@/server/services/ledger";
-import { addDays, addMonths, firstOfMonth, todayLagos } from "@/lib/finance/dates";
+import { addDays, addMonths, daysBetween, firstOfMonth, todayLagos } from "@/lib/finance/dates";
 import { dec } from "@/lib/finance/money";
 import { encryptString } from "@/lib/security/crypto";
 import { generateSecret, totp } from "@/lib/security/totp";
@@ -148,6 +148,24 @@ describe("the fund pool", () => {
       expect(dec(q.settlementAmount).lessThan(dec(l.principalOutstanding).plus(l.interestOutstanding))).toBe(true);
       expect(dec(q.interestSaved).greaterThan(0)).toBe(true);
       expect(dec(q.settlementAmount).equals(dec(q.principal).plus(q.interestDue).minus(q.overpaymentCredit))).toBe(true);
+      // Balance to repay = loan principal + interest to date - total repayments.
+      const open = (await currentSchedule(db, loanId))!.instalments.filter((i) => i.status !== "superseded");
+      const today = todayLagos();
+      const dueSoFar = open.filter((i) => i.dueDate <= today).reduce((a, i) => a.plus(i.interestDue), dec(0));
+      const k = open.findIndex((i) => i.dueDate > today);
+      const start = k > 0 ? open[k - 1].dueDate : l.disbursedAt!.toISOString().slice(0, 10);
+      const accrued = dec(open[k].interestDue).times(daysBetween(start, today)).div(daysBetween(start, open[k].dueDate)).toDecimalPlaces(2);
+      expect(q.interestToDate).toBe(dueSoFar.plus(accrued).toFixed(2));
+      expect(q.loanPrincipal).toBe(l.principal);
+      expect(q.totalRepaid).toBe(l.totalRepaid);
+      expect(q.settlementAmount).toBe(dec(l.principal).plus(q.interestToDate!).minus(l.totalRepaid).toFixed(2));
+      // Later instalments' interest is not charged.
+      expect(dec(q.interestSaved).greaterThan(0)).toBe(true);
+    });
+
+    it("charges only this month's interest for the days so far: half a period, half the interest", () => {
+      // ₦600,000 at 10% a year on the reducing balance: a month's interest is 5,000.00; 15 of 30 days is 2,500.00.
+      expect(dec("5000.00").times(daysBetween("2026-11-25", "2026-12-10")).div(daysBetween("2026-11-25", "2026-12-25")).toDecimalPlaces(2).toFixed(2)).toBe("2500.00");
     });
 
     it("the Payroll Officer, not the Payroll Manager, closes the loan, and only with a correct two-step verification code", async () => {

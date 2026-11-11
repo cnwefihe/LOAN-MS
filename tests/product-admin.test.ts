@@ -12,7 +12,8 @@ import { getDb, type Database } from "@/db";
 import * as s from "@/db/schema";
 import { seedBase, seedFixtures } from "@/server/seed";
 import { loadActor } from "@/server/services/identity";
-import { createProduct, createDraftFrom, deleteProduct, discardDraft, updateDraft, updateProductDetails, listPolicyVersions } from "@/server/services/policies";
+import { createProduct, deleteProduct, updateProductDetails, listPolicyVersions, saveProductTerms, setProductActive, getActivePolicy, getPolicyVersion } from "@/server/services/policies";
+import { DEFAULT_POLICY } from "@/lib/finance/defaults";
 
 let db: Database;
 const ids: Record<string, string> = {};
@@ -40,16 +41,28 @@ describe("product administration", () => {
     await expect(updateProductDetails(db, admin, p.id, { name: "X", description: "" })).rejects.toThrow(/3 to 150/);
   });
 
-  it("starts a new draft from an earlier version, and discards drafts", async () => {
+  it("edits a product's terms and saves them, with no versions to manage; applications keep the terms they were made on", async () => {
     const admin = await actor("admin");
     const p = await createProduct(db, admin, { code: "STAFF-HOME", name: "Home Loan" });
-    const [v1] = await listPolicyVersions(db, p.id);
-    await updateDraft(db, admin, v1.id, { ...(v1.parameters as object), annualInterestRate: 7, interestMethod: "flat" }, "Seven per cent");
-    const v2 = await createDraftFrom(db, admin, p.id, v1.id);
-    expect(v2.version).toBe(2);
-    expect((v2.parameters as { annualInterestRate: number }).annualInterestRate).toBe(7);
-    await discardDraft(db, admin, v2.id);
-    expect((await listPolicyVersions(db, p.id)).map((v) => v.version)).toEqual([1]);
+    await expect(setProductActive(db, admin, p.id, true)).rejects.toThrow(/Save the loan terms/);
+    await saveProductTerms(db, admin, p.id, { ...DEFAULT_POLICY, annualInterestRate: 7 });
+    await saveProductTerms(db, admin, p.id, { ...DEFAULT_POLICY, annualInterestRate: 8 });
+    // Unused terms are changed in place.
+    let rows = await listPolicyVersions(db, p.id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ status: "active" });
+    expect((rows[0].parameters as { annualInterestRate: number }).annualInterestRate).toBe(8);
+    await setProductActive(db, admin, p.id, true);
+    // Once an application uses them, a change leaves that application's terms as they were.
+    const applicant = await actor("applicant");
+    await db.insert(s.loanApplications).values({ reference: "LMS-261102-902", applicantId: applicant.userId, productId: p.id, policyVersionId: rows[0].id, requestedAmount: "100000", tenorMonths: 6, purpose: "Made on the 8% terms", status: "draft", salarySnapshot: {}, quote: {} } as never);
+    await saveProductTerms(db, admin, p.id, { ...DEFAULT_POLICY, annualInterestRate: 9 });
+    rows = await listPolicyVersions(db, p.id);
+    expect((await getActivePolicy(db, p.id))!.params.annualInterestRate).toBe(9);
+    const [app] = await db.select().from(s.loanApplications).where(eq(s.loanApplications.reference, "LMS-261102-902"));
+    expect((await getPolicyVersion(db, app.policyVersionId)).params.annualInterestRate).toBe(8);
+    await expect(saveProductTerms(db, admin, p.id, { ...DEFAULT_POLICY, minTenorMonths: 99, maxTenorMonths: 6 })).rejects.toThrow();
+    await expect(saveProductTerms(db, await actor("hradmin"), p.id, DEFAULT_POLICY)).rejects.toThrow(/not authorised/);
   });
 
   it("deletes an unused product, but never one with applications on record", async () => {

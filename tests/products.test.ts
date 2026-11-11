@@ -12,7 +12,7 @@ import { getDb, type Database } from "@/db";
 import * as s from "@/db/schema";
 import { seedBase, seedFixtures } from "@/server/seed";
 import { loadActor, grantRole } from "@/server/services/identity";
-import { createProduct, updateDraft, submitPolicy, approvePolicy, setProductActive, retirePolicy, listPolicyVersions } from "@/server/services/policies";
+import { createProduct, saveProductTerms, setProductActive, listPolicyVersions } from "@/server/services/policies";
 import { saveDraft, submitApplication } from "@/server/services/applications";
 import { recordHrDecision } from "@/server/services/hr";
 import { decideApplication } from "@/server/services/approvals";
@@ -41,17 +41,14 @@ describe("quarterly product with amount-based approval routing", () => {
   let appId: string;
   let loanId: string;
 
-  it("administrators configure, approve and open a quarterly product", async () => {
+  it("administrators set up, save and open a quarterly product", async () => {
     const admin = await actor("admin");
     const p = await createProduct(db, admin, { code: "QTR", name: "Quarterly Staff Loan" });
     productId = p.id;
-    const [draft] = await listPolicyVersions(db, p.id);
-    await updateDraft(db, admin, draft.id, {
+    await saveProductTerms(db, admin, p.id, {
       ...DEFAULT_POLICY, repaymentFrequency: "quarterly", minTenorMonths: 3, maxTenorMonths: 12, maxRestructuredTenorMonths: 12,
       requiredGuarantors: 0,
-    }, "Quarterly product");
-    await submitPolicy(db, admin, draft.id);
-    await approvePolicy(db, admin, draft.id);
+    });
     await setProductActive(db, admin, p.id, true);
   });
 
@@ -113,10 +110,11 @@ describe("quarterly product with amount-based approval routing", () => {
     expect(c.bytes.subarray(0, 5).toString()).toBe("%PDF-");
   });
 
-  it("deactivating the policy closes the product without touching existing loans", async () => {
+  it("changing the terms or closing the product does not touch existing loans", async () => {
     const [active] = (await listPolicyVersions(db, productId)).filter((v) => v.status === "active");
-    await expect(retirePolicy(db, await actor("accounts"), active.id, "No longer offered")).rejects.toThrow(/not authorised/);
-    await retirePolicy(db, await actor("admin"), active.id, "Product withdrawn by Council decision");
+    await expect(setProductActive(db, await actor("accounts"), productId, false)).rejects.toThrow(/not authorised/);
+    await saveProductTerms(db, await actor("admin"), productId, { ...DEFAULT_POLICY, repaymentFrequency: "quarterly", minTenorMonths: 3, maxTenorMonths: 12, maxRestructuredTenorMonths: 12, requiredGuarantors: 0, annualInterestRate: 12 });
+    await setProductActive(db, await actor("admin"), productId, false);
     const [product] = await db.select().from(s.loanProducts).where(eq(s.loanProducts.id, productId));
     expect(product.isActive).toBe(false);
     const [loan] = await db.select().from(s.loanAccounts).where(eq(s.loanAccounts.id, loanId));

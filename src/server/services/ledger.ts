@@ -319,8 +319,41 @@ export async function settlementQuote(db: Executor, loanAccountId: string, asOf 
   const policy = (await getPolicyVersion(db, loan.policyVersionId)).params;
   const bal = await accountBalances(db, loanAccountId);
   const cur = await currentSchedule(db, loanAccountId);
+  const credit = D.max(0, bal.overpayment);
+  if (opts.rebateFutureInterest && cur) {
+    // Early repayment in full:
+    //   Balance to repay = loan principal + interest to date - total repayments
+    // Interest to date, on the reducing balance = the interest of every instalment already due
+    //   + the current instalment's interest x days elapsed in its period / days in the period.
+    // Interest of the later instalments is not charged.
+    const all = [...cur.instalments].sort((a, b) => a.sequence - b.sequence);
+    const open = all.filter((i) => i.status !== "superseded");
+    let interestToDate = all.filter((i) => i.status === "superseded").reduce((a, i) => a.plus(i.interestPaid), ZERO);
+    for (const i of open) if (i.dueDate <= asOf) interestToDate = interestToDate.plus(i.interestDue);
+    const k = open.findIndex((i) => i.dueDate > asOf);
+    if (k >= 0) {
+      const next = open[k];
+      const start = k > 0 ? open[k - 1].dueDate : (loan.disbursedAt ? loan.disbursedAt.toISOString().slice(0, 10) : asOf);
+      const period = Math.max(1, daysBetween(start, next.dueDate));
+      const elapsed = Math.min(period, Math.max(0, daysBetween(start, asOf)));
+      interestToDate = interestToDate.plus(dec(next.interestDue).times(elapsed).div(period).toDecimalPlaces(2));
+    }
+    const totalRepaid = dec(loan.totalRepaid);
+    const payable = D.max(0, dec(loan.principal).plus(interestToDate).minus(totalRepaid));
+    // In the ledger the loan closes with the interest not charged written off from unearned interest. When
+    // instalments were paid ahead, that includes interest already paid for months not yet reached.
+    const principal = D.max(0, bal.principal);
+    const rebate = principal.plus(bal.interest).minus(credit).minus(payable);
+    if (rebate.isNegative() || rebate.greaterThan(D.max(0, bal.unearned))) {
+      throw new DomainError("The balance on this loan cannot be worked out automatically because it has been restructured or adjusted. Please contact the Bursary.");
+    }
+    return {
+      loanPrincipal: m(loan.principal), interestToDate: m(interestToDate), totalRepaid: m(totalRepaid),
+      principal: m(principal), interestDue: m(bal.interest.minus(rebate)), rebate: m(rebate), overpaymentCredit: m(credit), settlementAmount: m(payable), asOf,
+    };
+  }
   let rebate = ZERO;
-  if ((opts.rebateFutureInterest || policy.earlySettlementRebate === "unearned_interest") && cur) {
+  if (policy.earlySettlementRebate === "unearned_interest" && cur) {
     // Interest on instalments falling due more than one month from today is not yet earned.
     const cutoff = addDays(asOf, 30);
     for (const i of cur.instalments) {
@@ -330,9 +363,8 @@ export async function settlementQuote(db: Executor, loanAccountId: string, asOf 
   rebate = D.min(rebate, D.max(0, bal.interest));
   const interestDue = D.max(0, bal.interest.minus(rebate));
   const principal = D.max(0, bal.principal);
-  const credit = D.max(0, bal.overpayment);
   const payable = D.max(0, principal.plus(interestDue).minus(credit));
-  return { principal: m(principal), interestDue: m(interestDue), rebate: m(rebate), overpaymentCredit: m(credit), settlementAmount: m(payable), asOf };
+  return { loanPrincipal: m(loan.principal), interestToDate: null as string | null, totalRepaid: m(loan.totalRepaid), principal: m(principal), interestDue: m(interestDue), rebate: m(rebate), overpaymentCredit: m(credit), settlementAmount: m(payable), asOf };
 }
 
 export function settlementLines(q: Awaited<ReturnType<typeof settlementQuote>>, cashReceived: string): Line[] {

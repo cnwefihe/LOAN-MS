@@ -507,9 +507,10 @@ export async function recordRepayment(db: Executor, actor: Actor, loanId: string
 /* ───────────────────────── Early repayment ───────────────────────── */
 
 /**
- * Repaying early is always the whole balance (part payments come only from salary). The amount is the
- * principal still owed plus interest on that reducing balance up to now; interest for the months no
- * longer borrowed for is not charged.
+ * Repaying early is always the whole balance (part payments come only from salary):
+ *   Amount = principal still owed (after repayments) + interest to date on the reducing balance - credit already paid
+ * where interest to date is the unpaid interest on instalments already due plus the current instalment's
+ * interest for the days elapsed in its period. Interest for the remaining months is not charged.
  */
 export async function earlyRepaymentQuote(db: Executor, loanId: string, asOf = todayLagos()) {
   const q = await settlementQuote(db, loanId, asOf, { rebateFutureInterest: true });
@@ -540,7 +541,7 @@ export async function requestEarlyRepayment(db: Executor, actor: Actor, loanId: 
     if (dec(q.settlementAmount).lessThanOrEqualTo(0)) throw new DomainError("Nothing is left to repay on this loan.");
     const doc = await storeDocument(tx, actor, { ...receipt, category: "repayment_evidence", title: "Early repayment receipt", ownerUserId: actor.userId, loanAccountId: loan.id, applicationId: loan.applicationId });
     const [r] = await tx.insert(earlyRepayments).values({
-      loanAccountId: loan.id, requestedBy: actor.userId, quoteDate: q.asOf, amount: q.settlementAmount, principal: q.principal, interest: q.interestDue,
+      loanAccountId: loan.id, requestedBy: actor.userId, quoteDate: q.asOf, amount: q.settlementAmount, principal: q.loanPrincipal, interest: q.interestToDate ?? q.interestDue,
       interestSaved: q.interestSaved, payerReference: input.payerReference?.trim() || null, receiptDocumentId: doc.id,
     }).returning();
     await audit(tx, actor, { action: "repayment.early_submitted", entityType: "early_repayment", entityId: r.id, summary: `${loan.accountNumber}: early repayment of ${naira(r.amount)} sent for confirmation` });

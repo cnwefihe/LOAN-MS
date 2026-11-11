@@ -21,7 +21,7 @@ import * as s from "@/db/schema";
 import { seedBase, seedFixtures } from "@/server/seed";
 import { loadActor } from "@/server/services/identity";
 import type { Actor } from "@/server/actor";
-import { createProduct, updateDraft, submitPolicy, approvePolicy, setProductActive, listPolicyVersions } from "@/server/services/policies";
+import { createProduct, saveProductTerms, setProductActive } from "@/server/services/policies";
 import { saveDraft, submitApplication } from "@/server/services/applications";
 import { respondToGuarantee } from "@/server/services/guarantors";
 import { recordHrDecision } from "@/server/services/hr";
@@ -132,17 +132,14 @@ afterAll(async () => {
 });
 
 describe("product", () => {
-  it("is configured, approved by the administrator and opened", async () => {
+  it("is configured by the administrator, saved and opened", async () => {
     const admin = await actor(ids.admin);
     const p = await createProduct(db, admin, { code: "MATRIX", name: "Staff Development Loan" });
     productId = p.id;
-    const [draft] = await listPolicyVersions(db, p.id);
-    await updateDraft(db, admin, draft.id, {
+    await saveProductTerms(db, admin, p.id, {
       ...DEFAULT_POLICY, minTenorMonths: 6, maxTenorMonths: 12,
       requiredGuarantors: 2, maxGuarantorExposure: "20000000.00", maxGuaranteesPerGuarantor: 5,
-    }, "Matrix test product");
-    await submitPolicy(db, admin, draft.id);
-    await approvePolicy(db, admin, draft.id);
+    });
     await setProductActive(db, admin, p.id, true);
   });
 });
