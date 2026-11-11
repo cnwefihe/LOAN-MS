@@ -55,7 +55,7 @@ export async function remindWaitingWork(db: Executor, asOf: string): Promise<{ r
 
   const claims = await db.select({ id: repaymentClaims.id, reference: loanAccounts.accountNumber, amount: repaymentClaims.amount, claimedBy: repaymentClaims.claimedBy, since: repaymentClaims.createdAt })
     .from(repaymentClaims).innerJoin(loanAccounts, eq(loanAccounts.id, repaymentClaims.loanAccountId)).where(and(eq(repaymentClaims.status, "pending"), isNull(repaymentClaims.transactionId)));
-  for (const c of claims) items.push({ kind: "claim", id: c.id, reference: c.reference, detail: `deduction of ${formatNaira(c.amount)} reported by the borrower`, since: c.since, stage: "confirmation by the Bursary Officer", item: "Repayment", roles: ["BURSARY_OFFICER"], link: "/accounts/repayments", exclude: [c.claimedBy], threshold: accounts });
+  for (const c of claims) items.push({ kind: "claim", id: c.id, reference: c.reference, detail: `deduction of ${formatNaira(c.amount)} reported by the borrower`, since: c.since, stage: "confirmation by the Payroll Officer", item: "Repayment", roles: ["PAYROLL_OFFICER"], link: "/accounts/repayments", exclude: [c.claimedBy], threshold: accounts });
 
   const checker = await db.select({ id: financialTransactions.id, reference: financialTransactions.reference, type: financialTransactions.type, amount: financialTransactions.amount, makerId: financialTransactions.makerId, since: financialTransactions.createdAt })
     .from(financialTransactions).where(eq(financialTransactions.status, "pending_approval"));

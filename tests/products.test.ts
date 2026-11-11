@@ -98,7 +98,7 @@ describe("quarterly product with amount-based approval routing", () => {
   });
 
   it("issues receipts to the borrower but not to unrelated staff", async () => {
-    const t = await recordRepayment(db, await actor("bursary"), loanId, { amount: "82500", valueDate: todayLagos(), reference: "QTR-PAY-1", channel: "payroll", idempotencyKey: "qtr-pay-1" });
+    const t = await recordRepayment(db, await actor("payroll"), loanId, { amount: "82500", valueDate: todayLagos(), reference: "QTR-PAY-1", channel: "payroll", idempotencyKey: "qtr-pay-1" });
     const r = await receiptPdf(db, await actor("guarantor1"), t.id);
     expect(r.bytes.subarray(0, 5).toString()).toBe("%PDF-");
     await expect(receiptPdf(db, await actor("linemanager"), t.id)).rejects.toThrow(/do not have access/);

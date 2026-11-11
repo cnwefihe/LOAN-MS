@@ -308,15 +308,19 @@ export async function repaymentLines(db: Executor, loanAccountId: string, amount
   ];
 }
 
-/** Settlement figure today: all principal + interest already due; future interest rebated if policy allows. */
-export async function settlementQuote(db: Executor, loanAccountId: string, asOf = todayLagos()) {
+/**
+ * Settlement figure today: all principal + interest already due; future interest rebated if policy allows.
+ * `rebateFutureInterest` always rebates it: a staff member repaying in full early pays interest on the
+ * reducing balance up to now, never the interest of the months they no longer borrow for.
+ */
+export async function settlementQuote(db: Executor, loanAccountId: string, asOf = todayLagos(), opts: { rebateFutureInterest?: boolean } = {}) {
   const [loan] = await db.select().from(loanAccounts).where(eq(loanAccounts.id, loanAccountId));
   if (!loan) throw new NotFoundError("Loan account");
   const policy = (await getPolicyVersion(db, loan.policyVersionId)).params;
   const bal = await accountBalances(db, loanAccountId);
   const cur = await currentSchedule(db, loanAccountId);
   let rebate = ZERO;
-  if (policy.earlySettlementRebate === "unearned_interest" && cur) {
+  if ((opts.rebateFutureInterest || policy.earlySettlementRebate === "unearned_interest") && cur) {
     // Interest on instalments falling due more than one month from today is not yet earned.
     const cutoff = addDays(asOf, 30);
     for (const i of cur.instalments) {

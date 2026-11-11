@@ -1,6 +1,8 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Executor } from "@/db";
-import { loanAccounts, staffProfiles, financialTransactions } from "@/db/schema";
+import { loanAccounts, staffProfiles, financialTransactions, users, scheduleInstalments, repaymentSchedules, repaymentClaims, earlyRepayments } from "@/db/schema";
+import { dec, m, sum } from "@/lib/finance/money";
+import { todayLagos } from "@/lib/finance/dates";
 import { assertCan, type Actor } from "../actor";
 import { audit } from "../audit";
 import { DomainError, ForbiddenError, NotFoundError } from "../errors";
@@ -54,4 +56,34 @@ export async function importSalaryFromPayroll(db: Executor, actor: Actor, provid
   await db.update(staffProfiles).set(patch).where(eq(staffProfiles.userId, userId));
   await audit(db, actor, { action: "staff.salary_from_payroll", entityType: "staff_profile", entityId: userId, before: { basic: p.monthlyBasic, gross: p.monthlyGross, net: p.monthlyNet, source: p.salarySource }, after: { ...patch, asOf: s.asOf } });
   return s;
+}
+
+/**
+ * What the Payroll Manager and Payroll Officer follow each month: instalments due for deduction, which
+ * loans deduct automatically, which still need their first deduction confirmed, and early repayments.
+ */
+export async function payrollOverview(db: Executor, actor: Actor, month = todayLagos().slice(0, 7)) {
+  assertCan(actor, "payroll.view");
+  const live = await db.select({ loan: loanAccounts, borrower: users.displayName, staffNumber: staffProfiles.staffNumber })
+    .from(loanAccounts).innerJoin(users, eq(users.id, loanAccounts.borrowerId)).leftJoin(staffProfiles, eq(staffProfiles.userId, loanAccounts.borrowerId))
+    .where(inArray(loanAccounts.status, ["active", "overdue", "defaulted"]));
+  const due = await db.select({ i: scheduleInstalments, accountNumber: loanAccounts.accountNumber, loanId: loanAccounts.id, borrower: users.displayName, automatic: loanAccounts.deductionsConfirmedAt })
+    .from(scheduleInstalments).innerJoin(repaymentSchedules, eq(repaymentSchedules.id, scheduleInstalments.scheduleId))
+    .innerJoin(loanAccounts, eq(loanAccounts.id, scheduleInstalments.loanAccountId)).innerJoin(users, eq(users.id, loanAccounts.borrowerId))
+    .where(and(eq(repaymentSchedules.isCurrent, true), sql`to_char(${scheduleInstalments.dueDate}, 'YYYY-MM') = ${month}`, inArray(loanAccounts.status, ["active", "overdue", "defaulted", "closed"])))
+    .orderBy(scheduleInstalments.dueDate);
+  const [received] = await db.select({ total: sql<string>`coalesce(sum(${financialTransactions.amount}), 0)`, n: sql<number>`count(*)` }).from(financialTransactions)
+    .where(and(eq(financialTransactions.type, "repayment"), eq(financialTransactions.status, "posted"), sql`to_char(${financialTransactions.valueDate}, 'YYYY-MM') = ${month}`));
+  const [claims] = await db.select({ n: sql<number>`count(*)` }).from(repaymentClaims).where(and(eq(repaymentClaims.status, "pending"), isNull(repaymentClaims.transactionId)));
+  const [early] = await db.select({ n: sql<number>`count(*)`, total: sql<string>`coalesce(sum(${earlyRepayments.amount}), 0)` }).from(earlyRepayments).where(eq(earlyRepayments.status, "pending"));
+  return {
+    month,
+    automatic: live.filter((l) => l.loan.deductionsConfirmedAt),
+    awaitingFirst: live.filter((l) => !l.loan.deductionsConfirmedAt),
+    due: due.map((d) => ({ ...d, remaining: m(dec(d.i.totalDue).minus(d.i.principalPaid).minus(d.i.interestPaid)) })),
+    dueTotal: m(sum(due.map((d) => d.i.totalDue))),
+    received: { total: m(received.total), count: Number(received.n) },
+    claimsToConfirm: Number(claims.n),
+    earlyPending: { count: Number(early.n), total: m(early.total) },
+  };
 }

@@ -48,8 +48,8 @@ export default async function Repayments({ searchParams }: { searchParams: Promi
 
   return (
     <>
-      <PageHeader title="Repayments" crumbs={[{ label: "Bursary", href: "/accounts" }, { label: "Repayments" }]}
-        description="Confirm reported repayments and follow up on those missing." />
+      <PageHeader title="Repayments" crumbs={[{ label: "Payroll", href: "/payroll" }, { label: "Repayments" }]}
+        description="Confirm the first salary deduction on each loan. Once confirmed, later deductions are recorded automatically on their due dates." />
       <MonthToolbar month={month} max={today.slice(0, 7)}>
         <ReportDownloads label title="Repayment report" href={(f) => `/api/reports/export?report=repayment_claims&format=${f}&month=${month}`} />
         <ReportDownloads label title="Deduction schedule" href={(f) => `/api/reports/export?report=payroll_deductions&format=${f}&month=${month}`} />

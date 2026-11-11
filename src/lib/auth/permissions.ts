@@ -30,7 +30,12 @@ export const PERMISSIONS = {
   "bursary.review": { category: "Bursary", description: "Check loan history, the deduction limit and funds, and forward applications to the Line Manager" },
   "accounts.view": { category: "Bursary", description: "View loan accounts, ledgers and transactions" },
   "disbursement.record": { category: "Bursary", description: "Pay out approved loans" },
-  "repayment.confirm": { category: "Bursary", description: "Confirm repayment claims and record repayments" },
+  "repayment.confirm": { category: "Payroll", description: "Confirm the first salary deduction on each loan and record repayments" },
+  "payroll.view": { category: "Payroll", description: "See salary deductions, repayments and early repayment requests" },
+  "settlement.confirm": { category: "Payroll", description: "Mark a loan repaid in full after an early repayment (needs a two-step verification code)" },
+  "fund.view": { category: "Bursary", description: "See the fund pool for staff loans and what is left of it" },
+  "fund.manage": { category: "Bursary", description: "Set the fund pool for staff loans each year" },
+  "finance.overview": { category: "Bursary", description: "See the overview of lending, repayments and the fund pool" },
   "transaction.adjust": { category: "Bursary", description: "Propose adjustments and refunds" },
   "transaction.approve": { category: "Bursary", description: "Approve or reject pending financial transactions (checker)" },
   "transaction.reverse": { category: "Bursary", description: "Propose reversals of posted transactions" },
@@ -52,14 +57,15 @@ export const PERMISSIONS = {
 } as const;
 
 /** Display order: the workflow first, then reporting and administration. */
-export const PERMISSION_CATEGORIES = ["Self-service", "Guarantor", "Human Resources", "Bursary", "Approval", "Documents", "Reporting", "Administration"];
+export const PERMISSION_CATEGORIES = ["Self-service", "Guarantor", "Human Resources", "Bursary", "Payroll", "Approval", "Documents", "Reporting", "Administration"];
 
 export type Permission = keyof typeof PERMISSIONS;
 export const ALL_PERMISSIONS = Object.keys(PERMISSIONS) as Permission[];
 
-/** In workflow order: HR, Bursary Officer, (Line Manager), HR Director, Bursar, Accounts Payable. */
+/** In workflow order: HR, Bursary Officer, (Line Manager), HR Director, Bursar, Accounts Payable, then repayment and oversight. */
 export const ROLE_CODES = [
-  "APPLICANT", "GUARANTOR", "HR_ADMIN", "BURSARY_OFFICER", "HR_DIRECTOR", "ACCOUNTS_ADMIN", "ACCOUNTS_OFFICER", "SUPER_ADMIN",
+  "APPLICANT", "GUARANTOR", "HR_ADMIN", "BURSARY_OFFICER", "HR_DIRECTOR", "ACCOUNTS_ADMIN", "ACCOUNTS_OFFICER",
+  "PAYROLL_OFFICER", "PAYROLL_MANAGER", "HEAD_OF_ACCOUNT", "SUPER_ADMIN",
 ] as const;
 
 /** Roles from the earlier workflow, removed by seeding (HR_OFFICER holders become HR Administrators). */
@@ -76,8 +82,8 @@ export const ROLE_DEFINITIONS: Record<RoleCode, { name: string; description: str
     permissions: ["hr.queue.view", "hr.verify", "hr.guarantor.assess", "hr.staff.view", "hr.staff.edit", "documents.view_all", "reports.view", "reports.export"],
   },
   BURSARY_OFFICER: {
-    name: "Bursary Officer", description: "Checks loan history, the deduction limit and funds after Human Resources, and confirms repayments.",
-    permissions: ["bursary.review", "accounts.view", "repayment.confirm", "transaction.adjust", "transaction.reverse", "documents.view_all", "reports.view"],
+    name: "Bursary Officer", description: "Checks loan history, the deduction limit and the fund pool after Human Resources.",
+    permissions: ["bursary.review", "accounts.view", "fund.view", "transaction.adjust", "transaction.reverse", "documents.view_all", "reports.view"],
   },
   HR_DIRECTOR: {
     name: "HR Director", description: "Approves applications after the Line Manager.",
@@ -85,11 +91,23 @@ export const ROLE_DEFINITIONS: Record<RoleCode, { name: string; description: str
   },
   ACCOUNTS_ADMIN: {
     name: "Bursar", description: "Gives final approval to loans and oversees loan servicing.",
-    permissions: ["approval.queue.view", "approval.decide", "accounts.view", "transaction.approve", "restructure.approve", "servicing.run", "documents.view_all", "reports.view", "reports.export"],
+    permissions: ["approval.queue.view", "approval.decide", "accounts.view", "fund.view", "transaction.approve", "restructure.approve", "servicing.run", "documents.view_all", "reports.view", "reports.export"],
   },
   ACCOUNTS_OFFICER: {
-    name: "Accounts Payable Officer", description: "Pays out loans once the Bursar has approved them.",
-    permissions: ["accounts.view", "disbursement.record", "documents.view_all", "reports.view"],
+    name: "Accounts Payable Officer", description: "Pays out loans once the Bursar has approved them. The loan starts when it is paid.",
+    permissions: ["accounts.view", "fund.view", "disbursement.record", "documents.view_all", "reports.view"],
+  },
+  PAYROLL_OFFICER: {
+    name: "Payroll Officer", description: "Confirms the first salary deduction on each loan; later deductions are then recorded automatically.",
+    permissions: ["accounts.view", "repayment.confirm", "payroll.view", "documents.view_all", "reports.view"],
+  },
+  PAYROLL_MANAGER: {
+    name: "Payroll Manager", description: "Oversees deductions and repayments, and marks loans repaid in full after an early repayment.",
+    permissions: ["accounts.view", "payroll.view", "settlement.confirm", "fund.view", "documents.view_all", "reports.view", "reports.export"],
+  },
+  HEAD_OF_ACCOUNT: {
+    name: "Head of Account", description: "Sets the fund pool for staff loans each year and oversees lending and repayments.",
+    permissions: ["accounts.view", "finance.overview", "fund.view", "fund.manage", "payroll.view", "reports.view", "reports.export"],
   },
   // Financial maker and checker rights are assigned to named staff, never to this role (segregation of duties).
   SUPER_ADMIN: {

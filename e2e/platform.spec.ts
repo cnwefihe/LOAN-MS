@@ -173,8 +173,8 @@ test.describe.serial("application lifecycle through the UI", () => {
     await expect(page.getByRole("cell", { name: "FT-E2E-0001" })).toBeVisible();
   });
 
-  test("Bursary Officer records a salary deduction", async ({ page }) => {
-    await signIn(page, "Chioma Nnaji");
+  test("Payroll Officer records a salary deduction", async ({ page }) => {
+    await signIn(page, "Amaka Eze");
     await page.goto("/accounts/loans");
     await page.getByRole("link", { name: accountNumber }).first().click();
     await page.locator("#rref").fill("PAYROLL-E2E-001");
@@ -182,7 +182,7 @@ test.describe.serial("application lifecycle through the UI", () => {
     await expect(page.getByRole("status").filter({ hasText: /Repayment LMS-\d{6}-\d{3} posted/ })).toBeVisible();
   });
 
-  test("borrower reports this month's repayment; the Bursary Officer confirms it and the monthly export lists it", async ({ page }) => {
+  test("borrower reports this month's repayment; the Payroll Officer confirms it, deductions become automatic and the monthly export lists it", async ({ page }) => {
     await signIn(page, "Tunde Bello");
     await page.goto("/loans");
     await page.getByRole("link", { name: accountNumber }).first().click();
@@ -190,7 +190,7 @@ test.describe.serial("application lifecycle through the UI", () => {
     await page.getByRole("button", { name: "Submit for confirmation" }).click();
     await expect(page.getByRole("status").first()).toBeVisible();
 
-    await signIn(page, "Chioma Nnaji");
+    await signIn(page, "Amaka Eze");
     await page.goto("/accounts/repayments");
     const claim = page.locator("li", { hasText: "Tunde Bello" }).first();
     await claim.locator('input[name="bankReference"]').fill("PAYROLL-E2E-CLAIM");
@@ -201,6 +201,16 @@ test.describe.serial("application lifecycle through the UI", () => {
     const text = await csv.text();
     expect(text).toContain(accountNumber);
     expect(text).toContain("Confirmed");
+
+    // From now on deductions are recorded automatically; the borrower can also repay the whole balance early.
+    await signIn(page, "Tunde Bello");
+    await page.goto("/loans");
+    await page.getByRole("link", { name: accountNumber }).first().click();
+    await expect(page.getByText("Repayments are automatic")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Report repayment" })).toHaveCount(0);
+    await page.getByRole("link", { name: "Repay early" }).click();
+    await expect(page.getByRole("heading", { name: "Amount to pay today" })).toBeVisible();
+    await expect(page.getByText("Interest you save")).toBeVisible();
   });
 
   test("eligibility calculator: payslip in, a plain answer out", async ({ page }) => {
@@ -394,6 +404,9 @@ const A11Y: [string, string[]][] = [
   ["Halima Musa", ["/approvals", "/reports"]],
   ["Bisi Lawal", ["/accounts", "/approvals", "/accounts/loans", "/accounts/reconciliation", "/verify"]],
   ["Chidi Obi", ["/accounts/disbursements"]],
+  ["Amaka Eze", ["/payroll", "/accounts/repayments"]],
+  ["Folake Ojo", ["/payroll", "/payroll/early-repayments"]],
+  ["Ibrahim Sani", ["/finance", "/dashboard"]],
   ["Emeka Nwosu", ["/admin", "/admin/users", "/admin/products", "/admin/branding", "/admin/settings", "/admin/outbox", "/admin/audit", "/reports"]],
 ];
 

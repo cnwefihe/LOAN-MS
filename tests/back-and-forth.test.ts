@@ -134,11 +134,11 @@ describe("workflow return paths", () => {
     const before = dec(loan.principalOutstanding).plus(loan.interestOutstanding);
     const a = await A("applicant");
     const bad = await submitRepaymentClaim(db, a, loan.id, { amount: loan.monthlyInstalment, deductionMonth: todayLagos().slice(0, 7), channel: "bank_transfer" });
-    await rejectRepaymentClaim(db, await A("bursary"), bad.id, "No matching credit on the bank statement.");
+    await rejectRepaymentClaim(db, await A("payroll"), bad.id, "No matching credit on the bank statement.");
     const [same] = await db.select().from(s.loanAccounts).where(eq(s.loanAccounts.id, loan.id));
     expect(m(dec(same.principalOutstanding).plus(same.interestOutstanding))).toBe(m(before));
     const good = await submitRepaymentClaim(db, a, loan.id, { amount: loan.monthlyInstalment, deductionMonth: todayLagos().slice(0, 7), channel: "bank_transfer", payerReference: "TRF-2" });
-    const txn = await confirmRepaymentClaim(db, await A("bursary"), good.id, { amount: loan.monthlyInstalment, valueDate: todayLagos(), bankReference: "BANK-OK" });
+    const txn = await confirmRepaymentClaim(db, await A("payroll"), good.id, { amount: loan.monthlyInstalment, valueDate: todayLagos(), bankReference: "BANK-OK" });
     expect((txn as { reference: string }).reference).toMatch(REFERENCE_PATTERN);
     const [after] = await db.select().from(s.loanAccounts).where(eq(s.loanAccounts.id, loan.id));
     expect(dec(after.principalOutstanding).plus(after.interestOutstanding).lessThan(before)).toBe(true);

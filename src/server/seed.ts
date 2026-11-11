@@ -3,6 +3,7 @@ import type { Executor } from "@/db";
 import {
   roles, permissions, rolePermissions, notificationTemplates, systemSettings, termsDocuments, users, userRoles, staffProfiles,
   schools, departments, staffCategories, loanProducts, policyVersions, documentRequirements,
+  fundPools,
 } from "@/db/schema";
 import { PERMISSIONS, ROLE_DEFINITIONS, LOCKED_SUPER_ADMIN_PERMISSIONS, RETIRED_ROLE_CODES, type RoleCode } from "@/lib/auth/permissions";
 import { DEFAULT_POLICY } from "@/lib/finance/defaults";
@@ -166,6 +167,9 @@ export const FIXTURE_USERS: { key: string; email: string; name: string; label: s
   { key: "hrdirector", email: "halima.musa.dev@example.edu.ng", name: "Halima Musa", label: "HR Director", roles: ["APPLICANT", "HR_DIRECTOR"], status: "confirmed", years: 14, dept: "HR", designation: "Director, Human Resources", staffNumber: "DEV-2001" },
   { key: "accadmin", email: "bisi.lawal.dev@example.edu.ng", name: "Bisi Lawal", label: "Bursar", roles: ["APPLICANT", "ACCOUNTS_ADMIN"], status: "confirmed", years: 9, dept: "BUR", designation: "Bursar", staffNumber: "DEV-4002" },
   { key: "accounts", email: "chidi.obi.dev@example.edu.ng", name: "Chidi Obi", label: "Accounts Payable Officer", roles: ["APPLICANT", "ACCOUNTS_OFFICER"], status: "confirmed", years: 3, dept: "BUR", designation: "Accounts Payable Officer", staffNumber: "DEV-4001" },
+  { key: "payroll", email: "amaka.eze.dev@example.edu.ng", name: "Amaka Eze", label: "Payroll Officer", roles: ["APPLICANT", "PAYROLL_OFFICER"], status: "confirmed", years: 4, dept: "BUR", designation: "Payroll Officer", staffNumber: "DEV-4004" },
+  { key: "payrollmanager", email: "folake.ojo.dev@example.edu.ng", name: "Folake Ojo", label: "Payroll Manager", roles: ["APPLICANT", "PAYROLL_MANAGER"], status: "confirmed", years: 10, dept: "BUR", designation: "Payroll Manager", staffNumber: "DEV-4005" },
+  { key: "headofaccount", email: "ibrahim.sani.dev@example.edu.ng", name: "Ibrahim Sani", label: "Head of Account", roles: ["APPLICANT", "HEAD_OF_ACCOUNT"], status: "confirmed", years: 15, dept: "BUR", designation: "Head of Account", staffNumber: "DEV-4006" },
   { key: "admin", email: "emeka.nwosu.dev@example.edu.ng", name: "Emeka Nwosu", label: "Super Administrator", roles: ["APPLICANT", "SUPER_ADMIN"], status: "confirmed", years: 7, dept: "ICT", designation: "Systems Administrator", staffNumber: "DEV-5001" },
 ];
 
@@ -242,5 +246,8 @@ export async function seedFixtures(db: Executor) {
     await db.insert(policyVersions).values({ productId: product.id, version: 1, status: "active", parameters: { ...DEFAULT_POLICY, allowRestructuring: true }, changeNote: "Development fixture policy (placeholder values)", createdBy: ids.admin, submittedBy: ids.admin, approvedBy: ids.admin, approvedAt: new Date(), effectiveFrom: new Date() });
     await ensureRequirement(db, null, { code: "PAYSLIP", label: "Most recent payslip", appliesTo: "applicant", isRequired: true });
   }
+  // A fund pool for the years tests and walkthroughs pay loans in (fixture figures only).
+  const year = Number(todayLagos().slice(0, 4));
+  for (const y of [year - 1, year, year + 1]) await db.insert(fundPools).values({ year: y, amount: "500000000.00", note: "Development fixture", setBy: ids.headofaccount }).onConflictDoNothing();
   return { ids, productId: product.id };
 }

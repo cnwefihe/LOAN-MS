@@ -448,6 +448,12 @@ export const loanAccounts = pgTable("loan_accounts", {
   firstDueDate: date("first_due_date"),
   maturityDate: date("maturity_date"),
   closedAt: timestamp("closed_at", { withTimezone: true }),
+  /**
+   * When the Payroll Officer confirmed the first salary deduction. From then on each instalment is
+   * recorded as deducted on its due date, without the borrower reporting it.
+   */
+  deductionsConfirmedAt: timestamp("deductions_confirmed_at", { withTimezone: true }),
+  deductionsConfirmedBy: uuid("deductions_confirmed_by").references(() => users.id),
   rowVersion: integer("row_version").notNull().default(1),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
@@ -601,6 +607,45 @@ export const repaymentClaims = pgTable("repayment_claims", {
   index("claims_loan_idx").on(t.loanAccountId),
   uniqueIndex("claims_one_pending_per_month_uq").on(t.loanAccountId, t.deductionMonth).where(sql`${t.status} = 'pending'`),
   check("claims_amount_positive", sql`${t.amount} > 0`),
+]);
+
+/** The money set aside for staff loans in a year, set by the Head of Account. Loans paid out that year draw on it. */
+export const fundPools = pgTable("fund_pools", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  year: integer("year").notNull().unique(),
+  amount: money("amount").notNull(),
+  note: text("note"),
+  setBy: uuid("set_by").references(() => users.id),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => [check("fund_pools_amount_not_negative", sql`${t.amount} >= 0`)]);
+
+/**
+ * A borrower repaying the whole balance early by bank transfer: the amount quoted on the day, their
+ * payment receipt, and the Payroll Manager's decision. Only the full balance can be repaid early.
+ */
+export const earlyRepayments = pgTable("early_repayments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  loanAccountId: uuid("loan_account_id").notNull().references(() => loanAccounts.id),
+  requestedBy: uuid("requested_by").notNull().references(() => users.id),
+  /** The settlement quote the borrower paid against. */
+  quoteDate: date("quote_date").notNull(),
+  amount: money("amount").notNull(),
+  principal: money("principal").notNull(),
+  interest: money("interest").notNull(),
+  interestSaved: money("interest_saved").notNull().default("0"),
+  payerReference: varchar("payer_reference", { length: 100 }),
+  receiptDocumentId: uuid("receipt_document_id").notNull().references(() => documents.id),
+  status: claimStatusEnum("status").notNull().default("pending"),
+  reviewedBy: uuid("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  reviewComment: text("review_comment"),
+  transactionId: uuid("transaction_id").references(() => financialTransactions.id),
+  createdAt: createdAt(),
+}, (t) => [
+  index("early_repayments_loan_idx").on(t.loanAccountId),
+  uniqueIndex("early_repayments_one_pending_uq").on(t.loanAccountId).where(sql`${t.status} = 'pending'`),
+  check("early_repayments_amount_positive", sql`${t.amount} > 0`),
 ]);
 
 export const restructureRequests = pgTable("restructure_requests", {

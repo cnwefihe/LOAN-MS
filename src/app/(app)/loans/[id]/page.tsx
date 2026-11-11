@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Download } from "lucide-react";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db";
+import { earlyRepayments } from "@/db/schema";
 import { requireActor } from "@/lib/auth/session";
 import { getLoanDetail } from "@/server/services/loans";
 import { listDocumentsFor } from "@/server/services/documents";
@@ -36,6 +38,9 @@ export default async function LoanPage({ params, searchParams }: { params: Promi
   const advance = d.app.advanceType ? (d.app.quote as unknown as StaffEligibility).advance : undefined;
   const advanceLabel = d.app.advanceType ? ADVANCE_TYPES[d.app.advanceType].toLowerCase() : "";
   const kind = advance ? "Advance" : "Loan";
+  // After the first confirmed salary deduction, each instalment is recorded on its due date.
+  const automatic = !!loan.deductionsConfirmedAt;
+  const [pendingEarly] = d.isBorrower ? await db.select().from(earlyRepayments).where(and(eq(earlyRepayments.loanAccountId, id), eq(earlyRepayments.status, "pending"))) : [];
   const monthLabel = new Date(`${thisMonth}-01T12:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
 
   return (
@@ -54,13 +59,26 @@ export default async function LoanPage({ params, searchParams }: { params: Promi
       {loan.status === "overdue" && <div className="mb-6"><Alert tone="warning" title={`Repayment overdue (${loan.daysPastDue} days)`}>If it was deducted from your salary, report it below.</Alert></div>}
       {loan.status === "defaulted" && <div className="mb-6"><Alert tone="danger" title="Loan in default">Please contact the Bursary urgently.</Alert></div>}
 
+      {d.isBorrower && pendingEarly && (
+        <div className="mb-6"><Alert tone="info" title="Early repayment sent">You sent <Money value={pendingEarly.amount} /> on <DateText value={pendingEarly.createdAt} /> to repay this loan in full. The Payroll Manager will check the payment and close the loan.</Alert></div>
+      )}
       {d.isBorrower && serviceable && tab !== "report" && (
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-200 bg-brand-50 px-5 py-4">
-          <div>
-            <p className="font-semibold text-navy">{!claimThisMonth ? `Report your ${monthLabel} repayment` : claimThisMonth.status === "confirmed" ? `${monthLabel} repayment confirmed` : `${monthLabel} repayment reported`}</p>
-            <p className="text-sm text-muted">{!claimThisMonth ? "Report it once it appears on your payslip." : claimThisMonth.status === "confirmed" ? "Confirmed; your balance is updated." : "Awaiting confirmation by the Bursary."}</p>
+          {automatic ? (
+            <div>
+              <p className="font-semibold text-navy">Repayments are automatic</p>
+              <p className="text-sm text-muted"><Money value={loan.monthlyInstalment} /> is deducted from your salary on each due date and recorded here. You do not need to report it.</p>
+            </div>
+          ) : (
+            <div>
+              <p className="font-semibold text-navy">{!claimThisMonth ? `Report your ${monthLabel} repayment` : claimThisMonth.status === "confirmed" ? `${monthLabel} repayment confirmed` : `${monthLabel} repayment reported`}</p>
+              <p className="text-sm text-muted">{!claimThisMonth ? "Once the first deduction appears on your payslip, report it. After the Payroll Officer confirms it, later deductions are recorded automatically." : claimThisMonth.status === "confirmed" ? "Confirmed; your balance is updated." : "Awaiting confirmation by the Payroll Officer."}</p>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {!automatic && !claimThisMonth && <Link href={`/loans/${id}?tab=report`} className="btn-primary">Report repayment</Link>}
+            {!advance && !pendingEarly && <Link href={`/loans/${id}/repay-early`} className="btn-secondary">Repay early</Link>}
           </div>
-          {!claimThisMonth && <Link href={`/loans/${id}?tab=report`} className="btn-primary">Report repayment</Link>}
         </div>
       )}
       <Card title="Summary" className="mb-6"><LoanSummary d={d} /></Card>
@@ -84,8 +102,9 @@ export default async function LoanPage({ params, searchParams }: { params: Promi
       {tab === "payments" && <Card title="Confirmed and pending transactions" description="Only confirmed transactions change your balance."><TransactionsTable d={d} showInternal={false} base={`/loans/${id}`} page={page} size={size} /></Card>}
       {tab === "report" && (
         <div className="grid gap-6 lg:grid-cols-2">
-          {d.isBorrower && serviceable ? (
-            <Card title="Report a repayment" description="Your balance updates once the Bursary confirms it.">
+          {automatic ? <Card title="Repayments are automatic"><p className="text-sm text-muted">The Payroll Officer confirmed your first salary deduction on <DateText value={loan.deductionsConfirmedAt} />. Each instalment is now recorded on its due date, so there is nothing to report.</p></Card>
+          : d.isBorrower && serviceable ? (
+            <Card title="Report a repayment" description="Your balance updates once the Payroll Officer confirms it.">
               <ActionForm action={submitClaimAction.bind(null, id)} submitLabel="Submit for confirmation" resetOnSuccess encType="multipart/form-data">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div><label htmlFor="deductionMonth" className="label">Repayment month</label><input id="deductionMonth" name="deductionMonth" type="month" required max={todayLagos().slice(0, 7)} defaultValue={todayLagos().slice(0, 7)} className="input" /></div>

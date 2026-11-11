@@ -73,7 +73,7 @@ describe("loan servicing & default management", () => {
   });
 
   it("posts payroll deductions idempotently by reference", async () => {
-    const officer = await actor("bursary");
+    const officer = await actor("payroll");
     const rows = [{ staffNumber: "DEV-1001", amount: "10000.00", reference: "PR-TEST-1", valueDate: todayLagos() }, { staffNumber: "NOPE", amount: "1.00", reference: "PR-TEST-2", valueDate: todayLagos() }];
     const first = await postPayrollDeductions(db, officer, rows, "test");
     expect(first).toMatchObject({ posted: 1, duplicates: 0 });
@@ -89,9 +89,9 @@ describe("loan servicing & default management", () => {
     expect(n).toBe(2);
     const called = await db.select().from(s.notifications).where(eq(s.notifications.templateCode, "guarantor.called"));
     expect(called).toHaveLength(2);
-    const t = await recordRepayment(db, await actor("bursary"), loanId, { amount: "20000", valueDate: todayLagos(), reference: "REC-G1", channel: "bank_transfer", idempotencyKey: "rec-g1", guarantorId: ids.guarantor1 });
+    const t = await recordRepayment(db, await actor("payroll"), loanId, { amount: "20000", valueDate: todayLagos(), reference: "REC-G1", channel: "bank_transfer", idempotencyKey: "rec-g1", guarantorId: ids.guarantor1 });
     expect(t.narration).toMatch(/recovery from guarantor Tunde Bello/);
-    await expect(recordRepayment(db, await actor("bursary"), loanId, { amount: "1", valueDate: todayLagos(), reference: "REC-X", channel: "bank_transfer", idempotencyKey: "rec-x", guarantorId: ids.hrdirector })).rejects.toThrow(/not an accepted guarantor/);
+    await expect(recordRepayment(db, await actor("payroll"), loanId, { amount: "1", valueDate: todayLagos(), reference: "REC-X", channel: "bank_transfer", idempotencyKey: "rec-x", guarantorId: ids.hrdirector })).rejects.toThrow(/not an accepted guarantor/);
   });
 
   it("write-off needs checker approval, releases guarantors and can be reversed", async () => {

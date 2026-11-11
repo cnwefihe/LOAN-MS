@@ -14,6 +14,7 @@ import { transition } from "../workflow";
 import { DomainError, NotFoundError } from "../errors";
 import { getPolicyVersion } from "./policies";
 import { computeEligibilityFor, assessedWith } from "./applications";
+import { assertFundsFor, fundPosition } from "./funds";
 import { getPayslip } from "./payslips";
 import { LIVE_GUARANTEE_STATUSES } from "./guarantors";
 import { departmentHeadOf } from "./staff";
@@ -58,6 +59,7 @@ export async function bursaryWorksheet(db: Executor, applicationId: string) {
       committed: m(committed), deduction: m(instalment), after: m(totalAfter),
       percent: net.greaterThan(0) ? totalAfter.div(net).times(100).toFixed(1) : "0.0", passed: deductionPassed,
     },
+    fund: await fundPosition(db, undefined, { excludeApplicationId: app.id }),
     funding: { awaitingPayout: m(sum(awaiting.map((a) => a.principal))), awaitingCount: awaiting.length, paidThisMonth: m(sum(paidThisMonth.map((a) => a.principal))) },
   };
 }
@@ -77,6 +79,8 @@ export async function reviewByBursary(db: Executor, actor: Actor, applicationId:
       if (!input.fundsAvailable) throw new DomainError("Confirm that funds are available before clearing the application.");
       if (!head?.headUserId) throw new DomainError(head ? `${head.department} has no Line Manager. Ask the administrator to set one under Administration > Organisation.` : "The applicant has no department on their staff record. Ask Human Resources to set it.");
       if (!w.deductions.passed) throw new DomainError(`Deductions after this loan would be ${w.deductions.percent}% of net pay, above the ${w.deductions.capPercent}% limit. Return or decline the application.`);
+      // Even an eligible loan is not cleared when the year's fund pool cannot cover it.
+      await assertFundsFor(tx, { amount: app.requestedAmount, isAdvance: !!app.advanceType, stage: "clear", applicationId: app.id });
     }
     const lastLoanDate = input.lastLoanDate || w.lastLoan?.takenOn || null;
     const lastLoanRepaidDate = input.lastLoanRepaidDate || w.lastLoan?.repaidOn || null;

@@ -7,6 +7,8 @@ import { can } from "@/server/actor";
 import { todayLagos } from "@/lib/finance/dates";
 import { randomToken } from "@/lib/security/crypto";
 import { ActionForm } from "@/components/action-form";
+import { FundPoolCard } from "@/components/fund-pool";
+import { fundPosition } from "@/server/services/funds";
 import { Alert, Card, PageHeader, Money, DateText, StatusBadge, EmptyState, Table, Th, Td, Badge } from "@/components/ui";
 import { paginate, Pagination } from "@/components/pagination";
 import { recordDisbursementAction } from "@/app/actions/accounts";
@@ -29,7 +31,8 @@ export default async function Disbursements({ searchParams }: { searchParams: Pr
   return (
     <>
       <PageHeader title="Disbursements" crumbs={[{ label: "Bursary", href: "/accounts" }, { label: "Disbursements" }]}
-        description="Pay out approved loans; recording payment starts repayments." />
+        description="Pay out approved loans. The loan starts when it is paid, and repayments begin the following month." />
+      <FundPoolCard pos={await fundPosition(db)} />
 
       <Card title={`Approved loans awaiting payment (${awaiting.length})`} className="mb-6">
         {awaiting.length === 0 ? <EmptyState title="No approved loans awaiting payment" /> : (

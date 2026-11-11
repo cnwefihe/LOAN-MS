@@ -10,6 +10,7 @@ import { can } from "@/server/actor";
 import type { EligibilityResult } from "@/lib/finance/calculator";
 import { ActionForm } from "@/components/action-form";
 import { Alert, Badge, Card, PageHeader, StatusBadge, Money, KeyValues, DateText } from "@/components/ui";
+import { FundPoolCard } from "@/components/fund-pool";
 import { LifecycleTracker } from "@/components/lifecycle";
 import { PayslipBreakdown } from "@/components/payslip-breakdown";
 import { dec } from "@/lib/finance/money";
@@ -71,13 +72,18 @@ export default async function BursaryReview({ params }: { params: Promise<{ id: 
             ) : <p className="text-sm text-danger">No payslip is on file for this application.</p>}
           </Card>
 
-          <Card title="Fund position" description="For confirming that funds are available.">
-            <KeyValues columns={3} items={[
-              ["This request", <Money key="r" value={d.app.requestedAmount} />],
-              ["Approved, awaiting disbursement", <><Money value={w.funding.awaitingPayout} /> <span className="text-xs text-muted">({w.funding.awaitingCount} loans)</span></>],
-              ["Paid out this month", <Money key="m" value={w.funding.paidThisMonth} />],
-            ]} />
-          </Card>
+          {d.app.advanceType ? (
+            <Card title="Fund position" description="Advances are paid from the payment they are taken against, not from the fund pool.">
+              <KeyValues columns={3} items={[["This request", <Money key="r" value={d.app.requestedAmount} />], ["Paid out this month", <Money key="m" value={w.funding.paidThisMonth} />]]} />
+            </Card>
+          ) : (
+            <>
+              <FundPoolCard pos={w.fund} className="" />
+              {w.fund.set && (Number(d.app.requestedAmount) > Number(w.fund.free)
+                ? <Alert tone="danger" title="Not enough left in the fund pool">This request of <Money value={d.app.requestedAmount} /> is more than the <Money value={w.fund.free} /> free to lend, so it cannot be cleared even though the applicant is eligible.</Alert>
+                : <Alert tone="success" title="Funds available">This request of <Money value={d.app.requestedAmount} /> fits within the <Money value={w.fund.free} /> free to lend.</Alert>)}
+            </>
+          )}
 
           {hr && (
             <Card title={words.stage.hr} actions={<StatusBadge status="verified" />}>

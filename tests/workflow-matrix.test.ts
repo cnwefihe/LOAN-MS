@@ -248,9 +248,9 @@ describe("repayments, receipts and closure for every approved loan", () => {
 
   it("posts a payroll deduction file for all borrowers in one run", async () => {
     const rows = live.map((c) => ({ staffNumber: state[c.key].staffNumber, amount: state[c.key].instalment!, reference: `PAYROLL-${todayLagos().slice(0, 7)}-${state[c.key].staffNumber}`, valueDate: todayLagos() }));
-    const r = await postPayrollDeductions(db, await actor(ids.bursary), rows, "matrix-test.csv");
+    const r = await postPayrollDeductions(db, await actor(ids.payroll), rows, "matrix-test.csv");
     expect(r).toEqual({ posted: 3, duplicates: 0, errors: [] });
-    const again = await postPayrollDeductions(db, await actor(ids.bursary), rows, "matrix-test.csv");
+    const again = await postPayrollDeductions(db, await actor(ids.payroll), rows, "matrix-test.csv");
     expect(again.duplicates).toBe(3); // the same file cannot be posted twice
     for (const c of live) {
       const [loan] = await db.select().from(s.loanAccounts).where(eq(s.loanAccounts.id, state[c.key].loanId!));
@@ -262,7 +262,7 @@ describe("repayments, receipts and closure for every approved loan", () => {
     const c = live[1];
     const b = await actor(state[c.key].userId);
     const claim = await submitRepaymentClaim(db, b, state[c.key].loanId!, { amount: state[c.key].instalment!, deductionMonth: todayLagos().slice(0, 7), channel: "bank_transfer" });
-    const txn = await confirmRepaymentClaim(db, await actor(ids.bursary), claim.id, { amount: state[c.key].instalment!, valueDate: todayLagos(), bankReference: `BANK-${c.key}` });
+    const txn = await confirmRepaymentClaim(db, await actor(ids.payroll), claim.id, { amount: state[c.key].instalment!, valueDate: todayLagos(), bankReference: `BANK-${c.key}` });
     const r = await receiptPdf(db, b, (txn as { id: string }).id);
     const v = await verifyFile(db, await actor(ids.accadmin), r.bytes);
     expect(v.matches[0]).toEqual(expect.objectContaining({ kind: "receipt", subjectName: c.name }));

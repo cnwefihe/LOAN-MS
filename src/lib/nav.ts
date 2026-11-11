@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Executor } from "@/db";
-import { departments, loanApplications, applicationGuarantors, loanAccounts, repaymentClaims, financialTransactions, notifications, policyVersions } from "@/db/schema";
+import { departments, loanApplications, applicationGuarantors, loanAccounts, repaymentClaims, financialTransactions, notifications, policyVersions, earlyRepayments } from "@/db/schema";
 import { can, canAny, type Actor } from "@/server/actor";
 import { canVerifyDocuments } from "@/server/services/verification";
 import { getWording } from "@/server/wording";
@@ -61,7 +61,6 @@ export async function buildNav(db: Executor, actor: Actor): Promise<{ sections: 
 
   if (can(actor, "accounts.view")) {
     const awaiting = await count(db, db.select({ n }).from(loanAccounts).where(eq(loanAccounts.status, "pending_disbursement")));
-    const claims = await count(db, db.select({ n }).from(repaymentClaims).where(and(eq(repaymentClaims.status, "pending"), isNull(repaymentClaims.transactionId))));
     const checker = await count(db, db.select({ n }).from(financialTransactions).where(eq(financialTransactions.status, "pending_approval")));
     const items: NavItem[] = [{ href: "/accounts", label: "Overview", icon: "dashboard" }];
     if (can(actor, "bursary.review")) {
@@ -69,13 +68,28 @@ export async function buildNav(db: Executor, actor: Actor): Promise<{ sections: 
       items.push({ href: "/bursary/review", label: "Reviews", icon: "clipboard", badge: q });
     }
     if (can(actor, "disbursement.record")) items.push({ href: "/accounts/disbursements", label: "Disbursements", icon: "banknote", badge: awaiting });
-    if (can(actor, "repayment.confirm")) items.push({ href: "/accounts/repayments", label: "Repayments", icon: "receipt", badge: claims });
     if (can(actor, "transaction.approve")) items.push({ href: "/accounts/approvals", label: "Pending authorisations", icon: "check", badge: checker });
     items.push({ href: "/accounts/advances", label: "Advances", icon: "wallet", badge: await advancesToRecover(db) });
     items.push({ href: "/accounts/reconciliation", label: "Reconciliation", icon: "scale" }, { href: "/accounts/loans", label: "Loan accounts", icon: "landmark" });
     // The automatic check runs every hour by itself, so it has no menu entry (the Control centre shows whether it is running).
     sections.push({ title: w.section.bursary, items });
   }
+
+  // Payroll: confirming the first salary deduction on each loan, and early repayments.
+  if (canAny(actor, "payroll.view", "repayment.confirm")) {
+    const items: NavItem[] = [];
+    if (can(actor, "payroll.view")) items.push({ href: "/payroll", label: "Overview", icon: "dashboard" });
+    if (can(actor, "repayment.confirm")) {
+      const claims = await count(db, db.select({ n }).from(repaymentClaims).where(and(eq(repaymentClaims.status, "pending"), isNull(repaymentClaims.transactionId))));
+      items.push({ href: "/accounts/repayments", label: "Repayments", icon: "receipt", badge: claims });
+    }
+    if (can(actor, "payroll.view")) {
+      const early = await count(db, db.select({ n }).from(earlyRepayments).where(eq(earlyRepayments.status, "pending")));
+      items.push({ href: "/payroll/early-repayments", label: "Early repayments", icon: "wallet", badge: can(actor, "settlement.confirm") ? early : undefined });
+    }
+    sections.push({ title: "Payroll", items });
+  }
+  if (can(actor, "finance.overview")) sections.push({ title: "Finance", items: [{ href: "/finance", label: "Overview", icon: "chart" }] });
 
   const insight: NavItem[] = [];
   if (can(actor, "reports.view")) insight.push({ href: "/reports", label: "Reports", icon: "chart" });

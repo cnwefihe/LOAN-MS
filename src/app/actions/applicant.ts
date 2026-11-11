@@ -109,7 +109,7 @@ export async function submitClaimAction(loanId: string, _: Prev, fd: FormData) {
       amount: money(fd, "amount", "the amount"), deductionMonth: str(fd, "deductionMonth", true), channel: str(fd, "channel") === "bank_transfer" ? "bank_transfer" : "payroll",
       payerReference: str(fd, "payerReference"), note: str(fd, "note"), evidence: ev ? { buffer: ev.buffer, fileName: ev.fileName, mimeType: ev.mime } : null,
     });
-    return "Reported. Your balance will update once the Bursary confirms the deduction.";
+    return "Reported. Your balance will update once the Payroll Officer confirms the deduction.";
   }, { revalidate: [`/loans/${loanId}`], limit: 10 });
 }
 

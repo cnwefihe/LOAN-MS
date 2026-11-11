@@ -4,7 +4,7 @@ import type { Executor } from "@/db";
 import { systemSettings } from "@/db/schema";
 import { contrastRatio } from "@/lib/colour";
 
-export const SETTING_GROUPS = ["Organisation and branding", "Documents", "Workflow", "Workflow wording", "Lending rules", "Reminders", "Financial controls", "Security", "Notifications", "Data retention", "Privacy", "Announcements"] as const;
+export const SETTING_GROUPS = ["Organisation and branding", "Documents", "Workflow", "Workflow wording", "Lending rules", "Early repayment", "Reminders", "Financial controls", "Security", "Notifications", "Data retention", "Privacy", "Announcements"] as const;
 export type SettingGroup = (typeof SETTING_GROUPS)[number];
 
 const text = (max: number) => z.string().trim().min(1).max(max);
@@ -30,6 +30,9 @@ export const SETTINGS = {
   "org.supportEmail": { group: "Organisation and branding", schema: z.string().email(), default: "bursary@example.edu.ng", sensitive: false, label: "Support email" },
   "org.hrEmail": { group: "Organisation and branding", schema: z.string().email(), default: "hr@example.edu.ng", sensitive: false, label: "Human Resources email" },
   "org.ictEmail": { group: "Organisation and branding", schema: z.string().email(), default: "staff.member@example.edu.ng", sensitive: false, label: "ICT support email" },
+  "earlyRepayment.bankName": { group: "Early repayment", schema: z.string().trim().max(100), default: "", sensitive: false, label: "Bank for early repayments" },
+  "earlyRepayment.accountName": { group: "Early repayment", schema: z.string().trim().max(150), default: "", sensitive: false, label: "Account name for early repayments" },
+  "earlyRepayment.accountNumber": { group: "Early repayment", schema: z.string().trim().regex(/^(\d{10})?$/, "Enter the 10-digit account number"), default: "", sensitive: false, label: "Account number for early repayments" },
   "org.supportPhone": { group: "Organisation and branding", schema: optionalText(40), default: "", sensitive: false, label: "Support telephone (optional)" },
   "org.address": { group: "Organisation and branding", schema: optionalText(200), default: "Km 52 Lekki-Epe Expressway, Ibeju-Lekki, Lagos, Nigeria", sensitive: false, label: "Postal address" },
 

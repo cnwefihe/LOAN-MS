@@ -3,7 +3,7 @@ import type { Executor } from "@/db";
 import {
   loanAccounts, loanApplications, loanAgreements, disbursements, repaymentSchedules, scheduleInstalments, repaymentClaims,
   financialTransactions, ledgerEntries, restructureRequests, users, staffProfiles, applicationGuarantors, loanProducts, documents,
-  notifications, emailOutbox, sessions, rateLimits,
+  notifications, emailOutbox, sessions, rateLimits, earlyRepayments,
 } from "@/db/schema";
 import { buildSchedule, quoteLoan, instalmentLabel, rescheduleRemaining, PERIOD_MONTHS, type EligibilityResult } from "@/lib/finance/calculator";
 import { dec, m, sum, formatNaira, D } from "@/lib/finance/money";
@@ -13,13 +13,15 @@ import { humanise } from "@/lib/text";
 import { assertCan, can, type Actor } from "../actor";
 import { audit } from "../audit";
 import { notify } from "../notifications";
-import { getSetting } from "../settings";
+import { getSetting, getSettings } from "../settings";
 import { ageMinutes } from "./reminders";
 import { PdfBuilder } from "../pdf";
 import { getBranding } from "../branding";
 import { DomainError, ForbiddenError, NotFoundError } from "../errors";
 import { getPolicyVersion, getActiveTerms } from "./policies";
 import { storeDocument } from "./documents";
+import { assertFundsFor } from "./funds";
+import { confirmWithCode } from "./mfa";
 import { remindWaitingWork } from "./reminders";
 import { storage } from "../storage";
 import {
@@ -153,6 +155,8 @@ export async function recordDisbursement(db: Executor, actor: Actor, loanId: str
     if (!dec(input.amountDisbursed).equals(dec(loan.principal))) {
       throw new DomainError(`The amount disbursed must equal the approved amount of ${naira(loan.principal)}.`);
     }
+    const [app] = await tx.select({ advanceType: loanApplications.advanceType }).from(loanApplications).where(eq(loanApplications.id, loan.applicationId));
+    await assertFundsFor(tx, { amount: loan.principal, isAdvance: !!app?.advanceType, stage: "payout", year: Number(input.paymentDate.slice(0, 4)) });
     const [profile] = await tx.select().from(staffProfiles).where(eq(staffProfiles.userId, loan.borrowerId));
     const [borrower] = await tx.select().from(users).where(eq(users.id, loan.borrowerId));
     if (!profile?.bankAccountLast4 || !profile.bankName) throw new DomainError("The borrower has not provided bank details. Ask them to update their profile before disbursement.");
@@ -246,16 +250,17 @@ export async function submitRepaymentClaim(db: Executor, actor: Actor, loanId: s
     const loan = await getLoan(tx, loanId);
     if (loan.borrowerId !== actor.userId) throw new ForbiddenError();
     if (!SERVICEABLE.includes(loan.status as never)) throw new DomainError("Repayments can only be reported on active loans.");
+    if (loan.deductionsConfirmedAt) throw new DomainError("Deductions on this loan are recorded automatically each month, so there is nothing to report.");
     if (dec(input.amount).lessThanOrEqualTo(0)) throw new DomainError("Enter the amount deducted or paid.");
     const month = firstOfMonth(`${input.deductionMonth}-01`.slice(0, 10));
     if (month > todayLagos()) throw new DomainError("You cannot report a deduction for a future month.");
     const [pending] = await tx.select({ id: repaymentClaims.id }).from(repaymentClaims).where(and(eq(repaymentClaims.loanAccountId, loanId), eq(repaymentClaims.deductionMonth, month), eq(repaymentClaims.status, "pending")));
-    if (pending) throw new DomainError("You already have a pending report for that month. Wait for the Bursary to review it.");
+    if (pending) throw new DomainError("You already have a pending report for that month. Wait for the Payroll Officer to confirm it.");
     let evidenceId: string | null = null;
     if (input.evidence) evidenceId = (await storeDocument(tx, actor, { ...input.evidence, category: "repayment_evidence", title: `Repayment evidence ${month.slice(0, 7)}`, ownerUserId: actor.userId, loanAccountId: loanId })).id;
     const [c] = await tx.insert(repaymentClaims).values({ loanAccountId: loanId, claimedBy: actor.userId, amount: m(input.amount), deductionMonth: month, channel: input.channel, payerReference: input.payerReference?.trim() || null, note: input.note?.trim() || null, evidenceDocumentId: evidenceId }).returning();
     await audit(tx, actor, { action: "repayment.claim_submitted", entityType: "repayment_claim", entityId: c.id, summary: `${loan.accountNumber}: ${naira(c.amount)} for ${month.slice(0, 7)} (pending confirmation)` });
-    await notify(tx, { template: "repayment.claim_submitted", roles: ["BURSARY_OFFICER"], excludeUserIds: [actor.userId], link: `/accounts/repayments`, vars: { applicantName: actor.displayName, amount: naira(c.amount), month: month.slice(0, 7), accountNumber: loan.accountNumber } });
+    await notify(tx, { template: "repayment.claim_submitted", roles: ["PAYROLL_OFFICER"], excludeUserIds: [actor.userId], link: `/accounts/repayments`, vars: { applicantName: actor.displayName, amount: naira(c.amount), month: month.slice(0, 7), accountNumber: loan.accountNumber } });
     return c;
   });
 }
@@ -406,8 +411,49 @@ export async function confirmRepaymentClaim(db: Executor, actor: Actor, claimId:
     await tx.update(repaymentClaims).set({ transactionId: txn.id, reviewedBy: actor.userId, reviewComment: input.comment?.trim() || null, ...(txn.status === "posted" ? { status: "confirmed" as const, reviewedAt: new Date() } : {}) }).where(eq(repaymentClaims.id, c.id));
     if (txn.status === "posted") await afterRepaymentPosted(tx, actor, txn);
     else await notifyPending(tx, actor, txn);
+    if (c.channel === "payroll" && !loan.deductionsConfirmedAt) await startAutomaticDeductions(tx, actor, loan);
     return txn;
   });
+}
+
+/**
+ * Once the Payroll Officer has confirmed a salary deduction, the University deducts the instalment
+ * from every salary until the loan is repaid, so later instalments are recorded on their due dates
+ * without the borrower reporting them (see runServicing).
+ */
+async function startAutomaticDeductions(db: Executor, actor: Actor, loan: Loan) {
+  await db.update(loanAccounts).set({ deductionsConfirmedAt: new Date(), deductionsConfirmedBy: actor.userId }).where(eq(loanAccounts.id, loan.id));
+  await audit(db, actor, { action: "loan.deductions_automatic", entityType: "loan_account", entityId: loan.id, summary: `${loan.accountNumber}: first salary deduction confirmed; later instalments are recorded automatically on their due dates` });
+  await notify(db, { template: "repayment.deductions_automatic", userIds: [loan.borrowerId], link: `/loans/${loan.id}`, vars: { accountNumber: loan.accountNumber, instalment: naira(loan.monthlyInstalment) } });
+}
+
+/** Instalments due by `asOf` on loans with automatic deductions, recorded as deducted from salary on their due dates. */
+async function postAutomaticDeductions(db: Executor, loan: Loan, asOf: string) {
+  if (!loan.deductionsConfirmedAt || !loan.deductionsConfirmedBy) return 0;
+  // Not while the borrower is repaying the whole balance early: the quote they paid against must not change.
+  const [early] = await db.select({ id: earlyRepayments.id }).from(earlyRepayments).where(and(eq(earlyRepayments.loanAccountId, loan.id), eq(earlyRepayments.status, "pending")));
+  if (early) return 0;
+  const from = loan.deductionsConfirmedAt.toISOString().slice(0, 10);
+  const cur = await currentSchedule(db, loan.id);
+  const [officer] = await db.select({ name: users.displayName, email: users.email }).from(users).where(eq(users.id, loan.deductionsConfirmedBy));
+  // Recorded on the standing confirmation of the Payroll Officer who confirmed the first deduction.
+  const actor: Actor = { userId: loan.deductionsConfirmedBy, email: officer?.email ?? "", displayName: `${officer?.name ?? "Payroll Officer"} (automatic deduction)`, roles: [], permissions: new Set() };
+  let posted = 0;
+  for (const i of cur?.instalments ?? []) {
+    if (i.status === "paid" || i.status === "superseded" || i.dueDate > asOf || i.dueDate < from) continue;
+    const amount = dec(i.totalDue).minus(i.principalPaid).minus(i.interestPaid);
+    if (amount.lessThanOrEqualTo(0)) continue;
+    const month = new Date(`${i.dueDate}T12:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+    const { txn, duplicate } = await createTransaction(db, actor, {
+      loanAccountId: loan.id, type: "repayment", amount: m(amount), valueDate: i.dueDate,
+      narration: `Salary deduction for ${month} (automatic)`, externalReference: `PAYROLL-${i.dueDate.slice(0, 7)}`, idempotencyKey: `auto-deduction:${i.id}`,
+      lines: await repaymentLines(db, loan.id, m(amount), i.dueDate), requireApproval: false,
+    });
+    if (duplicate) continue;
+    await afterRepaymentPosted(db, actor, txn);
+    posted++;
+  }
+  return posted;
 }
 
 export async function rejectRepaymentClaim(db: Executor, actor: Actor, claimId: string, reason: string) {
@@ -456,6 +502,115 @@ export async function recordRepayment(db: Executor, actor: Actor, loanId: string
     else await notifyPending(tx, actor, txn);
     return txn;
   });
+}
+
+/* ───────────────────────── Early repayment ───────────────────────── */
+
+/**
+ * Repaying early is always the whole balance (part payments come only from salary). The amount is the
+ * principal still owed plus interest on that reducing balance up to now; interest for the months no
+ * longer borrowed for is not charged.
+ */
+export async function earlyRepaymentQuote(db: Executor, loanId: string, asOf = todayLagos()) {
+  const q = await settlementQuote(db, loanId, asOf, { rebateFutureInterest: true });
+  return { ...q, interestSaved: q.rebate };
+}
+
+export async function earlyRepaymentAccount(db: Executor) {
+  const s = await getSettings(db, ["earlyRepayment.bankName", "earlyRepayment.accountName", "earlyRepayment.accountNumber"]);
+  const account = { bankName: s["earlyRepayment.bankName"], accountName: s["earlyRepayment.accountName"], accountNumber: s["earlyRepayment.accountNumber"] };
+  return { ...account, ready: !!(account.bankName && account.accountName && account.accountNumber) };
+}
+
+/** The borrower has paid the whole balance by transfer and sends the receipt for the Payroll Manager to check. */
+export async function requestEarlyRepayment(db: Executor, actor: Actor, loanId: string, input: { payerReference?: string; receipt: { buffer: Buffer; fileName: string; mimeType: string } | null }) {
+  assertCan(actor, "repayment.claim");
+  const receipt = input.receipt;
+  if (!receipt) throw new DomainError("Upload the receipt for your payment.");
+  return db.transaction(async (tx) => {
+    const loan = await getLoan(tx, loanId, true);
+    if (loan.borrowerId !== actor.userId) throw new ForbiddenError();
+    if (!SERVICEABLE.includes(loan.status as never)) throw new DomainError("Only an active loan can be repaid early.");
+    const [app] = await tx.select({ advanceType: loanApplications.advanceType }).from(loanApplications).where(eq(loanApplications.id, loan.applicationId));
+    if (app?.advanceType) throw new DomainError("An advance is recovered from the payment it was taken against, so it cannot be repaid early.");
+    if (!(await earlyRepaymentAccount(tx)).ready) throw new DomainError("The account for early repayments has not been set up yet. Please contact the Bursary.");
+    const [pending] = await tx.select({ id: earlyRepayments.id }).from(earlyRepayments).where(and(eq(earlyRepayments.loanAccountId, loan.id), eq(earlyRepayments.status, "pending")));
+    if (pending) throw new DomainError("You have already sent an early repayment for this loan. The Payroll Manager will confirm it.");
+    const q = await earlyRepaymentQuote(tx, loan.id);
+    if (dec(q.settlementAmount).lessThanOrEqualTo(0)) throw new DomainError("Nothing is left to repay on this loan.");
+    const doc = await storeDocument(tx, actor, { ...receipt, category: "repayment_evidence", title: "Early repayment receipt", ownerUserId: actor.userId, loanAccountId: loan.id, applicationId: loan.applicationId });
+    const [r] = await tx.insert(earlyRepayments).values({
+      loanAccountId: loan.id, requestedBy: actor.userId, quoteDate: q.asOf, amount: q.settlementAmount, principal: q.principal, interest: q.interestDue,
+      interestSaved: q.interestSaved, payerReference: input.payerReference?.trim() || null, receiptDocumentId: doc.id,
+    }).returning();
+    await audit(tx, actor, { action: "repayment.early_submitted", entityType: "early_repayment", entityId: r.id, summary: `${loan.accountNumber}: early repayment of ${naira(r.amount)} sent for confirmation` });
+    await notify(tx, { template: "repayment.early_submitted", roles: ["PAYROLL_MANAGER"], excludeUserIds: [actor.userId], link: `/payroll/early-repayments/${r.id}`, vars: { applicantName: actor.displayName, amount: naira(r.amount), accountNumber: loan.accountNumber } });
+    return r;
+  });
+}
+
+/**
+ * The Payroll Manager has seen the money arrive and marks the loan repaid in full. She enters a fresh
+ * code from her authenticator app first, because the loan closes at once.
+ */
+export async function confirmEarlyRepayment(db: Executor, actor: Actor, requestId: string, input: { code: string }) {
+  assertCan(actor, "settlement.confirm");
+  await confirmWithCode(db, actor, input.code, "mark a loan repaid in full");
+  return db.transaction(async (tx) => {
+    const [r] = await tx.select().from(earlyRepayments).where(eq(earlyRepayments.id, requestId)).for("update");
+    if (!r) throw new NotFoundError("Early repayment");
+    if (r.status !== "pending") throw new DomainError("This early repayment has already been dealt with.");
+    const loan = await getLoan(tx, r.loanAccountId, true);
+    if (loan.borrowerId === actor.userId) throw new ForbiddenError("You cannot confirm the repayment of your own loan.");
+    if (!SERVICEABLE.includes(loan.status as never)) throw new DomainError("This loan is no longer active.");
+    const q = await earlyRepaymentQuote(tx, loan.id, r.quoteDate);
+    if (!dec(q.settlementAmount).equals(r.amount)) {
+      throw new DomainError(`The balance has changed since the borrower's quote of ${naira(r.amount)} on ${formatDate(r.quoteDate)}; it is now ${naira(q.settlementAmount)}. Decline this request and ask the borrower to start again.`);
+    }
+    const { txn } = await createTransaction(tx, actor, {
+      loanAccountId: loan.id, type: "early_settlement", amount: m(dec(q.principal).plus(q.interestDue).plus(q.rebate)), valueDate: r.quoteDate,
+      narration: `Repaid in full early (paid ${naira(q.settlementAmount)}, interest not charged ${naira(q.rebate)})`,
+      externalReference: r.payerReference, idempotencyKey: `early-repayment:${r.id}`,
+      lines: settlementLines(q, q.settlementAmount), requireApproval: false,
+    });
+    await afterRepaymentPosted(tx, actor, txn);
+    await tx.update(earlyRepayments).set({ status: "confirmed", reviewedBy: actor.userId, reviewedAt: new Date(), transactionId: txn.id }).where(eq(earlyRepayments.id, r.id));
+    await audit(tx, actor, { action: "repayment.early_confirmed", entityType: "early_repayment", entityId: r.id, summary: `${loan.accountNumber}: repaid in full early (${naira(r.amount)}); confirmed with a two-step verification code` });
+    await notify(tx, { template: "repayment.early_confirmed", userIds: [loan.borrowerId, ...(await loanGuarantorIds(tx, loan.applicationId))], link: `/loans/${loan.id}`, vars: { amount: naira(r.amount), accountNumber: loan.accountNumber } });
+    return txn;
+  });
+}
+
+export async function declineEarlyRepayment(db: Executor, actor: Actor, requestId: string, reason: string) {
+  assertCan(actor, "settlement.confirm");
+  if (reason.trim().length < 5) throw new DomainError("Give a reason so the borrower knows what to do next.");
+  return db.transaction(async (tx) => {
+    const [r] = await tx.select().from(earlyRepayments).where(eq(earlyRepayments.id, requestId)).for("update");
+    if (!r || r.status !== "pending") throw new DomainError("This early repayment is not awaiting confirmation.");
+    const loan = await getLoan(tx, r.loanAccountId);
+    if (loan.borrowerId === actor.userId) throw new ForbiddenError();
+    await tx.update(earlyRepayments).set({ status: "rejected", reviewedBy: actor.userId, reviewedAt: new Date(), reviewComment: reason.trim() }).where(eq(earlyRepayments.id, r.id));
+    await audit(tx, actor, { action: "repayment.early_declined", entityType: "early_repayment", entityId: r.id, summary: `${loan.accountNumber}: ${reason.trim()}` });
+    await notify(tx, { template: "repayment.early_declined", userIds: [r.requestedBy], link: `/loans/${loan.id}`, vars: { amount: naira(r.amount), accountNumber: loan.accountNumber, comment: reason.trim() } });
+  });
+}
+
+/** Early repayments for the Payroll Manager: those waiting first, then the most recent. */
+export async function earlyRepaymentList(db: Executor, actor: Actor) {
+  assertCan(actor, "payroll.view");
+  return db.select({ r: earlyRepayments, accountNumber: loanAccounts.accountNumber, borrower: users.displayName })
+    .from(earlyRepayments).innerJoin(loanAccounts, eq(loanAccounts.id, earlyRepayments.loanAccountId)).innerJoin(users, eq(users.id, earlyRepayments.requestedBy))
+    .orderBy(sql`case when ${earlyRepayments.status} = 'pending' then 0 else 1 end`, desc(earlyRepayments.createdAt));
+}
+
+export async function getEarlyRepayment(db: Executor, actor: Actor, id: string) {
+  assertCan(actor, "payroll.view");
+  const [row] = await db.select({ r: earlyRepayments, loan: loanAccounts, borrower: users.displayName, email: users.email })
+    .from(earlyRepayments).innerJoin(loanAccounts, eq(loanAccounts.id, earlyRepayments.loanAccountId)).innerJoin(users, eq(users.id, earlyRepayments.requestedBy))
+    .where(eq(earlyRepayments.id, id));
+  if (!row) throw new NotFoundError("Early repayment");
+  const [reviewer] = row.r.reviewedBy ? await db.select({ name: users.displayName }).from(users).where(eq(users.id, row.r.reviewedBy)) : [];
+  return { ...row, reviewer: reviewer?.name ?? null };
 }
 
 /* ───────────────────────── Settlement, waivers, refunds ───────────────────────── */
@@ -708,10 +863,11 @@ export async function decideRestructure(db: Executor, actor: Actor, requestId: s
 /** Daily: refresh statuses/DPD, send due-date reminders, flag overdue and defaulted loans. */
 export async function runServicing(db: Executor, actor: Actor | null, asOf = todayLagos()) {
   const live = await db.select().from(loanAccounts).where(inArray(loanAccounts.status, [...SERVICEABLE]));
-  let reminders = 0;
+  let reminders = 0, deductions = 0;
   const changes: string[] = [];
   for (const loan of live) {
     await db.transaction(async (tx) => {
+      deductions += await postAutomaticDeductions(tx, loan, asOf);
       const res = await recomputeLoan(tx, actor, loan.id, asOf);
       if (res.status !== res.previous) changes.push(`${loan.accountNumber}: ${res.previous} → ${res.status}`);
       const p = (await getPolicyVersion(tx, loan.policyVersionId)).params;
@@ -732,10 +888,10 @@ export async function runServicing(db: Executor, actor: Actor | null, asOf = tod
   const purged = await housekeeping(db);
   await audit(db, actor, {
     action: "servicing.run", entityType: "system",
-    summary: `As of ${asOf}: ${live.length} loans checked, ${changes.length} status changes, ${reminders} repayment reminders, ${guarantorReminders} guarantor reminders, ${work.reminders} work reminders, ${work.escalations} overdue alerts; housekeeping removed ${purged.notifications} notifications, ${purged.sessions} sessions, ${purged.emails} sent emails, ${purged.rateLimits} rate-limit rows`,
-    after: { checked: live.length, changes, reminders, guarantorReminders, workReminders: work.reminders, escalations: work.escalations, purged },
+    summary: `As of ${asOf}: ${live.length} loans checked, ${deductions} automatic deductions, ${changes.length} status changes, ${reminders} repayment reminders, ${guarantorReminders} guarantor reminders, ${work.reminders} work reminders, ${work.escalations} overdue alerts; housekeeping removed ${purged.notifications} notifications, ${purged.sessions} sessions, ${purged.emails} sent emails, ${purged.rateLimits} rate-limit rows`,
+    after: { checked: live.length, deductions, changes, reminders, guarantorReminders, workReminders: work.reminders, escalations: work.escalations, purged },
   });
-  return { checked: live.length, changes, reminders, guarantorReminders, workReminders: work.reminders, escalations: work.escalations, purged, asOf };
+  return { checked: live.length, deductions, changes, reminders, guarantorReminders, workReminders: work.reminders, escalations: work.escalations, purged, asOf };
 }
 
 /** The reminders alone, so they can run more often than the full loan check. */

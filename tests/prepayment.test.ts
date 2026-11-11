@@ -94,7 +94,7 @@ describe("paying more than is due on a live loan", () => {
     expect(before.instalments.every((i) => i.totalDue === "52749.53")).toBe(true);
     const dueNow = Math.max(1, before.instalments.filter((i) => i.dueDate <= endOfMonth(todayLagos())).length);
     const amount = dec("52749.53").times(dueNow).plus(200000).toFixed(2);
-    await recordRepayment(db, await actor("bursary"), loanId, { amount, valueDate: todayLagos(), reference: "PRE-PAY-1", channel: "bank_transfer", idempotencyKey: "pre-pay-1" });
+    await recordRepayment(db, await actor("payroll"), loanId, { amount, valueDate: todayLagos(), reference: "PRE-PAY-1", channel: "bank_transfer", idempotencyKey: "pre-pay-1" });
 
     const cur = (await currentSchedule(db, loanId))!;
     expect(cur.schedule.version).toBe(1);

@@ -8,6 +8,8 @@ import { portfolioSummary } from "@/server/services/reports";
 import { ApprovalOverview, OverviewHeading } from "@/components/approval-overview";
 import { can } from "@/server/actor";
 import { Card, PageHeader, Stat, StatGrid, Money, Table, Th, Td, StatusBadge, DateText } from "@/components/ui";
+import { FundPoolCard } from "@/components/fund-pool";
+import { fundPosition } from "@/server/services/funds";
 
 export const metadata = { title: "Bursary" };
 
@@ -27,12 +29,14 @@ export default async function AccountsDashboard() {
     .innerJoin(loanAccounts, eq(loanAccounts.id, financialTransactions.loanAccountId)).innerJoin(users, eq(users.id, loanAccounts.borrowerId))
     .where(sql`${financialTransactions.type} <> 'interest_recognition'`).orderBy(sql`${financialTransactions.createdAt} desc`).limit(10);
 
+  const pool = can(actor, "fund.view") ? await fundPosition(db) : null;
   const cards = (
     <>
+      {pool && <FundPoolCard pos={pool} manage={can(actor, "fund.manage")} />}
       <StatGrid>
         <Stat label="Approved, awaiting payment" value={Number(awaiting.n)} hint={<Money value={awaiting.amt} />} tone="warning" href="/accounts/disbursements" />
         <Stat label="Loans being repaid" value={Number(live.n)} href="/accounts/loans" />
-        <Stat label="Deduction claims to verify" value={Number(claims.n)} hint={<Money value={claims.amt} />} href="/accounts/repayments" />
+        <Stat label="Deductions to confirm" value={Number(claims.n)} hint={<>With the Payroll Officer · <Money value={claims.amt} /></>} href={can(actor, "repayment.confirm") ? "/accounts/repayments" : undefined} />
         <Stat label="Pending authorisations" value={Number(checker.n)} tone={Number(checker.n) ? "warning" : "default"} href="/accounts/approvals" />
       </StatGrid>
       {summary && (

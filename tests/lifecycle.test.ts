@@ -198,7 +198,7 @@ describe("full loan lifecycle", () => {
     expect(m(dec(loan.principalOutstanding).plus(loan.interestOutstanding))).toBe(TOTAL);
     await expectErr(confirmRepaymentClaim(db, A.applicant, claim.id, { amount: INSTALMENT, valueDate: todayLagos(), bankReference: "PAY-1" }), /not authorised/);
     await expectErr(confirmRepaymentClaim(db, A.accounts, claim.id, { amount: INSTALMENT, valueDate: todayLagos(), bankReference: "PAY-1" }), /not authorised/);
-    await confirmRepaymentClaim(db, A.bursary, claim.id, { amount: INSTALMENT, valueDate: todayLagos(), bankReference: "PAYROLL-OCT-001" });
+    await confirmRepaymentClaim(db, A.payroll, claim.id, { amount: INSTALMENT, valueDate: todayLagos(), bankReference: "PAYROLL-OCT-001" });
     [loan] = await db.select().from(s.loanAccounts).where(eq(s.loanAccounts.id, loanId));
     expect(m(dec(loan.principalOutstanding).plus(loan.interestOutstanding))).toBe(AFTER_ONE);
     expect(loan.totalRepaid).toBe(INSTALMENT);
@@ -209,7 +209,7 @@ describe("full loan lifecycle", () => {
   });
 
   it("blocks duplicate payment references", async () => {
-    await expectErr(recordRepayment(db, A.bursary, loanId, { amount: INSTALMENT, valueDate: todayLagos(), reference: "PAYROLL-OCT-001", channel: "payroll", idempotencyKey: "dup-1" }), /already been recorded/);
+    await expectErr(recordRepayment(db, A.payroll, loanId, { amount: INSTALMENT, valueDate: todayLagos(), reference: "PAYROLL-OCT-001", channel: "payroll", idempotencyKey: "dup-1" }), /already been recorded/);
   });
 
   it("database refuses to modify or delete ledger and audit records", async () => {
@@ -226,7 +226,7 @@ describe("full loan lifecycle", () => {
   });
 
   it("reversals require checker approval and restore the balance", async () => {
-    const txn = await recordRepayment(db, A.bursary, loanId, { amount: "50000", valueDate: todayLagos(), reference: "BANK-REV-TEST", channel: "bank_transfer", idempotencyKey: "rev-src" });
+    const txn = await recordRepayment(db, A.payroll, loanId, { amount: "50000", valueDate: todayLagos(), reference: "BANK-REV-TEST", channel: "bank_transfer", idempotencyKey: "rev-src" });
     let [loan] = await db.select().from(s.loanAccounts).where(eq(s.loanAccounts.id, loanId));
     expect(m(dec(loan.principalOutstanding).plus(loan.interestOutstanding))).toBe(m(dec(AFTER_ONE).minus(50000)));
     const rev = await proposeReversal(db, A.bursary, txn.id, "Receipt bounced: the bank recalled the transfer");
@@ -239,10 +239,14 @@ describe("full loan lifecycle", () => {
   });
 
   it("servicing marks unpaid loans overdue and recovers when brought current", async () => {
+    // As for a loan whose first salary deduction has not been confirmed yet (no automatic deductions).
+    const [before] = await db.select().from(s.loanAccounts).where(eq(s.loanAccounts.id, loanId));
+    await db.update(s.loanAccounts).set({ deductionsConfirmedAt: null }).where(eq(s.loanAccounts.id, loanId));
     const future = addMonths(todayLagos(), 4);
     const r = await runServicing(db, null, future);
     expect(r.changes.join()).toMatch(/active → (overdue|defaulted)/);
     await runServicing(db, null, todayLagos());
+    await db.update(s.loanAccounts).set({ deductionsConfirmedAt: before.deductionsConfirmedAt }).where(eq(s.loanAccounts.id, loanId));
     const [loan] = await db.select().from(s.loanAccounts).where(eq(s.loanAccounts.id, loanId));
     expect(loan.status).toBe("active");
   });

@@ -113,10 +113,10 @@ describe("go-live path: payslip only, every role, every notification", () => {
     expect((await notified()).sort()).toEqual([expect.stringMatching(/^Ngozi Eze: Loan .* disbursed$/), expect.stringMatching(/^Seun Bakare: Loan .* disbursed$/), expect.stringMatching(/^Tunde Bello: Loan .* disbursed$/)]);
 
     const claim = await submitRepaymentClaim(db, await actor(SEUN), loan.id, { amount: "43957.94", deductionMonth: todayLagos().slice(0, 7), channel: "payroll" });
-    expect(await notified()).toEqual([expect.stringMatching(/^Chioma Nnaji: Repayment reported on /)]);
-    await confirmRepaymentClaim(db, await actor("chioma.nnaji.dev@example.edu.ng"), claim.id, { amount: "43957.94", valueDate: todayLagos(), bankReference: "PAYROLL-GOLIVE-1" });
+    expect(await notified()).toEqual([expect.stringMatching(/^Amaka Eze: Repayment reported on /)]);
+    await confirmRepaymentClaim(db, await actor("amaka.eze.dev@example.edu.ng"), claim.id, { amount: "43957.94", valueDate: todayLagos(), bankReference: "PAYROLL-GOLIVE-1" });
     const after = await accountBalances(db, loan.id);
     expect([after.principal.toFixed(2), after.interest.toFixed(2)]).toEqual(["460208.73", "23328.61"]);
-    expect(await notified()).toEqual([expect.stringMatching(/^Seun Bakare: Repayment of .* confirmed on /)]);
+    expect((await notified()).sort()).toEqual([expect.stringMatching(/^Seun Bakare: Repayment of .* confirmed on /), expect.stringMatching(/^Seun Bakare: Repayments on .* are now automatic$/)]);
   });
 });

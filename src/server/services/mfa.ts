@@ -19,7 +19,7 @@ import { DomainError } from "../errors";
 type UserRow = typeof users.$inferSelect;
 
 /** Roles that need the second step when Settings > Security is set to "Approval and payment roles". */
-export const MFA_ROLES: RoleCode[] = ["HR_ADMIN", "BURSARY_OFFICER", "HR_DIRECTOR", "ACCOUNTS_ADMIN", "ACCOUNTS_OFFICER", "SUPER_ADMIN"];
+export const MFA_ROLES: RoleCode[] = ["HR_ADMIN", "BURSARY_OFFICER", "HR_DIRECTOR", "ACCOUNTS_ADMIN", "ACCOUNTS_OFFICER", "PAYROLL_OFFICER", "PAYROLL_MANAGER", "HEAD_OF_ACCOUNT", "SUPER_ADMIN"];
 
 /**
  * Whether this person must complete the second step before using the system, as set under
@@ -88,6 +88,19 @@ export async function verifySecondStep(db: Executor, userId: string, sessionId: 
   }
   await markSessionVerified(db, sessionId);
   await audit(db, { userId, displayName: u.displayName } as Actor, { action: "mfa.verified", entityType: "user", entityId: userId, summary: `Signed in with ${method}` });
+}
+
+/**
+ * A fresh code from the person's authenticator app, asked for before an action that cannot be undone
+ * (such as marking a loan repaid in full). Recovery codes are for signing in only.
+ */
+export async function confirmWithCode(db: Executor, actor: Actor, code: string, what: string) {
+  const [u] = await db.select({ secret: users.mfaSecret }).from(users).where(eq(users.id, actor.userId));
+  if (!u?.secret) throw new DomainError("Set up two-step verification under My profile before doing this.");
+  if (!verifyTotp(decryptString(u.secret), code.trim())) {
+    await audit(db, actor, { action: "mfa.failed", entityType: "user", entityId: actor.userId, summary: `Incorrect two-step verification code to ${what}` });
+    throw new DomainError("That code is not correct. Enter the current six-digit code from your authenticator app.");
+  }
 }
 
 /** Administrator reset, e.g. after a lost phone: the person sets up again at their next sign-in. */
