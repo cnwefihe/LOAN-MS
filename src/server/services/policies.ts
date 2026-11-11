@@ -6,6 +6,7 @@ import { DEFAULT_POLICY } from "@/lib/finance/defaults";
 import { assertCan, type Actor } from "../actor";
 import { audit } from "../audit";
 import { DomainError, NotFoundError } from "../errors";
+import { DEFAULT_LOAN_POLICY_BODY, DEFAULT_LOAN_POLICY_TITLE } from "@/lib/loan-policy-default";
 
 export async function getPolicyVersion(db: Executor, id: string) {
   const [row] = await db.select().from(policyVersions).where(eq(policyVersions.id, id));
@@ -43,6 +44,12 @@ export async function requiredDocsLabels(db: Executor) {
 export async function getActiveTerms(db: Executor, kind: "loan_terms" | "guarantor_agreement") {
   const [t] = await db.select().from(termsDocuments).where(and(eq(termsDocuments.kind, kind), eq(termsDocuments.isActive, true)));
   return t ?? null;
+}
+
+/** The loan policy staff read before applying: the version an administrator published, or the built-in wording. */
+export async function getLoanPolicy(db: Executor) {
+  const [t] = await db.select().from(termsDocuments).where(and(eq(termsDocuments.kind, "loan_policy"), eq(termsDocuments.isActive, true)));
+  return { title: t?.title ?? DEFAULT_LOAN_POLICY_TITLE, body: t?.body ?? DEFAULT_LOAN_POLICY_BODY };
 }
 
 /* ───────────────────────── Administration ───────────────────────── */

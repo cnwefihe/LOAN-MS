@@ -108,11 +108,11 @@ describe("advances and guarantors from the payslip", () => {
     expect(assessForStaff(policy, ctx, { requestedAmount: "100000", advanceType: "thirteenth_month" }).advance?.remaining).toBe("200000.00");
   });
 
-  it("a guarantor may accept only if their share fits within what is left of their own 33.3%", () => {
+  it("a guarantor may accept only if their share fits within what is left of 30% of their net pay", () => {
     const slip = samplePayslip({ name: "G", code: "G1", grade: "G", period: "2026-10", basic: "300000", medical: "50000", tax: "30000", pension: "24000", deductions: [{ label: "Cafeteria", amount: "900" }] });
-    // Net 296,000; 33.3% = 98,568; less cafeteria 25,000 = 73,568 available.
+    // Net 296,000; the guarantor limit of 30% = 88,800; less cafeteria 25,000 = 63,800 available.
     const ok = guarantorCover(DEFAULT_POLICY, { payslip: slip, otherGuarantees: "0.00", monthlyShare: "50000" });
-    expect(ok).toMatchObject({ available: "73568.00", ok: true });
+    expect(ok).toMatchObject({ available: "63800.00", ok: true });
     expect(guarantorCover(DEFAULT_POLICY, { payslip: slip, otherGuarantees: "0.00", monthlyShare: "80000" }).ok).toBe(false);
     // Other loans they guarantee count first.
     expect(guarantorCover(DEFAULT_POLICY, { payslip: slip, otherGuarantees: "30000.00", monthlyShare: "50000" }).ok).toBe(false);

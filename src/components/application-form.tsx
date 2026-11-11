@@ -1,8 +1,7 @@
 import { ActionForm } from "./action-form";
 import { Field, KeyValues, Money } from "./ui";
-import { LoanOnly, ProductChoice } from "./product-choice";
+import { GuarantorChoice, ProductChoice } from "./product-choice";
 import { validTenors } from "@/lib/finance/calculator";
-import { serviceLength } from "@/lib/finance/dates";
 import { saveApplicationAction } from "@/app/actions/applicant";
 import type { PolicyParameters } from "@/lib/finance/policy";
 import { monthsText } from "@/lib/finance/dates";
@@ -14,8 +13,10 @@ export interface ApplicantSummary { name: string; email: string; staffNumber?: s
 /** A department; the application is routed to its approver automatically. */
 export interface DepartmentOption { id: string; name: string }
 
-export function ApplicationForm({ products, initial, applicationId, applicant, departments, departmentId }: {
+export function ApplicationForm({ products, initial, applicationId, applicant, departments, departmentId, guarantorOptions }: {
   applicant: ApplicantSummary;
+  /** The eligible guarantors, by name only. */
+  guarantorOptions: { id: string; name: string }[];
   departments: DepartmentOption[];
   departmentId: string | null;
   products: Product[];
@@ -52,33 +53,25 @@ export function ApplicationForm({ products, initial, applicationId, applicant, d
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
             <ProductChoice productId={selected?.id} advanceType={initial.advanceType} tenor={initial.tenorMonths}
               products={products.map((p) => ({
-                id: p.id, isAdvance: p.params.productType === "advance", tenors: validTenors(p.params),
+                id: p.id, isAdvance: p.params.productType === "advance", tenors: validTenors(p.params), guarantors: p.params.requiredGuarantors,
                 label: p.params.productType === "advance" ? `${p.name}: interest-free` : `${p.name}: ${p.params.interestMethod === "interest_free" ? "interest-free" : `${p.params.annualInterestRate}% a year`}, up to ${monthsText(p.params.maxTenorMonths)}`,
               }))} />
             <Field label="Amount requested (₦)" htmlFor="requestedAmount" hint="Worked out from your payslip; the eligibility calculator shows the most you may request.">
               <input id="requestedAmount" name="requestedAmount" inputMode="decimal" required defaultValue={initial.requestedAmount} className="input" />
             </Field>
-            <Field label="Purpose" htmlFor="purpose" className="sm:col-span-2">
+            <Field label="Purpose of the loan" htmlFor="purpose" className="sm:col-span-2" hint="State clearly what the loan is for.">
               <textarea id="purpose" name="purpose" rows={3} required minLength={10} maxLength={1000} defaultValue={initial.purpose} className="input" />
             </Field>
           </div>
         </section>
 
-        <LoanOnly initiallyAdvance={selected?.params.productType === "advance"}>
-        <section aria-labelledby="s3">
-          <h2 id="s3" className="text-sm font-semibold text-navy">3. Guarantor nomination</h2>
-          <p className="mt-1 text-xs text-muted">
-            Two colleagues, by university email. {selected ? `Confirmed staff, each with a minimum of ${serviceLength(selected.params.guarantorMinServiceMonths)} of service.` : ""} They are invited when you submit.
-          </p>
-          <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            {[0, 1].map((i) => (
-              <Field key={i} label={`Guarantor ${i + 1}`} htmlFor={`guarantor${i + 1}`}>
-                <input id={`guarantor${i + 1}`} name={`guarantor${i + 1}`} type="email" autoComplete="off" placeholder="name@example.edu.ng" defaultValue={initial.guarantors?.[i]} className="input" />
-              </Field>
-            ))}
-          </div>
-        </section>
-        </LoanOnly>
+        <GuarantorChoice initialCount={selected?.params.productType === "advance" ? 0 : selected?.params.requiredGuarantors ?? 0} options={guarantorOptions} initial={initial.guarantors ?? []}>
+            <h2 id="s3" className="text-sm font-semibold text-navy">3. Guarantors</h2>
+            <p className="mt-1 text-xs text-muted">
+              Choose two guarantors from the managerial cadre, after you have spoken with them. Each request is sent to them when you submit.
+              {selected ? ` A guarantor must be a confirmed employee on the University payroll with at least ${monthsText(selected.params.guarantorMinServiceMonths)} of continuous service, whose employment runs beyond the final repayment date. Their total deductions, including their share of this loan should you default, must not exceed ${selected.params.guarantorMaxDeductionPercent}% of their net pay, and they may guarantee no more than ${selected.params.maxGuaranteesPerGuarantor === 1 ? "one active loan" : `${selected.params.maxGuaranteesPerGuarantor} active loans`}.` : ""}
+            </p>
+        </GuarantorChoice>
         <p className="text-xs text-muted">Next, upload your documents and submit.</p>
       </div>
     </ActionForm>

@@ -57,6 +57,8 @@ export const policyParametersSchema = z
     guarantorMustBeConfirmed: z.boolean(),
     maxGuarantorExposure: moneyString,
     maxGuaranteesPerGuarantor: z.number().int().min(1).max(10),
+    /** A guarantor's deductions, with their share of the loans they guarantee, may take at most this much of their net pay. */
+    guarantorMaxDeductionPercent: percent.default(30),
     // Servicing
     repaymentFrequency: z.enum(REPAYMENT_FREQUENCIES).default("monthly"),
     repaymentDayOfMonth: z.number().int().min(1).max(28),
@@ -111,6 +113,7 @@ export const POLICY_FIELD_LABELS: Record<keyof PolicyParameters, string> = {
   guarantorMustBeConfirmed: "Guarantor must be confirmed staff",
   maxGuarantorExposure: "Maximum guarantor exposure (₦)",
   maxGuaranteesPerGuarantor: "Maximum active guarantees per guarantor",
+  guarantorMaxDeductionPercent: "Guarantor deduction limit (% of net pay)",
   repaymentFrequency: "Repayment frequency",
   repaymentDayOfMonth: "Repayment day of month",
   gracePeriodMonths: "Grace period (months)",

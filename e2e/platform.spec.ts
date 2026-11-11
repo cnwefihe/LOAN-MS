@@ -65,8 +65,8 @@ test.describe.serial("application lifecycle through the UI", () => {
     await page.getByLabel("Purpose").fill("School fees for the new academic session");
     await page.getByLabel("Telephone number").fill("+234 803 111 2222");
     await page.getByLabel("Residential address").fill("12 Admiralty Way, Lekki, Lagos");
-    await page.getByLabel("Guarantor 1").fill("emeka.nwosu.dev@example.edu.ng");
-    await page.getByLabel("Guarantor 2").fill("chidi.obi.dev@example.edu.ng");
+    await page.getByLabel("Guarantor 1").selectOption({ label: "Emeka Nwosu" });
+    await page.getByLabel("Guarantor 2").selectOption({ label: "Chidi Obi" });
     await page.getByRole("button", { name: "Save draft and continue" }).click();
     await page.waitForURL(/\/applications\/[0-9a-f-]{36}$/);
     appPath = new URL(page.url()).pathname;

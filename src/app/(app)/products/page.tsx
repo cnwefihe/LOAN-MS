@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { getDb } from "@/db";
 import { requireActor } from "@/lib/auth/session";
-import { listOpenProducts, requiredDocsLabels } from "@/server/services/policies";
+import { getLoanPolicy, listOpenProducts, requiredDocsLabels } from "@/server/services/policies";
 import type { PolicyParameters } from "@/lib/finance/policy";
-import { serviceLength } from "@/lib/finance/dates";
-import { Card, PageHeader, EmptyState, KeyValues } from "@/components/ui";
+import { Card, PageHeader, EmptyState } from "@/components/ui";
 import { monthsText } from "@/lib/finance/dates";
+import { RichText } from "@/components/rich-text";
 
 export const metadata = { title: "Loans and advances" };
 
@@ -35,15 +35,19 @@ function loanFacts(x: PolicyParameters, docs: string[]) {
   const terms: [string, React.ReactNode][] = [
     ["How much you may borrow", `Based on your latest payslip. Your total monthly deductions, including this loan, are subject to a maximum of ${x.maxDeductionPercent}% of net pay.`],
     ["Who may apply", `${staffLabel(x.eligibleEmploymentStatuses)}, subject to verification by Human Resources.`],
+    ["Purpose", "State clearly on the application form what the loan is for."],
     ["Guarantors", x.requiredGuarantors
-      ? `${x.requiredGuarantors === 2 ? "Two" : "One"}${x.guarantorMustBeConfirmed ? " confirmed" : ""} ${x.requiredGuarantors === 1 ? "member" : "members"} of staff, each with a minimum of ${serviceLength(x.guarantorMinServiceMonths)} of service.`
+      ? `${x.requiredGuarantors === 2 ? "Two guarantors" : "One guarantor"} from the managerial cadre, chosen from the list when you apply. Each must be a confirmed employee with at least ${months(x.guarantorMinServiceMonths)} of continuous service, and their deductions, with their share of this loan, must stay within ${x.guarantorMaxDeductionPercent}% of their net pay.`
       : "Not required."],
+    ["Repayment", `Equal monthly ${x.interestMethod === "interest_free" ? "instalments" : "instalments of principal and interest"}, deducted from salary over the tenor you choose, up to ${monthsText(x.maxTenorMonths)}. After the first deduction is confirmed, each later one is recorded automatically.`],
     ["Repayment date", `The ${ordinal(x.repaymentDayOfMonth)} of each month, starting the month after the loan is paid out${x.gracePeriodMonths ? `, after a further ${months(x.gracePeriodMonths)}` : ""}.`],
+    ["Payment", "By direct credit to your salary account. Approval is subject to the availability of funds."],
     ["Documents", <DocList key="d" docs={docs} />],
-    ["Repayment", "Equal monthly instalments of principal and interest, deducted from salary over the tenor you choose. After the first deduction is confirmed, each later one is recorded automatically."],
     ["Early repayment", x.interestMethod === "interest_free"
       ? "You may repay the whole balance at any time: the loan principal less your total repayments. Part payments are taken only from salary."
       : "You may repay the whole balance at any time: the loan principal plus interest to date, less your total repayments. Interest for the remaining months is not charged. Part payments are taken only from salary."],
+    ["If you leave the University", `Any outstanding balance is deducted in full from your final pay, or is payable at once by you${x.requiredGuarantors ? " or your guarantors" : ""}.`],
+    ["Another loan", "Only after this loan is fully repaid."],
   ];
   return { headline, terms };
 }
@@ -72,29 +76,39 @@ export default async function Products() {
   const db = await getDb();
   const products = await listOpenProducts(db);
   const docs = await requiredDocsLabels(db);
+  const policy = await getLoanPolicy(db);
+  const several = products.length > 1;
   return (
     <>
       <PageHeader title="Loans and advances" crumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Loans and advances" }]}
         description="Compare what is available before you apply." />
       {products.length === 0 ? <EmptyState title="Nothing is open for applications at present" description="Please check again later or contact the Bursary." /> : (
-        <div className={`grid gap-6 ${products.length > 1 ? "lg:grid-cols-2" : ""}`}>
+        // One product a row on laptop screens, so the terms have room; side by side on wide screens.
+        <div className={`grid gap-6 ${several ? "2xl:grid-cols-2" : ""}`}>
           {products.map((p) => {
             const x = p.params;
             const required = docs.filter((d) => d.productId === null || d.productId === p.id).map((d) => d.label);
             const isAdvance = x.productType === "advance";
             const { headline, terms } = isAdvance ? advanceFacts(x, required) : loanFacts(x, required);
             return (
-              <Card key={p.id} title={<span className="text-base">{p.name}</span>} description={p.description ?? undefined}>
-                <div className="-mx-5 -mt-5 mb-5 grid grid-cols-3 divide-x divide-line border-b border-line bg-brand-50/60">
+              <Card key={p.id} className="flex min-w-0 flex-col" bodyClassName="flex flex-1 flex-col p-5" title={<span className="text-base">{p.name}</span>} description={p.description ?? undefined}>
+                <div className="-mx-5 -mt-5 mb-5 grid grid-cols-1 divide-y divide-line border-b border-line bg-brand-50/60 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
                   {headline.map(([k, v, note]) => (
-                    <div key={k} className="px-5 py-4">
+                    <div key={k} className="min-w-0 px-5 py-4">
                       <p className="text-[13px] font-medium text-slate-700">{k}</p>
                       <p className="tabular mt-1 text-base font-semibold text-navy">{v}</p>
                       <p className="text-xs text-muted">{note}</p>
                     </div>
                   ))}
                 </div>
-                <KeyValues columns={products.length > 1 ? 2 : 3} size="lg" items={terms} />
+                <dl className={`grid flex-1 content-start gap-x-8 gap-y-5 sm:grid-cols-2 xl:grid-cols-3 ${several ? "2xl:grid-cols-2" : ""}`}>
+                  {terms.map(([k, v]) => (
+                    <div key={k} className="min-w-0">
+                      <dt className="text-[15px] font-semibold text-ink">{k}</dt>
+                      <dd className="mt-1 break-words text-sm leading-relaxed text-slate-600">{v}</dd>
+                    </div>
+                  ))}
+                </dl>
                 <div className="mt-6 flex flex-wrap gap-2 border-t border-line pt-4">
                   <Link href={`/applications/new?productId=${p.id}`} className="btn-primary">Apply</Link>
                   <Link href={`/eligibility?productId=${p.id}`} className="btn-secondary">{isAdvance ? "Preview advance" : "Check eligibility"}</Link>
@@ -104,6 +118,11 @@ export default async function Products() {
           })}
         </div>
       )}
+      <Card title={policy.title} description="The University's policy on staff loans. It applies to every product above." className="mt-6">
+        <div className="gap-10 text-sm leading-relaxed text-slate-700 xl:columns-2 [&_h3]:mb-2 [&_h3]:text-[15px] [&_h3]:font-semibold [&_h3]:text-navy [&_section]:mb-5 [&_section]:break-inside-avoid">
+          <RichText text={policy.body} headingLevel={3} />
+        </div>
+      </Card>
     </>
   );
 }

@@ -19,6 +19,7 @@ import { getActivePolicy, getActiveTerms, getPolicyVersion } from "./policies";
 import { getStaffRecord, getObligations, departmentHeadOf } from "./staff";
 import { findOrCreateStaffByEmail, grantRole } from "./identity";
 import { guarantorExposure, LIVE_GUARANTEE_STATUSES } from "./guarantors";
+import { assertOnGuarantorList, guarantorEmailsFor, guarantorsByEmail } from "./guarantor-pool";
 import { getSettings } from "../settings";
 import { attachPayslip, getPayslip, latestPayslip } from "./payslips";
 
@@ -71,6 +72,8 @@ export interface DraftInput {
   tenorMonths: number;
   purpose: string;
   guarantorEmails: string[];
+  /** Guarantors chosen by name from the list of eligible guarantors; used instead of guarantorEmails when given. */
+  guarantorIds?: string[];
   /** Applicant's contact details from the form; saved to the staff record. */
   contact?: { phone: string; residentialAddress: string } | null;
   /** For an advance product: the payment it is against. */
@@ -83,7 +86,10 @@ export async function saveDraft(db: Executor, actor: Actor, input: DraftInput) {
   assertCan(actor, "application.create");
   if (input.purpose.trim().length < 10) throw new DomainError("Please describe the purpose of the loan (at least 10 characters).");
   if (dec(input.requestedAmount).lessThanOrEqualTo(0)) throw new DomainError("Enter the amount you wish to borrow.");
-  const emails = [...new Set(input.guarantorEmails.map((e) => e.trim().toLowerCase()).filter(Boolean))];
+  const ids = (input.guarantorIds ?? []).filter(Boolean);
+  if (new Set(ids).size < ids.length) throw new DomainError("Choose two different guarantors.");
+  const chosen = input.guarantorIds ? await guarantorEmailsFor(db, ids) : input.guarantorEmails;
+  const emails = [...new Set(chosen.map((e) => e.trim().toLowerCase()).filter(Boolean))];
   if (emails.includes(actor.email.toLowerCase())) throw new DomainError("You cannot nominate yourself as a guarantor.");
   if (emails.length > 2) throw new DomainError("Nominate two guarantors only.");
 
@@ -94,7 +100,8 @@ export async function saveDraft(db: Executor, actor: Actor, input: DraftInput) {
     const isAdvance = policy.params.productType === "advance";
     const advanceType = advanceTypeFor(policy.params, input.advanceType);
     const tenorMonths = isAdvance ? 1 : input.tenorMonths;
-    const nominated = isAdvance ? [] : emails;
+    // An advance, or a loan that needs no guarantors (such as the Bereavement Loan), keeps none.
+    const nominated = isAdvance || policy.params.requiredGuarantors === 0 ? [] : emails;
     // Assessed on the latest payslip uploaded.
     const elig = await computeEligibilityFor(tx, actor.userId, policy.params, {
       requestedAmount: input.requestedAmount, tenorMonths, excludeApplicationId: input.applicationId, advanceType, checkRecord: false,
@@ -179,8 +186,10 @@ export async function submitApplication(db: Executor, actor: Actor, applicationI
     if (missing.length) throw new DomainError(`Please upload: ${missing.map((r) => r.label).join(", ")}.`);
 
     // Guarantors
-    const emails = app.nominatedGuarantors ?? [];
-    if (emails.length < p.requiredGuarantors) throw new DomainError(`This product requires ${p.requiredGuarantors} guarantor(s); you have nominated ${emails.length}.`);
+    const emails = p.requiredGuarantors > 0 ? app.nominatedGuarantors ?? [] : [];
+    if (emails.length < p.requiredGuarantors) throw new DomainError(`This loan needs ${p.requiredGuarantors === 2 ? "two guarantors" : "one guarantor"}; you have chosen ${emails.length}. Edit the application to choose them.`);
+    await assertOnGuarantorList(tx, emails);
+    const listed = await guarantorsByEmail(tx, emails);
     const share = p.requiredGuarantors > 0 ? round2(dec(elig.quote.totalRepayable).div(Math.max(emails.length, 1))) : null;
 
     const terms = await getActiveTerms(tx, "loan_terms");
@@ -209,9 +218,9 @@ export async function submitApplication(db: Executor, actor: Actor, applicationI
     const guaranteeLimit = (await getSettings(tx, ["lending.oneGuaranteeAtATime"]))["lending.oneGuaranteeAtATime"] ? 1 : p.maxGuaranteesPerGuarantor;
     for (const email of emails) {
       if (kept.has(email)) continue;
-      const guarantor = await findOrCreateStaffByEmail(tx, email, actor);
+      const guarantor = await findOrCreateStaffByEmail(tx, email, actor, listed.get(email)?.name);
       if (guarantor.id === actor.userId) throw new DomainError("You cannot guarantee your own loan.");
-      if (!guarantor.isActive) throw new DomainError(`${email} cannot act as a guarantor (inactive account).`);
+      if (!guarantor.isActive) throw new DomainError(`${guarantor.displayName} cannot act as a guarantor at present. Please choose someone else.`);
       const exposure = await guarantorExposure(tx, guarantor.id);
       if (exposure.liveCount >= guaranteeLimit)
         throw new DomainError(guaranteeLimit === 1
@@ -272,7 +281,8 @@ export async function replaceGuarantor(db: Executor, actor: Actor, guaranteeId: 
     const policy = await getPolicyVersion(tx, app.policyVersionId);
     const email = newEmail.trim().toLowerCase();
     if (email === actor.email.toLowerCase()) throw new DomainError("You cannot nominate yourself.");
-    const guarantor = await findOrCreateStaffByEmail(tx, email, actor);
+    await assertOnGuarantorList(tx, [email]);
+    const guarantor = await findOrCreateStaffByEmail(tx, email, actor, (await guarantorsByEmail(tx, [email])).get(email)?.name);
     const dup = await tx.select({ id: applicationGuarantors.id }).from(applicationGuarantors).where(and(
       eq(applicationGuarantors.applicationId, app.id), eq(applicationGuarantors.guarantorId, guarantor.id), inArray(applicationGuarantors.status, [...LIVE_GUARANTEE_STATUSES])));
     if (dup.length) throw new DomainError("That colleague is already a guarantor on this application.");

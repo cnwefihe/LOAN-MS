@@ -307,7 +307,7 @@ export async function upsertDocumentRequirement(db: Executor, actor: Actor, inpu
 }
 
 /** Terms are versioned: publishing creates a new version and deactivates the previous one. Accepted versions are kept forever. */
-export async function publishTerms(db: Executor, actor: Actor, input: { kind: "loan_terms" | "guarantor_agreement" | "privacy_notice"; title: string; body: string }) {
+export async function publishTerms(db: Executor, actor: Actor, input: { kind: "loan_terms" | "guarantor_agreement" | "privacy_notice" | "loan_policy"; title: string; body: string }) {
   assertCan(actor, "admin.content.manage");
   if (input.body.trim().length < 50) throw new DomainError("Terms text is too short.");
   return db.transaction(async (tx) => {

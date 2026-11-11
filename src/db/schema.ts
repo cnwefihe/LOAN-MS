@@ -609,6 +609,21 @@ export const repaymentClaims = pgTable("repayment_claims", {
   check("claims_amount_positive", sql`${t.amount} > 0`),
 ]);
 
+/**
+ * Staff who may stand as guarantors (the managerial cadre), kept by an administrator. Applicants choose
+ * from these names; the email is used only to invite the guarantor and is never shown to the applicant.
+ */
+export const guarantorPool = pgTable("guarantor_pool", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: varchar("name", { length: 150 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  cadre: varchar("cadre", { length: 60 }).notNull().default("Managerial"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: uuid("created_by").references(() => users.id),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => [uniqueIndex("guarantor_pool_email_uq").on(sql`lower(${t.email})`)]);
+
 /** The money set aside for staff loans in a year, set by the Head of Account. Loans paid out that year draw on it. */
 export const fundPools = pgTable("fund_pools", {
   id: uuid("id").primaryKey().defaultRandom(),

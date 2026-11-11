@@ -11,6 +11,7 @@ import { validateUpload, storeDocument } from "@/server/services/documents";
 import { updateOwnProfile, updatePayslipDetails } from "@/server/services/staff";
 import { submitRepaymentClaim, requestRestructure } from "@/server/services/loans";
 import { uploadPayslip } from "@/server/services/payslips";
+import { guarantorEmailsFor } from "@/server/services/guarantor-pool";
 
 type Prev = ActionResult | null;
 
@@ -24,7 +25,8 @@ export async function saveApplicationAction(applicationId: string | null, _: Pre
       requestedAmount: money(fd, "requestedAmount", "the loan amount"),
       tenorMonths: int(fd, "tenorMonths", "Tenor"),
       purpose: str(fd, "purpose"),
-      guarantorEmails: [str(fd, "guarantor1"), str(fd, "guarantor2")].filter(Boolean),
+      guarantorEmails: [],
+      guarantorIds: [str(fd, "guarantor1"), str(fd, "guarantor2")].filter(Boolean),
       contact: fd.has("phone") ? { phone: str(fd, "phone"), residentialAddress: str(fd, "residentialAddress") } : null,
       departmentId: str(fd, "departmentId") || null,
       advanceType: str(fd, "advanceType") || null,
@@ -80,7 +82,9 @@ export async function cancelApplicationAction(applicationId: string, _: Prev, fd
 
 export async function replaceGuarantorAction(guaranteeId: string, _: Prev, fd: FormData) {
   return runAction(async (actor) => {
-    await replaceGuarantor(await getDb(), actor, guaranteeId, str(fd, "email", true));
+    const db = await getDb();
+    const [email] = await guarantorEmailsFor(db, [str(fd, "guarantorId", true)]);
+    await replaceGuarantor(db, actor, guaranteeId, email);
     return "Replacement guarantor invited.";
   }, { revalidate: ["/applications"] });
 }

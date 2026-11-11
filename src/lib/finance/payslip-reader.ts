@@ -84,7 +84,7 @@ export function parsePayslipText(items: TextItem[]): Payslip {
       const r = rest[k];
       const amount = r.at(-1)!;
       if (!AMOUNT.test(amount.str.trim())) {
-        if (/(amount|description)/i.test(words(r))) { above = []; continue; } // column headings
+        if (/\b(amount|description)\b/i.test(words(r))) { above = []; continue; } // column headings
         // Words only: part of the next label, unless it is too far away (column headings).
         above = [...above.filter((a) => a.y - r[0].y <= WRAP * (above.length + 1)), { text: words(r), y: r[0].y }];
         continue;

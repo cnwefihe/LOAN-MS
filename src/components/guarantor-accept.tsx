@@ -15,7 +15,7 @@ const N = (v: string) => formatNaira(v);
 
 /**
  * The guarantor first uploads their latest payslip. If, on that payslip, they could take over their share
- * of the repayments should the borrower stop paying (within the same 33.3% deduction limit as a borrower),
+ * of the repayments should the borrower stop paying (within the guarantor deduction limit of their net pay),
  * the acceptance form is shown; otherwise it is not, and they may decline.
  */
 export function GuarantorAccept({ action, policy, cover, payslipOnFile, applicantName, guaranteedAmount, termsVersion, relationships, phone, name, details }: {

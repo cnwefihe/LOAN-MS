@@ -24,6 +24,7 @@ const HINTS: Partial<Record<Key, string>> = {
   cafeteriaAmount: "Counted whenever a cafeteria deduction is on the payslip, whatever was used.",
   annualInterestRate: "Use 0 with the interest-free method.",
   maxGuarantorExposure: "The most one guarantor may guarantee across all loans.",
+  guarantorMaxDeductionPercent: "A guarantor's deductions, with their monthly share of the loans they guarantee, are subject to this maximum of their net pay.",
   gracePeriodMonths: "Months between disbursement and the first repayment.",
   overdueAfterDays: "Days after a missed due date before the loan is overdue.",
   defaultAfterDays: "Days past due before the loan is in default and guarantors are called.",
@@ -33,7 +34,7 @@ const GROUPS: { title: string; fields: Key[] }[] = [
   { title: "Eligibility", fields: ["productType", "minServiceMonths", "maxActiveLoans", "eligibleEmploymentStatuses"] },
   { title: "Interest", fields: ["interestMethod", "annualInterestRate"] },
   { title: "Tenor and deduction limit", fields: ["minTenorMonths", "maxTenorMonths", "maxDeductionPercent", "cafeteriaAmount"] },
-  { title: "Guarantors", fields: ["requiredGuarantors", "guarantorMinServiceMonths", "guarantorMustBeConfirmed", "maxGuarantorExposure", "maxGuaranteesPerGuarantor"] },
+  { title: "Guarantors", fields: ["requiredGuarantors", "guarantorMinServiceMonths", "guarantorMustBeConfirmed", "maxGuarantorExposure", "maxGuaranteesPerGuarantor", "guarantorMaxDeductionPercent"] },
   { title: "Repayment and arrears", fields: ["repaymentFrequency", "repaymentDayOfMonth", "gracePeriodMonths", "overdueAfterDays", "defaultAfterDays", "reminderDaysBeforeDue", "allowRestructuring", "maxRestructuredTenorMonths"] },
   { title: "Documents", fields: ["requiredDocumentCodes"] },
 ];

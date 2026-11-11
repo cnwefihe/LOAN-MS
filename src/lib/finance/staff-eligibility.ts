@@ -127,11 +127,12 @@ function assessAdvance(policy: PolicyParameters, ctx: StaffContext, slip: Paysli
 
 /**
  * Whether a guarantor could take over their share of the repayments if the borrower stopped paying,
- * on the same rule as a borrower: their share a month must fit within what is left of 33.3% of their
- * net pay, after the deductions on their own payslip and the other loans they guarantee.
+ * read the same way as a borrower's payslip: their share a month must fit within what is left of the
+ * guarantor deduction limit (30% of net pay unless the product says otherwise), after the deductions on
+ * their own payslip and the other loans they guarantee.
  */
 export function guarantorCover(policy: PolicyParameters, input: { payslip: Payslip; otherGuarantees: string; monthlyShare: string }) {
-  const slip = assessPayslip(input.payslip, payslipRules(policy));
+  const slip = assessPayslip(input.payslip, { ...payslipRules(policy), capPercent: policy.guarantorMaxDeductionPercent });
   const available = dec(slip.room).minus(input.otherGuarantees);
   return {
     payslip: slip, otherGuarantees: m(input.otherGuarantees),

@@ -59,14 +59,21 @@ describe("lending rules", () => {
     before = { capacity: r.availableMonthlyCapacity, afford: r.maxByAffordability };
   });
 
-  it("a guarantor may guarantee one loan at a time, checked at nomination and at acceptance", async () => {
+  it("a guarantor may guarantee up to two active loans (or one, when the administrator sets that rule)", async () => {
     first = await apply("applicant", ["tunde.bello.dev@example.edu.ng", "ngozi.eze.dev@example.edu.ng"]);
     const gs = await db.select().from(s.applicationGuarantors).where(eq(s.applicationGuarantors.applicationId, first));
     for (const g of gs) {
       const [u] = await db.select().from(s.users).where(eq(s.users.id, g.guarantorId));
       await respondToGuarantee(db, (await loadActor(db, g.guarantorId, { ip: null, userAgent: null }))!, g.id, { decision: "accept", typedName: u.displayName, confirmations: [true, true, true], relationship: "Colleague", phone: "08030000000" });
     }
+    // With the one-at-a-time rule on, a second guarantee is refused.
+    const admin = await A("admin");
+    await updateSettingsGroup(db, admin, "Lending rules", { "lending.oneGuaranteeAtATime": true }, true);
     await expect(apply("hrdirector", ["tunde.bello.dev@example.edu.ng", "kunle.adeyemi.dev@example.edu.ng"])).rejects.toThrow(/already guaranteeing another loan/);
+    await updateSettingsGroup(db, admin, "Lending rules", { "lending.oneGuaranteeAtATime": false }, true);
+    // By default the policy allows two: a second is accepted, a third is refused.
+    await apply("hod", ["tunde.bello.dev@example.edu.ng", "kunle.adeyemi.dev@example.edu.ng"], "300000");
+    await expect(apply("linemanager", ["tunde.bello.dev@example.edu.ng", "funmi.adebayo.dev@example.edu.ng"], "300000")).rejects.toThrow(/maximum allowed/);
   });
 
   it("anyone with a loan or application in progress cannot apply again (no top-ups)", async () => {

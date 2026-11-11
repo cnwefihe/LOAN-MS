@@ -58,7 +58,7 @@ export default async function StaffRecord({ params }: { params: Promise<{ id: st
           <Card title="Employment and salary">
             <KeyValues columns={3} items={[
               ["Staff number", p?.staffNumber], ["School", rec.school?.name], ["Department", rec.department?.name], ["Designation", p?.designation], ["Pay grade", p?.payGrade], ["Category", rec.category?.name],
-              ["Status", p?.employmentStatus?.replace("_", " ")], ["Employment date", <DateText key="e" value={p?.employmentDate} />], ["Confirmation date", <DateText key="c" value={p?.confirmationDate} />], ["Service", `${monthsText(rec.serviceMonths)}`],
+              ["Status", p?.employmentStatus?.replace("_", " ")], ["Employment date", <DateText key="e" value={p?.employmentDate} />], ["Service", `${monthsText(rec.serviceMonths)}`],
               ["Monthly basic", <Money key="b" value={p?.monthlyBasic} />], ["Monthly gross", <Money key="g" value={p?.monthlyGross} />], ["Monthly net", <Money key="n" value={p?.monthlyNet} />],
               ["Bank", p?.bankName ? `${p.bankName} ••••${p.bankAccountLast4 ?? ""}` : "N/A"], ["Directory job title", p?.entraJobTitle], ["Last sign-in", <DateText key="l" value={rec.user.lastLoginAt} withTime />],
             ]} />
@@ -75,7 +75,6 @@ export default async function StaffRecord({ params }: { params: Promise<{ id: st
                   <div><label htmlFor="designation" className="label">Designation</label><input id="designation" name="designation" defaultValue={p?.designation ?? ""} className="input" /></div>
                   <div><label htmlFor="employmentStatus" className="label">Employment status</label><select id="employmentStatus" name="employmentStatus" defaultValue={p?.employmentStatus ?? ""} className="input"><option value="">Not set</option>{EMPLOYMENT_STATUSES.map((s) => <option key={s} value={s}>{s.replace("_", " ")}</option>)}</select></div>
                   <div><label htmlFor="employmentDate" className="label">Employment date</label><input id="employmentDate" name="employmentDate" type="date" defaultValue={p?.employmentDate ?? ""} className="input" /></div>
-                  <div><label htmlFor="confirmationDate" className="label">Confirmation date</label><input id="confirmationDate" name="confirmationDate" type="date" defaultValue={p?.confirmationDate ?? ""} className="input" /></div>
                   <div><label htmlFor="payslipName" className="label">Name on payslip</label><input id="payslipName" name="payslipName" defaultValue={p?.payslipName ?? ""} placeholder={rec.user.displayName} className="input" /></div>
                   <div><label htmlFor="payGrade" className="label">Pay grade</label><input id="payGrade" name="payGrade" defaultValue={p?.payGrade ?? ""} className="input" /><p className="hint">Exactly as on the payslip.</p></div>
                   <div><label htmlFor="monthlyBasic" className="label">Monthly basic salary (₦)</label><input id="monthlyBasic" name="monthlyBasic" inputMode="decimal" defaultValue={p?.monthlyBasic ?? ""} className="input" /></div>

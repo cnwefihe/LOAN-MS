@@ -134,7 +134,7 @@ export async function provisionEntraUser(identity: EntraIdentity): Promise<strin
 }
 
 /** Find or create a placeholder user for a colleague nominated by email who has not yet signed in. */
-export async function findOrCreateStaffByEmail(db: Executor, email: string, actor: Actor): Promise<typeof users.$inferSelect> {
+export async function findOrCreateStaffByEmail(db: Executor, email: string, actor: Actor, name?: string): Promise<typeof users.$inferSelect> {
   const normalized = email.trim().toLowerCase();
   if (!isInstitutionalEmail(normalized)) throw new DomainError(`${email} is not an institutional email address.`);
   const [existing] = await db.select().from(users).where(sql`lower(${users.email}) = ${normalized}`);
@@ -142,7 +142,7 @@ export async function findOrCreateStaffByEmail(db: Executor, email: string, acto
   const local = normalized.split("@")[0];
   const [created] = await db.insert(users).values({
     email: normalized,
-    displayName: local.split(/[._-]/).map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(" "),
+    displayName: name?.trim() || local.split(/[._-]/).map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(" "),
   }).returning();
   await db.insert(staffProfiles).values({ userId: created.id }).onConflictDoNothing();
   await audit(db, actor, { action: "user.placeholder_created", entityType: "user", entityId: created.id, summary: `Placeholder created for nominated colleague ${normalized}` });

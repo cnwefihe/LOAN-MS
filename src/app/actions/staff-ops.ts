@@ -103,7 +103,6 @@ export async function staffRecordAction(userId: string, _: Prev, fd: FormData) {
       staffNumber: str(fd, "staffNumber") || null, departmentId: str(fd, "departmentId") || null, schoolId: str(fd, "schoolId") || null,
       categoryId: str(fd, "categoryId") || null, designation: str(fd, "designation") || null, payGrade: str(fd, "payGrade") || null, payslipName: str(fd, "payslipName") || null, employmentStatus: employmentStatus(fd),
       employmentDate: str(fd, "employmentDate") ? dateStr(fd, "employmentDate", "employment date") : null,
-      confirmationDate: str(fd, "confirmationDate") ? dateStr(fd, "confirmationDate", "confirmation date") : null,
       ...(basic ? { monthlyBasic: basic } : {}),
     }, str(fd, "note") || "Record updated by Human Resources");
     return "Staff record updated.";

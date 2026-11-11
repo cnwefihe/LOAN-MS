@@ -51,7 +51,7 @@ export const SETTINGS = {
   "wording.sectionApproval": { group: "Workflow wording", schema: text(30), default: "Approvals", sensitive: false, label: "Approvals menu heading" },
   "workflow.allowApproverReturnToHr": { group: "Workflow", schema: z.boolean(), default: true, sensitive: false, label: "Approvers may refer applications back to Human Resources" },
   "lending.oneLoanAtATime": { group: "Lending rules", schema: z.boolean(), default: true, sensitive: true, label: "Staff may hold one loan at a time" },
-  "lending.oneGuaranteeAtATime": { group: "Lending rules", schema: z.boolean(), default: true, sensitive: true, label: "Staff may guarantee one loan at a time" },
+  "lending.oneGuaranteeAtATime": { group: "Lending rules", schema: z.boolean(), default: false, sensitive: true, label: "Staff may guarantee one loan at a time" },
   "lending.countGuarantees": { group: "Lending rules", schema: z.boolean(), default: true, sensitive: true, label: "Count what a guarantor could be called to repay against their deduction limit" },
   "reminders.enabled": { group: "Reminders", schema: z.boolean(), default: true, sensitive: false, label: "Send reminders for work left waiting" },
   "reminders.hrMinutes": { group: "Reminders", schema: reminderMinutes(60), default: DAY, sensitive: false, label: "Remind Human Resources after" },

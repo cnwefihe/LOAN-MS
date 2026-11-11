@@ -91,7 +91,7 @@ export async function myDataPdf(db: Executor, actor: Actor): Promise<Buffer> {
   if (!p) none(pdf, "staff record");
   else pdf.keyValues([
     ["Staff number", txt(p.staffNumber)], ["Name on payslip", txt(p.payslipName)], ["Designation", txt(p.designation)], ["Pay grade", txt(p.payGrade)],
-    ["Employment status", humanise(p.employmentStatus ?? "not recorded")], ["Employment date", day(p.employmentDate)], ["Confirmation date", day(p.confirmationDate)],
+    ["Employment status", humanise(p.employmentStatus ?? "not recorded")], ["Employment date", day(p.employmentDate)],
     ["Phone", txt(p.phone)], ["Residential address", txt(p.residentialAddress)], ["Bank", txt(p.bankName)], ["Account name", txt(p.bankAccountName)],
     ["Monthly net pay on record", naira(p.monthlyNet)],
   ]);

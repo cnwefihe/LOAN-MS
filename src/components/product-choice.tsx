@@ -5,7 +5,7 @@ import { ADVANCE_TYPES } from "@/lib/finance/policy";
 import { Field } from "./ui";
 import { monthsText } from "@/lib/finance/dates";
 
-export interface ProductOption { id: string; label: string; isAdvance: boolean; tenors: number[] }
+export interface ProductOption { id: string; label: string; isAdvance: boolean; tenors: number[]; guarantors: number }
 
 const EVENT = "lms:product-kind";
 
@@ -20,7 +20,9 @@ export function ProductChoice({ products, productId, advanceType, tenor }: {
   const product = products.find((p) => p.id === id);
   const isAdvance = product?.isAdvance ?? false;
   const [type, setType] = useState(advanceType ?? "");
-  useEffect(() => { window.dispatchEvent(new CustomEvent(EVENT, { detail: isAdvance })); }, [isAdvance]);
+  // The guarantor section shows as many choices as the product needs (none for an advance or the Bereavement Loan).
+  const needed = isAdvance ? 0 : product?.guarantors ?? 0;
+  useEffect(() => { window.dispatchEvent(new CustomEvent(EVENT, { detail: needed })); }, [needed]);
   return (
     <>
       <Field label="Product" htmlFor="productId" className="sm:col-span-2">
@@ -50,13 +52,39 @@ export function ProductChoice({ products, productId, advanceType, tenor }: {
   );
 }
 
-/** The guarantor nomination section, shown for loans and hidden for advances. */
-export function LoanOnly({ initiallyAdvance, children }: { initiallyAdvance: boolean; children: React.ReactNode }) {
-  const [advance, setAdvance] = useState(initiallyAdvance);
+/**
+ * Guarantors, chosen by name from the list kept by the administrator. Hidden when the product needs none.
+ * The same person cannot be chosen twice.
+ */
+export function GuarantorChoice({ initialCount, options, initial, children }: {
+  initialCount: number; options: { id: string; name: string }[]; initial: string[]; children?: React.ReactNode;
+}) {
+  const [count, setCount] = useState(initialCount);
+  const [picked, setPicked] = useState<string[]>([initial[0] ?? "", initial[1] ?? ""]);
   useEffect(() => {
-    const on = (e: Event) => setAdvance((e as CustomEvent<boolean>).detail);
+    const on = (e: Event) => setCount((e as CustomEvent<number>).detail);
     window.addEventListener(EVENT, on);
     return () => window.removeEventListener(EVENT, on);
   }, []);
-  return advance ? null : <>{children}</>;
+  if (count === 0) return null;
+  return (
+    <section aria-labelledby="s3">
+      {children}
+      {options.length === 0 ? (
+        <p className="mt-3 rounded-md border border-amber-200 bg-warning-50 px-3 py-2 text-sm text-warning-ink">The list of guarantors has not been set up yet. Please contact the Bursary.</p>
+      ) : (
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          {Array.from({ length: Math.min(count, 2) }, (_, i) => (
+            <Field key={i} label={`Guarantor ${i + 1}`} htmlFor={`guarantor${i + 1}`}>
+              <select id={`guarantor${i + 1}`} name={`guarantor${i + 1}`} value={picked[i]} required className="input"
+                onChange={(e) => setPicked((p) => p.map((x, j) => (j === i ? e.target.value : x)))}>
+                <option value="" disabled>Choose a name</option>
+                {options.map((o) => <option key={o.id} value={o.id} disabled={picked.some((x, j) => j !== i && x === o.id)}>{o.name}</option>)}
+              </select>
+            </Field>
+          ))}
+        </div>
+      )}
+    </section>
+  );
 }

@@ -96,7 +96,9 @@ export async function WorkflowHistory({ history }: { history: { t: { id: string;
   );
 }
 
-export function GuarantorTable({ guarantors, assessments }: {
+export function GuarantorTable({ guarantors, assessments, hideEmail }: {
+  /** Applicants see their guarantors' names only. */
+  hideEmail?: boolean;
   guarantors: { g: { id: string; status: string; guaranteedAmount: string; invitedAt: Date; respondedAt: Date | null; responseComment: string | null; agreementVersion: number | null }; user: { displayName: string; email: string } }[];
   assessments?: { applicationGuarantorId: string; outcome: string; existingExposure: string }[];
 }) {
@@ -109,7 +111,7 @@ export function GuarantorTable({ guarantors, assessments }: {
           const a = assessments?.find((x) => x.applicationGuarantorId === g.id);
           return (
             <tr key={g.id}>
-              <Td><p className="font-medium">{user.displayName}</p><p className="text-xs text-muted">{user.email}</p>{g.responseComment && <p className="mt-1 text-xs italic text-muted">“{g.responseComment}”</p>}</Td>
+              <Td><p className="font-medium">{user.displayName}</p>{!hideEmail && <p className="text-xs text-muted">{user.email}</p>}{g.responseComment && <p className="mt-1 text-xs italic text-muted">“{g.responseComment}”</p>}</Td>
               <Td right><Money value={g.guaranteedAmount} /></Td>
               <Td><StatusBadge status={g.status} />{g.agreementVersion && <p className="mt-1 text-xs text-muted">Agreement v{g.agreementVersion}</p>}</Td>
               <Td><DateText value={g.respondedAt} withTime /></Td>

@@ -16,6 +16,7 @@ import { FormDownloads } from "@/components/form-downloads";
 import { DocumentList, GuarantorTable, MessageThread, QuoteSummary, UploadForm, WorkflowHistory } from "@/components/panels";
 import { submitApplicationAction, cancelApplicationAction, replaceGuarantorAction, postMessageAction, uploadApplicationDocumentAction } from "@/app/actions/applicant";
 import { monthsText } from "@/lib/finance/dates";
+import { guarantorChoices, guarantorsByEmail } from "@/server/services/guarantor-pool";
 
 export const metadata = { title: "Application" };
 
@@ -36,6 +37,10 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
   const quote = app.quote as unknown as EligibilityResult;
   const docs = await listDocumentsFor(db, actor, { applicationId: id, loanAccountId: d.loan?.id });
   const editable = d.access.isApplicant && (app.status === "draft" || app.status === "returned");
+  // Guarantors are shown by name; the applicant chooses replacements from the same list.
+  const listed = await guarantorsByEmail(db, app.nominatedGuarantors);
+  const replaceOptions = d.access.isApplicant && app.status === "pending_guarantor" ? await guarantorChoices(db, actor.email) : [];
+  const needsGuarantors = d.policy.params.productType !== "advance" && d.policy.params.requiredGuarantors > 0;
   const required = editable ? await requiredDocumentsFor(db, app.productId, d.policy.params) : [];
   const uploadedCodes = new Set(docs.filter((x) => x.requirementCode).map((x) => x.requirementCode));
   const missingDocs = required.filter((r) => !uploadedCodes.has(r.code));
@@ -75,20 +80,23 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
             {quote.reasons?.length > 0 && editable && <div className="mt-4"><Alert tone="danger" title="Eligibility issues">{quote.reasons.join(" ")}</Alert></div>}
           </Card>
 
-          <Card title="Guarantors" description={`${d.policy.params.requiredGuarantors} required`}>
+          {needsGuarantors && <Card title="Guarantors" description={`${d.policy.params.requiredGuarantors} required`}>
             {app.status === "draft" || app.status === "returned" ? (
-              app.nominatedGuarantors.length ? <ul className="list-disc pl-5 text-sm">{app.nominatedGuarantors.map((e) => <li key={e}>{e}</li>)}</ul> : <p className="text-sm text-muted">No guarantors nominated yet.</p>
-            ) : <GuarantorTable guarantors={liveGuarantors} assessments={d.access.isStaff ? d.assessments : undefined} />}
+              app.nominatedGuarantors.length ? <ul className="list-disc pl-5 text-sm">{app.nominatedGuarantors.map((e) => <li key={e}>{listed.get(e.toLowerCase())?.name ?? (d.access.isStaff ? e : "A colleague no longer on the list")}</li>)}</ul> : <p className="text-sm text-muted">No guarantors chosen yet. Edit the application to choose them.</p>
+            ) : <GuarantorTable guarantors={liveGuarantors} assessments={d.access.isStaff ? d.assessments : undefined} hideEmail={!d.access.isStaff} />}
             {d.access.isApplicant && app.status === "pending_guarantor" && d.guarantors.filter((g) => ["declined", "pending", "clarification_requested"].includes(g.g.status)).map((g) => (
               <details key={g.g.id} className="mt-3 rounded-md border border-line p-3">
                 <summary className="cursor-pointer text-sm font-medium">Replace {g.user.displayName}{g.g.status === "declined" ? " (declined)" : ""}</summary>
-                <ActionForm action={replaceGuarantorAction.bind(null, g.g.id)} submitLabel="Invite replacement" variant="secondary">
-                  <label htmlFor={`rep-${g.g.id}`} className="label mt-2">Colleague&apos;s university email address</label>
-                  <input id={`rep-${g.g.id}`} name="email" type="email" required className="input" />
+                <ActionForm action={replaceGuarantorAction.bind(null, g.g.id)} submitLabel="Send request" variant="secondary">
+                  <label htmlFor={`rep-${g.g.id}`} className="label mt-2">Replacement guarantor</label>
+                  <select id={`rep-${g.g.id}`} name="guarantorId" required defaultValue="" className="input">
+                    <option value="" disabled>Choose a name</option>
+                    {replaceOptions.filter((o) => !d.guarantors.some((x) => x.user.displayName === o.name && ["pending", "accepted", "clarification_requested"].includes(x.g.status))).map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                  </select>
                 </ActionForm>
               </details>
             ))}
-          </Card>
+          </Card>}
 
           <Card title="Supporting documents">
             {editable && missingDocs.length > 0 && <div className="mb-4"><Alert tone="warning" title="Required before submission">{missingDocs.map((r) => r.label).join(", ")}</Alert></div>}
