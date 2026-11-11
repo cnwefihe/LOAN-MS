@@ -17,6 +17,13 @@ async function signIn(page: Page, name: string) {
   }
 }
 
+// Actions that change something ask for confirmation in a dialog; accept it, as the person would.
+test.beforeEach(async ({ page }) => {
+  await page.addLocatorHandler(page.locator("dialog[data-confirm-dialog][open]"), async (d) => {
+    await d.getByRole("button", { name: "Confirm" }).click();
+  }, { noWaitAfter: true });
+});
+
 const GRAPH = "http://127.0.0.1:3199";
 type Mail = { to: string; subject: string; html: string; attachments: { contentId: string }[] };
 /** A click before the page finishes loading does nothing, so keep trying until the menu opens. */
@@ -87,7 +94,7 @@ test.describe.serial("application lifecycle through the UI", () => {
       await page.getByLabel("Your telephone number(s)").fill("08031234567, 08097654321");
       await page.getByLabel(/Type your full name to sign/).fill(name);
       await page.getByRole("button", { name: "Accept and sign electronically" }).click();
-      await page.waitForURL("**/guarantor");
+      await expect(page).toHaveURL(/\/guarantor$/);
     });
   }
 

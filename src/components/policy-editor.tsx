@@ -106,7 +106,7 @@ export function PolicyEditor({ initial, action, productName, description }: {
   return (
     <div className="grid gap-6 xl:grid-cols-3">
       <Card title="Loan terms" description={description} className="xl:col-span-2">
-        <ActionForm action={action} submitLabel="Save">
+        <ActionForm action={action} submitLabel="Save" confirm="Save these loan terms? New applications use them at once; loans already taken keep their terms.">
           <div className="space-y-7">
             {GROUPS.map((g) => (
               <fieldset key={g.title}>

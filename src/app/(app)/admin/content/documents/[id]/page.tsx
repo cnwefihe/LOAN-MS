@@ -27,7 +27,7 @@ export default async function EditRequirement({ params, searchParams }: { params
     <>
       <PageHeader title={title} crumbs={[{ label: "Administration", href: "/admin" }, { label: "Templates", href: (sp.from?.startsWith("/admin/content") ? sp.from : "/admin/content?tab=documents") }, { label: title }]} />
       <Card className="max-w-2xl">
-        <ActionForm action={saveRequirementAction.bind(null, r?.id ?? null)} submitLabel={isNew ? "Add requirement" : "Save requirement"}>
+        <ActionForm action={saveRequirementAction.bind(null, r?.id ?? null)} submitLabel={isNew ? "Add requirement" : "Save requirement"} confirm={isNew ? "Add this document requirement?" : "Save the changes to this document requirement?"}>
           <label htmlFor="label" className="label">Label shown to staff</label>
           <input id="label" name="label" defaultValue={r?.label} required className="input" />
           <label htmlFor="code" className="label mt-3">Code</label>

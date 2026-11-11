@@ -85,7 +85,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
         <div className="max-w-3xl space-y-6">
           {manage && (
             <Card title="Product details">
-              <ActionForm action={updateProductDetailsAction.bind(null, id)} submitLabel="Save details">
+              <ActionForm action={updateProductDetailsAction.bind(null, id)} submitLabel="Save details" confirm="Save the product name and description?">
                 <label htmlFor="p-name" className="label">Name</label><input id="p-name" name="name" defaultValue={product.name} required minLength={3} maxLength={150} className="input" />
                 <label htmlFor="p-desc" className="label mt-3">Description</label><textarea id="p-desc" name="description" rows={3} defaultValue={product.description ?? ""} maxLength={300} className="input" />
                 <p className="hint">Code {product.code} cannot change.</p>
@@ -97,7 +97,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
               <ul className="divide-y divide-line">
                 <li className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
                   <div className="max-w-md"><p className="text-sm font-medium">{product.isActive ? "Close product" : "Open product"}</p><p className="text-xs text-muted">{product.isActive ? "Stops new applications. Existing applications and loans are unaffected." : "Lets staff apply for this product."}</p></div>
-                  <ActionForm inline action={setProductActiveAction.bind(null, id, !product.isActive)} submitLabel={product.isActive ? "Close product" : "Open product"} submitClassName="btn-secondary" confirm={product.isActive ? "Close this product to new applications? Existing applications and loans are unaffected." : undefined} />
+                  <ActionForm inline action={setProductActiveAction.bind(null, id, !product.isActive)} submitLabel={product.isActive ? "Close product" : "Open product"} submitClassName="btn-secondary" confirm={product.isActive ? "Close this product to new applications? Existing applications and loans are unaffected." : "Open this product to applications?"} />
                 </li>
                 <li className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
                   <div className="max-w-md"><p className="text-sm font-medium">Delete product</p><p className="text-xs text-muted">{used ? "This product has applications on record, so it cannot be deleted. Close it to stop new applications." : "Removes the product. This cannot be undone."}</p></div>

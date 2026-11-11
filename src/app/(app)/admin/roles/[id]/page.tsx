@@ -33,7 +33,7 @@ export default async function ManageRole({ params, searchParams }: { params: Pro
       {tab === "details" ? (
         <div className="max-w-2xl space-y-6">
           <Card title="Role details">
-            <ActionForm action={updateRoleDetailsAction.bind(null, role.id)} submitLabel="Save details">
+            <ActionForm action={updateRoleDetailsAction.bind(null, role.id)} submitLabel="Save details" confirm="Save the role name and description?">
               <label htmlFor="name" className="label">Title</label>
               <input id="name" name="name" defaultValue={role.name} required minLength={2} maxLength={60} className="input" />
               <label htmlFor="description" className="label mt-3">Description</label>
@@ -52,7 +52,7 @@ export default async function ManageRole({ params, searchParams }: { params: Pro
         </div>
       ) : (
         <Card bodyClassName="p-0!">
-          <ActionForm action={setRolePermissionsAction.bind(null, role.id)} submitLabel="Save permissions" className="pb-5 [&>div:last-child]:px-5 [&>[role=alert]]:mx-5 [&>[role=status]]:mx-5">
+          <ActionForm action={setRolePermissionsAction.bind(null, role.id)} submitLabel="Save permissions" confirm="Save these permissions? Everyone with this role is affected at once." className="pb-5 [&>div:last-child]:px-5 [&>[role=alert]]:mx-5 [&>[role=status]]:mx-5">
             {superAdmin && <p className="border-b border-line px-5 py-3 text-sm text-muted">Locked permissions keep administrators from being locked out, and keep financial duties separate.</p>}
             <div className="divide-y divide-line border-b border-line">
               {categories.map((c) => {

@@ -19,7 +19,7 @@ export default async function EditTemplate({ params, searchParams }: { params: P
     <>
       <PageHeader title={t.name} crumbs={[{ label: "Administration", href: "/admin" }, { label: "Templates", href: (sp.from?.startsWith("/admin/content") ? sp.from : "/admin/content?tab=templates") }, { label: t.name }]} />
       <Card className="max-w-3xl" description="Placeholders such as {{reference}} and {{amount}} are filled in automatically." title="Message">
-        <ActionForm action={saveTemplateAction.bind(null, t.code)} submitLabel="Save template">
+        <ActionForm action={saveTemplateAction.bind(null, t.code)} submitLabel="Save template" confirm="Save the changes to this template? New messages will use it.">
           <label htmlFor="subject" className="label">Subject</label>
           <input id="subject" name="subject" defaultValue={t.subject} required className="input" />
           <label htmlFor="body" className="label mt-3">Body</label>

@@ -21,7 +21,7 @@ export function SettingsGroupForm({ group, values }: { group: SettingGroup; valu
   const sensitive = keys.some((k) => SETTINGS[k].sensitive);
   return (
     <ActionForm action={saveSettingsGroupAction.bind(null, group)} submitLabel="Save changes"
-      confirm={sensitive ? "Save these changes? They are flagged in the audit log." : undefined}>
+      confirm={sensitive ? "Save these changes? They are flagged in the audit log." : "Save these settings? They apply at once."}>
       {keys.map((k) => <input key={k} type="hidden" name="__keys" value={k} />)}
       {sensitive && <input type="hidden" name="confirm" value="yes" />}
       {switches.length > 0 && (

@@ -40,7 +40,7 @@ export default async function OrgRecord({ params }: { params: Promise<{ kind: st
     <>
       <PageHeader title={title} crumbs={[{ label: "Administration", href: "/admin" }, { label: "Organisation", href: `/admin/organisation?tab=${tab}` }, { label: title }]} />
       <Card className="max-w-2xl">
-        <ActionForm action={saveOrgAction.bind(null, kind, row?.id ?? null)} submitLabel={isNew ? `Add ${noun}` : "Save changes"}>
+        <ActionForm action={saveOrgAction.bind(null, kind, row?.id ?? null)} submitLabel={isNew ? `Add ${noun}` : "Save changes"} confirm={isNew ? `Add this ${noun}?` : "Save the changes?"}>
           <div className="grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <div><label htmlFor="name" className="label">Name</label><input id="name" name="name" defaultValue={row?.name} required className="input" /></div>
             <div><label htmlFor="code" className="label">Code</label><input id="code" name="code" defaultValue={row?.code} required className="input" /></div>

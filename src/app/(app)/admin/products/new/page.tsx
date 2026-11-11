@@ -11,7 +11,7 @@ export default async function NewProduct() {
     <>
       <PageHeader title="New product" crumbs={[{ label: "Administration", href: "/admin" }, { label: "Products", href: "/admin/products" }, { label: "New product" }]} />
       <Card className="max-w-2xl">
-        <ActionForm action={createProductAction} submitLabel="Create product">
+        <ActionForm action={createProductAction} submitLabel="Create product" confirm="Create this product? It starts closed.">
           <label htmlFor="name" className="label">Name</label>
           <input id="name" name="name" required className="input" />
           <label htmlFor="code" className="label mt-3">Code</label>

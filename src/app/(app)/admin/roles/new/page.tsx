@@ -14,7 +14,7 @@ export default async function NewRole() {
     <>
       <PageHeader title="New role" crumbs={[{ label: "Administration", href: "/admin" }, { label: "Roles", href: "/admin/roles" }, { label: "New role" }]} />
       <Card className="max-w-2xl">
-        <ActionForm action={createRoleAction} submitLabel="Create role">
+        <ActionForm action={createRoleAction} submitLabel="Create role" confirm="Create this role?">
           <label htmlFor="name" className="label">Title</label>
           <input id="name" name="name" required minLength={2} maxLength={60} className="input" />
           <label htmlFor="description" className="label mt-3">Description</label>

@@ -18,12 +18,16 @@ import { isLogoVariant, getBranding } from "@/server/branding";
 import { emailOutbox } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
+import { getWording } from "@/server/wording";
+
 type Prev = ActionResult | null;
 
 export async function setUserRoleAction(userId: string, role: string, grant: boolean, _: Prev) {
   return runAction(async (actor) => {
-    await setUserRole(await getDb(), actor, userId, role as RoleCode, grant);
-    return grant ? `${role} granted.` : `${role} revoked.`;
+    const db = await getDb();
+    await setUserRole(db, actor, userId, role as RoleCode, grant);
+    const name = (await getWording(db)).role[role as RoleCode]?.name ?? role;
+    return grant ? `${name} role given.` : `${name} role removed.`;
   }, { revalidate: ["/admin/users", `/admin/users/${userId}`] });
 }
 

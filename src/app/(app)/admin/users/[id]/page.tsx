@@ -42,7 +42,7 @@ export default async function ManageUser({ params }: { params: Promise<{ id: str
             ]} />
           </Card>
           <Card title="Display name" description="Shown everywhere: the sidebar, activity, records and emails. Microsoft no longer changes it at sign-in.">
-            <ActionForm action={setDisplayNameAction.bind(null, u.id)} submitLabel="Save name" className="[&>div:last-child]:mt-3">
+            <ActionForm action={setDisplayNameAction.bind(null, u.id)} submitLabel="Save name" className="[&>div:last-child]:mt-3" confirm={`Change the display name of ${u.displayName}?`}>
               <label htmlFor="displayName" className="sr-only">Display name</label>
               <input id="displayName" name="displayName" defaultValue={u.displayName} maxLength={200} className="input" />
               <p className="hint">{u.nameLocked ? "Set here. Clear it and save to use the Microsoft account name again." : "Currently the Microsoft account name."}</p>
@@ -50,8 +50,8 @@ export default async function ManageUser({ params }: { params: Promise<{ id: str
           </Card>
           <Card title="Access">
             <div className="flex flex-wrap gap-2">
-              {u.id !== actor.userId && <ActionForm inline action={setUserActiveAction.bind(null, u.id, !u.isActive)} submitLabel={u.isActive ? "Deactivate account" : "Reactivate account"} variant={u.isActive ? "danger" : "secondary"} submitClassName={u.isActive ? "btn-danger" : "btn-secondary"} confirm={u.isActive ? `Deactivate ${u.displayName}? Their sessions will be revoked.` : undefined} />}
-              <ActionForm inline action={revokeSessionsAction.bind(null, u.id)} submitLabel="Revoke sessions" submitClassName="btn-secondary" />
+              {u.id !== actor.userId && <ActionForm inline action={setUserActiveAction.bind(null, u.id, !u.isActive)} submitLabel={u.isActive ? "Deactivate account" : "Reactivate account"} variant={u.isActive ? "danger" : "secondary"} submitClassName={u.isActive ? "btn-danger" : "btn-secondary"} confirm={u.isActive ? `Deactivate ${u.displayName}? Their sessions will be revoked.` : `Reactivate ${u.displayName}?`} />}
+              <ActionForm inline action={revokeSessionsAction.bind(null, u.id)} submitLabel="Revoke sessions" submitClassName="btn-secondary" confirm={`Sign ${u.displayName} out of every device?`} />
               {u.mfaEnabledAt && u.id !== actor.userId && <ActionForm inline action={resetMfaAction.bind(null, u.id)} submitLabel="Reset two-step verification" submitClassName="btn-secondary" confirm={`Reset two-step verification for ${u.displayName}? Confirm their identity first.`} />}
             </div>
           </Card>
@@ -67,7 +67,7 @@ export default async function ManageUser({ params }: { params: Promise<{ id: str
                   <tr key={r}>
                     <Td className="font-medium">{name}</Td>
                     <Td>{has ? <Badge tone="success">Assigned</Badge> : <span className="text-muted">Not assigned</span>}</Td>
-                    <Td right><ActionForm inline action={setUserRoleAction.bind(null, u.id, r, !has)} submitLabel={has ? "Remove" : "Grant"} submitClassName="btn-secondary h-8 text-xs" confirm={r === "SUPER_ADMIN" ? `${has ? "Remove" : "Grant"} ${name} for ${u.displayName}?` : undefined} /></Td>
+                    <Td right><ActionForm inline action={setUserRoleAction.bind(null, u.id, r, !has)} submitLabel={has ? "Remove" : "Grant"} submitClassName="btn-secondary h-8 text-xs" confirm={has ? `Remove the ${name} role from ${u.displayName}?` : `Give ${u.displayName} the ${name} role?`} /></Td>
                   </tr>
                 );
               })}

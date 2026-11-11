@@ -48,7 +48,7 @@ export default async function BrandingPage({ searchParams }: { searchParams: Pro
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={logoUrl(brand, v)} alt={`Current ${LOGO_VARIANTS[v].label.toLowerCase()}`} className="max-h-20 max-w-[85%] object-contain" />
                   </div>
-                  <ActionForm action={uploadLogoAction.bind(null, v)} encType="multipart/form-data" submitLabel="Upload" variant="secondary" resetOnSuccess>
+                  <ActionForm action={uploadLogoAction.bind(null, v)} encType="multipart/form-data" submitLabel="Upload" variant="secondary" resetOnSuccess confirm="Replace this image with the file you chose?">
                     <label htmlFor={`logo-${v}`} className="label mt-3">Replace with</label>
                     <input id={`logo-${v}`} name="logo" type="file" accept="image/png,image/jpeg" required className="input py-1.5" />
                   </ActionForm>

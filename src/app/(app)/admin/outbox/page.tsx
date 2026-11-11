@@ -25,7 +25,7 @@ export default async function Emails({ searchParams }: { searchParams: Promise<{
     <>
       <PageHeader title="Emails" crumbs={[{ label: "Administration", href: "/admin" }, { label: "Emails" }]} description="Outgoing emails and their delivery status."
         actions={<>
-          <ActionForm inline action={dispatchEmailsAction} submitLabel="Send queued" submitClassName="btn-secondary h-8 px-3 text-xs" />
+          <ActionForm inline action={dispatchEmailsAction} submitLabel="Send queued" submitClassName="btn-secondary h-8 px-3 text-xs" confirm="Send the queued emails now?" />
           {canSend && <ActionForm inline action={requeueEmailsAction} submitLabel="Retry failed" submitClassName="btn-primary h-8 px-3 text-xs" confirm="Re-queue failed and unsent emails from the last 14 days and send them?" />}
         </>} />
       <div className="mb-6">
@@ -42,7 +42,7 @@ export default async function Emails({ searchParams }: { searchParams: Promise<{
       {canSend && <Tabs base="/admin/outbox" active={tab} tabs={[{ key: "emails", label: "Emails", count: rows.length }, { key: "test", label: "Test email" }]} />}
       {tab === "test" ? (
         <Card className="max-w-2xl" title="Send a test email" description="Send a sample message to confirm delivery.">
-          <ActionForm action={sendTestEmailAction} submitLabel="Send test email">
+          <ActionForm action={sendTestEmailAction} submitLabel="Send test email" confirm="Send a test email to this address?">
             <label htmlFor="to" className="label">Recipient</label>
             <input id="to" name="to" type="email" required defaultValue={actor.email} className="input" />
           </ActionForm>
