@@ -1,14 +1,17 @@
-import zlib from "node:zlib";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, PDFRawStream, decodePDFRawStream } from "pdf-lib";
 
-/** Text drawn by pdf-lib: inflate each content stream and decode its hex-string show operators. */
+/**
+ * Text drawn by pdf-lib: decode every stream in the document through pdf-lib itself (so compressed data is
+ * never cut at the wrong byte) and read its hex-string show operators.
+ */
 export async function pdfText(bytes: Buffer): Promise<{ text: string; pages: number }> {
-  const raw = bytes.toString("latin1");
+  const doc = await PDFDocument.load(bytes);
   let text = "";
-  for (const m of raw.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)) {
+  for (const [, obj] of doc.context.enumerateIndirectObjects()) {
+    if (!(obj instanceof PDFRawStream)) continue;
     let content: string;
-    try { content = zlib.inflateSync(Buffer.from(m[1], "latin1")).toString("latin1"); } catch { content = m[1]; }
+    try { content = Buffer.from(decodePDFRawStream(obj).decode()).toString("latin1"); } catch { continue; }
     for (const t of content.matchAll(/<([0-9A-Fa-f]+)>\s*Tj/g)) text += `${Buffer.from(t[1], "hex").toString("latin1")}\n`;
   }
-  return { text, pages: (await PDFDocument.load(bytes)).getPageCount() };
+  return { text, pages: doc.getPageCount() };
 }
