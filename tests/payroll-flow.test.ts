@@ -26,7 +26,7 @@ import {
 } from "@/server/services/loans";
 import { fundPosition, setFundPool } from "@/server/services/funds";
 import { currentSchedule } from "@/server/services/ledger";
-import { addMonths, firstOfMonth, todayLagos } from "@/lib/finance/dates";
+import { addDays, addMonths, firstOfMonth, todayLagos } from "@/lib/finance/dates";
 import { dec } from "@/lib/finance/money";
 import { encryptString } from "@/lib/security/crypto";
 import { generateSecret, totp } from "@/lib/security/totp";
@@ -94,6 +94,22 @@ describe("the fund pool", () => {
   });
 
   describe("salary deductions", () => {
+    it("on the due date the Payroll Officer is told what is due; a day later, unreported deductions alert the Payroll Officer, Payroll Manager and borrower", async () => {
+      const [l] = await db.select().from(s.loanAccounts).where(eq(s.loanAccounts.id, loanId));
+      const due = l.firstDueDate!;
+      const titles = async (key: string, code: string) => (await db.select({ t: s.notifications.title }).from(s.notifications)
+        .where(and(eq(s.notifications.userId, ids[key]), eq(s.notifications.templateCode, code)))).map((n) => n.t);
+      await runServicing(db, null, due);
+      expect(await titles("payroll", "payroll.deductions_due")).toHaveLength(1);
+      expect(await titles("payroll", "repayment.unreported")).toHaveLength(0);
+      await runServicing(db, null, addDays(due, 1));
+      await runServicing(db, null, addDays(due, 1)); // once only
+      expect(await titles("payroll", "repayment.unreported")).toEqual([expect.stringMatching(/not reported/)]);
+      expect(await titles("payrollmanager", "repayment.unreported")).toHaveLength(1);
+      expect(await titles("applicant", "repayment.report_reminder")).toHaveLength(1);
+      await runServicing(db, null, todayLagos());
+    });
+
     it("the Payroll Officer, not the Bursary Officer, confirms the first deduction; later ones are then recorded automatically", async () => {
       const [l] = await db.select().from(s.loanAccounts).where(eq(s.loanAccounts.id, loanId));
       const claim = await submitRepaymentClaim(db, await actor("applicant"), loanId, { amount: l.monthlyInstalment, deductionMonth: l.firstDueDate!.slice(0, 7) > todayLagos().slice(0, 7) ? todayLagos().slice(0, 7) : l.firstDueDate!.slice(0, 7), channel: "payroll" });
@@ -134,11 +150,11 @@ describe("the fund pool", () => {
       expect(dec(q.settlementAmount).equals(dec(q.principal).plus(q.interestDue).minus(q.overpaymentCredit))).toBe(true);
     });
 
-    it("the Payroll Manager marks the loan repaid only with a correct two-step verification code", async () => {
+    it("the Payroll Officer, not the Payroll Manager, closes the loan, and only with a correct two-step verification code", async () => {
       const r = await requestEarlyRepayment(db, await actor("applicant"), loanId, { payerReference: "FT-EARLY-1", receipt });
       await expectErr(requestEarlyRepayment(db, await actor("applicant"), loanId, { receipt }), /already sent/);
-      await expectErr(confirmEarlyRepayment(db, await actor("payroll"), r.id, { code: "000000" }), /not authorised/);
-      const manager = await actor("payrollmanager");
+      await expectErr(confirmEarlyRepayment(db, await actor("payrollmanager"), r.id, { code: "000000" }), /not authorised/);
+      const manager = await actor("payroll");
       await expectErr(confirmEarlyRepayment(db, manager, r.id, { code: "123456" }), /Set up two-step verification/);
       const secret = generateSecret();
       await db.update(s.users).set({ mfaSecret: encryptString(secret), mfaEnabledAt: new Date() }).where(eq(s.users.id, manager.userId));

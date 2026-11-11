@@ -32,7 +32,7 @@ export default async function RepayEarly({ params }: { params: Promise<{ id: str
       <>
         <PageHeader title="Repay early" crumbs={crumbs} />
         <Card>
-          <p className="text-sm text-muted">{pending ? <>You sent <Money value={pending.amount} /> on <DateText value={pending.createdAt} />. The Payroll Manager will check the payment and close the loan.</>
+          <p className="text-sm text-muted">{pending ? <>You sent <Money value={pending.amount} /> on <DateText value={pending.createdAt} />. The Payroll Officer will check the payment and close the loan.</>
             : d.app.advanceType ? "An advance is recovered from the payment it was taken against, so it cannot be repaid early."
             : "Only an active loan can be repaid early."}</p>
           <Link href={`/loans/${id}`} className="btn-secondary mt-4">Back to the loan</Link>
@@ -67,7 +67,7 @@ export default async function RepayEarly({ params }: { params: Promise<{ id: str
         </Card>
       </div>
       {account.ready && (
-        <Card title="2. Send your receipt" className="mt-6" description="The Payroll Manager checks the payment, then marks your loan repaid in full. No further deductions are made after that.">
+        <Card title="2. Send your receipt" className="mt-6" description="The Payroll Officer checks the payment, then marks your loan repaid in full. No further deductions are made after that.">
           <ActionForm action={requestEarlyRepaymentAction.bind(null, id)} submitLabel="Send for confirmation" encType="multipart/form-data"
             confirm={"Send your receipt for the early repayment? Make sure you paid the full amount shown."}>
             <div className="grid gap-4 sm:grid-cols-2">

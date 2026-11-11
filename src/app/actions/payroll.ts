@@ -16,11 +16,11 @@ export async function requestEarlyRepaymentAction(loanId: string, _: Prev, fd: F
     const f = file(fd, "receipt");
     const ev = f ? await validateUpload(db, f) : null;
     await requestEarlyRepayment(db, actor, loanId, { payerReference: str(fd, "payerReference"), receipt: ev ? { buffer: ev.buffer, fileName: ev.fileName, mimeType: ev.mime } : null });
-    return { message: "Sent. The Payroll Manager will check the payment and mark your loan repaid.", redirectTo: `/loans/${loanId}` };
+    return { message: "Sent. The Payroll Officer will check the payment and mark your loan repaid.", redirectTo: `/loans/${loanId}` };
   }, { revalidate: [`/loans/${loanId}`], limit: 10 });
 }
 
-/** Payroll Manager: mark the loan repaid in full, with a fresh two-step verification code. */
+/** Payroll Officer: mark the loan repaid in full, with a fresh two-step verification code. */
 export async function confirmEarlyRepaymentAction(id: string, _: Prev, fd: FormData) {
   return runAction(async (actor) => {
     await confirmEarlyRepayment(await getDb(), actor, id, { code: str(fd, "code", true) });

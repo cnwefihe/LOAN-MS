@@ -7,7 +7,7 @@ import {
 } from "@/db/schema";
 import { buildSchedule, quoteLoan, instalmentLabel, rescheduleRemaining, PERIOD_MONTHS, type EligibilityResult } from "@/lib/finance/calculator";
 import { dec, m, sum, formatNaira, D } from "@/lib/finance/money";
-import { addMonths, firstDueDate, todayLagos, firstOfMonth, formatDate } from "@/lib/finance/dates";
+import { addDays, addMonths, firstDueDate, todayLagos, firstOfMonth, formatDate } from "@/lib/finance/dates";
 import { sha256Hex } from "@/lib/security/crypto";
 import { humanise } from "@/lib/text";
 import { assertCan, can, type Actor } from "../actor";
@@ -522,7 +522,7 @@ export async function earlyRepaymentAccount(db: Executor) {
   return { ...account, ready: !!(account.bankName && account.accountName && account.accountNumber) };
 }
 
-/** The borrower has paid the whole balance by transfer and sends the receipt for the Payroll Manager to check. */
+/** The borrower has paid the whole balance by transfer and sends the receipt for the Payroll Officer to check. */
 export async function requestEarlyRepayment(db: Executor, actor: Actor, loanId: string, input: { payerReference?: string; receipt: { buffer: Buffer; fileName: string; mimeType: string } | null }) {
   assertCan(actor, "repayment.claim");
   const receipt = input.receipt;
@@ -535,7 +535,7 @@ export async function requestEarlyRepayment(db: Executor, actor: Actor, loanId: 
     if (app?.advanceType) throw new DomainError("An advance is recovered from the payment it was taken against, so it cannot be repaid early.");
     if (!(await earlyRepaymentAccount(tx)).ready) throw new DomainError("The account for early repayments has not been set up yet. Please contact the Bursary.");
     const [pending] = await tx.select({ id: earlyRepayments.id }).from(earlyRepayments).where(and(eq(earlyRepayments.loanAccountId, loan.id), eq(earlyRepayments.status, "pending")));
-    if (pending) throw new DomainError("You have already sent an early repayment for this loan. The Payroll Manager will confirm it.");
+    if (pending) throw new DomainError("You have already sent an early repayment for this loan. The Payroll Officer will confirm it.");
     const q = await earlyRepaymentQuote(tx, loan.id);
     if (dec(q.settlementAmount).lessThanOrEqualTo(0)) throw new DomainError("Nothing is left to repay on this loan.");
     const doc = await storeDocument(tx, actor, { ...receipt, category: "repayment_evidence", title: "Early repayment receipt", ownerUserId: actor.userId, loanAccountId: loan.id, applicationId: loan.applicationId });
@@ -544,14 +544,14 @@ export async function requestEarlyRepayment(db: Executor, actor: Actor, loanId: 
       interestSaved: q.interestSaved, payerReference: input.payerReference?.trim() || null, receiptDocumentId: doc.id,
     }).returning();
     await audit(tx, actor, { action: "repayment.early_submitted", entityType: "early_repayment", entityId: r.id, summary: `${loan.accountNumber}: early repayment of ${naira(r.amount)} sent for confirmation` });
-    await notify(tx, { template: "repayment.early_submitted", roles: ["PAYROLL_MANAGER"], excludeUserIds: [actor.userId], link: `/payroll/early-repayments/${r.id}`, vars: { applicantName: actor.displayName, amount: naira(r.amount), accountNumber: loan.accountNumber } });
+    await notify(tx, { template: "repayment.early_submitted", roles: ["PAYROLL_OFFICER"], excludeUserIds: [actor.userId], link: `/payroll/early-repayments/${r.id}`, vars: { applicantName: actor.displayName, amount: naira(r.amount), accountNumber: loan.accountNumber } });
     return r;
   });
 }
 
 /**
- * The Payroll Manager has seen the money arrive and marks the loan repaid in full. She enters a fresh
- * code from her authenticator app first, because the loan closes at once.
+ * The Payroll Officer has seen the money arrive and closes the loan as repaid in full, entering a fresh
+ * code from their authenticator app first, because the loan closes at once.
  */
 export async function confirmEarlyRepayment(db: Executor, actor: Actor, requestId: string, input: { code: string }) {
   assertCan(actor, "settlement.confirm");
@@ -595,7 +595,7 @@ export async function declineEarlyRepayment(db: Executor, actor: Actor, requestI
   });
 }
 
-/** Early repayments for the Payroll Manager: those waiting first, then the most recent. */
+/** Early repayments for the Payroll Officer and Payroll Manager: those waiting first, then the most recent. */
 export async function earlyRepaymentList(db: Executor, actor: Actor) {
   assertCan(actor, "payroll.view");
   return db.select({ r: earlyRepayments, accountNumber: loanAccounts.accountNumber, borrower: users.displayName })
@@ -883,12 +883,13 @@ export async function runServicing(db: Executor, actor: Actor | null, asOf = tod
       }
     });
   }
+  const deductionAlerts = await alertDeductions(db, asOf);
   const guarantorReminders = await remindGuarantors(db, asOf);
   const work = await remindWaitingWork(db, asOf);
   const purged = await housekeeping(db);
   await audit(db, actor, {
     action: "servicing.run", entityType: "system",
-    summary: `As of ${asOf}: ${live.length} loans checked, ${deductions} automatic deductions, ${changes.length} status changes, ${reminders} repayment reminders, ${guarantorReminders} guarantor reminders, ${work.reminders} work reminders, ${work.escalations} overdue alerts; housekeeping removed ${purged.notifications} notifications, ${purged.sessions} sessions, ${purged.emails} sent emails, ${purged.rateLimits} rate-limit rows`,
+    summary: `As of ${asOf}: ${live.length} loans checked, ${deductions} automatic deductions, ${deductionAlerts} deduction alerts, ${changes.length} status changes, ${reminders} repayment reminders, ${guarantorReminders} guarantor reminders, ${work.reminders} work reminders, ${work.escalations} overdue alerts; housekeeping removed ${purged.notifications} notifications, ${purged.sessions} sessions, ${purged.emails} sent emails, ${purged.rateLimits} rate-limit rows`,
     after: { checked: live.length, deductions, changes, reminders, guarantorReminders, workReminders: work.reminders, escalations: work.escalations, purged },
   });
   return { checked: live.length, deductions, changes, reminders, guarantorReminders, workReminders: work.reminders, escalations: work.escalations, purged, asOf };
@@ -899,6 +900,51 @@ export async function runReminders(db: Executor, asOf = todayLagos()) {
   const guarantorReminders = await remindGuarantors(db, asOf);
   const work = await remindWaitingWork(db, asOf);
   return { guarantorReminders, workReminders: work.reminders, escalations: work.escalations };
+}
+
+/**
+ * Salary deductions around each due date:
+ *  - on the due date, the Payroll Officer is told what is due that day;
+ *  - a day after it, for a loan whose first deduction has not been confirmed (so not yet automatic),
+ *    the Payroll Officer and Payroll Manager are told it is still unconfirmed, and the borrower is asked
+ *    to report it if it has been deducted.
+ * Each alert is sent once (dedupe keys); only instalments due in the last month are considered.
+ */
+async function alertDeductions(db: Executor, asOf: string) {
+  const since = addDays(asOf, -31);
+  const rows = await db.select({ i: scheduleInstalments, loan: loanAccounts, borrower: users.displayName })
+    .from(scheduleInstalments).innerJoin(repaymentSchedules, eq(repaymentSchedules.id, scheduleInstalments.scheduleId))
+    .innerJoin(loanAccounts, eq(loanAccounts.id, scheduleInstalments.loanAccountId)).innerJoin(users, eq(users.id, loanAccounts.borrowerId))
+    .where(and(eq(repaymentSchedules.isCurrent, true), inArray(loanAccounts.status, [...SERVICEABLE]), sql`${scheduleInstalments.dueDate} between ${since} and ${asOf}`));
+  let sent = 0;
+
+  // Due today: one note per due date for the Payroll Officer.
+  const today = rows.filter((r) => r.i.dueDate === asOf);
+  if (today.length) {
+    const automatic = today.filter((r) => r.loan.deductionsConfirmedAt).length;
+    await notify(db, {
+      template: "payroll.deductions_due", roles: ["PAYROLL_OFFICER"], link: "/payroll", dedupeKey: `deductions-due:${asOf}`,
+      vars: { count: today.length, amount: naira(m(sum(today.map((r) => r.i.totalDue)))), date: formatDate(asOf), automatic, toConfirm: today.length - automatic },
+    });
+    sent++;
+  }
+
+  // A day after the due date and still not confirmed.
+  const late = rows.filter((r) => !r.loan.deductionsConfirmedAt && r.i.status !== "paid" && r.i.status !== "superseded" && r.i.dueDate <= addDays(asOf, -1));
+  for (const { i, loan, borrower } of late) {
+    const remaining = naira(m(dec(i.totalDue).minus(i.principalPaid).minus(i.interestPaid)));
+    const vars = { applicantName: borrower, amount: remaining, date: formatDate(i.dueDate), accountNumber: loan.accountNumber };
+    const [reported] = await db.select({ id: repaymentClaims.id }).from(repaymentClaims)
+      .where(and(eq(repaymentClaims.loanAccountId, loan.id), eq(repaymentClaims.deductionMonth, firstOfMonth(i.dueDate)), eq(repaymentClaims.status, "pending")));
+    if (reported) {
+      await notify(db, { template: "repayment.awaiting_confirmation", roles: ["PAYROLL_OFFICER", "PAYROLL_MANAGER"], excludeUserIds: [loan.borrowerId], link: "/accounts/repayments", dedupeKey: `awaiting-confirmation:${i.id}`, vars });
+    } else {
+      await notify(db, { template: "repayment.unreported", roles: ["PAYROLL_OFFICER", "PAYROLL_MANAGER"], excludeUserIds: [loan.borrowerId], link: "/payroll", dedupeKey: `unreported:${i.id}`, vars });
+      await notify(db, { template: "repayment.report_reminder", userIds: [loan.borrowerId], link: `/loans/${loan.id}?tab=report`, dedupeKey: `report-reminder:${i.id}`, vars });
+    }
+    sent++;
+  }
+  return sent;
 }
 
 /** Remind guarantors who have not responded, once per configured response period. */

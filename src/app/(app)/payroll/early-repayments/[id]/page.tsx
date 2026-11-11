@@ -53,7 +53,7 @@ export default async function EarlyRepayment({ params }: { params: Promise<{ id:
           <p className="text-sm">{r.status === "confirmed" ? "Marked repaid in full" : "Declined"} by {e.reviewer ?? "-"} on <DateText value={r.reviewedAt} withTime />.{r.reviewComment ? ` ${r.reviewComment}` : ""}</p>
         </Card>
       )}
-      {pending && own && <div className="mt-6"><Alert tone="warning" title="Your own loan">Another Payroll Manager must confirm this repayment.</Alert></div>}
+      {pending && own && <div className="mt-6"><Alert tone="warning" title="Your own loan">Another Payroll Officer must confirm this repayment.</Alert></div>}
       {changed && <div className="mt-6"><Alert tone="warning" title="The balance has changed">The amount due is now <Money value={now!.settlementAmount} />, not the <Money value={r.amount} /> quoted. Decline this request and ask the borrower to start again.</Alert></div>}
       {canConfirm && (
         <div className="mt-6 grid gap-6 lg:grid-cols-2">

@@ -60,7 +60,7 @@ export default async function LoanPage({ params, searchParams }: { params: Promi
       {loan.status === "defaulted" && <div className="mb-6"><Alert tone="danger" title="Loan in default">Please contact the Bursary urgently.</Alert></div>}
 
       {d.isBorrower && pendingEarly && (
-        <div className="mb-6"><Alert tone="info" title="Early repayment sent">You sent <Money value={pendingEarly.amount} /> on <DateText value={pendingEarly.createdAt} /> to repay this loan in full. The Payroll Manager will check the payment and close the loan.</Alert></div>
+        <div className="mb-6"><Alert tone="info" title="Early repayment sent">You sent <Money value={pendingEarly.amount} /> on <DateText value={pendingEarly.createdAt} /> to repay this loan in full. The Payroll Officer will check the payment and close the loan.</Alert></div>
       )}
       {d.isBorrower && serviceable && tab !== "report" && (
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-200 bg-brand-50 px-5 py-4">

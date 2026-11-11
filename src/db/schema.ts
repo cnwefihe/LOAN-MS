@@ -622,7 +622,7 @@ export const fundPools = pgTable("fund_pools", {
 
 /**
  * A borrower repaying the whole balance early by bank transfer: the amount quoted on the day, their
- * payment receipt, and the Payroll Manager's decision. Only the full balance can be repaid early.
+ * payment receipt, and the Payroll Officer's decision. Only the full balance can be repaid early.
  */
 export const earlyRepayments = pgTable("early_repayments", {
   id: uuid("id").primaryKey().defaultRandom(),

@@ -9,7 +9,7 @@ import { Card, DateText, EmptyState, Money, PageHeader, Stat, StatGrid, StatusBa
 
 export const metadata = { title: "Payroll" };
 
-/** Deductions and repayments for the Payroll Manager and Payroll Officer. */
+/** Deductions and repayments: the Payroll Officer's work, and the Payroll Manager's view of it. */
 export default async function PayrollOverview() {
   const actor = await requireActor("payroll.view");
   const db = await getDb();

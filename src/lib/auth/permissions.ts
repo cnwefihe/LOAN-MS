@@ -32,7 +32,7 @@ export const PERMISSIONS = {
   "disbursement.record": { category: "Bursary", description: "Pay out approved loans" },
   "repayment.confirm": { category: "Payroll", description: "Confirm the first salary deduction on each loan and record repayments" },
   "payroll.view": { category: "Payroll", description: "See salary deductions, repayments and early repayment requests" },
-  "settlement.confirm": { category: "Payroll", description: "Mark a loan repaid in full after an early repayment (needs a two-step verification code)" },
+  "settlement.confirm": { category: "Payroll", description: "Close a loan repaid in full early (needs a two-step verification code)" },
   "fund.view": { category: "Bursary", description: "See the fund pool for staff loans and what is left of it" },
   "fund.manage": { category: "Bursary", description: "Set the fund pool for staff loans each year" },
   "finance.overview": { category: "Bursary", description: "See the overview of lending, repayments and the fund pool" },
@@ -98,12 +98,12 @@ export const ROLE_DEFINITIONS: Record<RoleCode, { name: string; description: str
     permissions: ["accounts.view", "fund.view", "disbursement.record", "documents.view_all", "reports.view"],
   },
   PAYROLL_OFFICER: {
-    name: "Payroll Officer", description: "Confirms the first salary deduction on each loan; later deductions are then recorded automatically.",
-    permissions: ["accounts.view", "repayment.confirm", "payroll.view", "documents.view_all", "reports.view"],
+    name: "Payroll Officer", description: "Handles repayments and deductions: confirms the first salary deduction on each loan, and closes loans repaid in full early.",
+    permissions: ["accounts.view", "repayment.confirm", "settlement.confirm", "payroll.view", "documents.view_all", "reports.view"],
   },
   PAYROLL_MANAGER: {
-    name: "Payroll Manager", description: "Oversees deductions and repayments, and marks loans repaid in full after an early repayment.",
-    permissions: ["accounts.view", "payroll.view", "settlement.confirm", "fund.view", "documents.view_all", "reports.view", "reports.export"],
+    name: "Payroll Manager", description: "Oversees the Payroll Officer's work on repayments and deductions, and the Bursary.",
+    permissions: ["accounts.view", "payroll.view", "fund.view", "documents.view_all", "reports.view", "reports.export"],
   },
   HEAD_OF_ACCOUNT: {
     name: "Head of Account", description: "Sets the fund pool for staff loans each year and oversees lending and repayments.",

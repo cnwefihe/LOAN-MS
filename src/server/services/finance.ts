@@ -48,7 +48,7 @@ export async function financeOverview(db: Executor, actor: Actor) {
     { stage: "Approval (Line Manager, HR Director, Bursar)", ...(await apps("pending_approval")), people: people(["HR_DIRECTOR", "ACCOUNTS_ADMIN"]), roles: `${w.role.HR_DIRECTOR.name}, ${w.role.ACCOUNTS_ADMIN.name} and Line Managers` },
     { stage: "Payment of approved loans", ...row(payout), people: people(["ACCOUNTS_OFFICER"]), roles: w.role.ACCOUNTS_OFFICER.name },
     { stage: "First salary deduction to confirm", ...row(claims), people: people(["PAYROLL_OFFICER"]), roles: w.role.PAYROLL_OFFICER.name },
-    { stage: "Early repayments to confirm", ...row(early), people: people(["PAYROLL_MANAGER"]), roles: w.role.PAYROLL_MANAGER.name },
+    { stage: "Early repayments to confirm", ...row(early), people: people(["PAYROLL_OFFICER"]), roles: w.role.PAYROLL_OFFICER.name },
     { stage: "Transactions awaiting authorisation", ...row(checker), people: people(["ACCOUNTS_ADMIN"]), roles: w.role.ACCOUNTS_ADMIN.name },
   ];
   return {
