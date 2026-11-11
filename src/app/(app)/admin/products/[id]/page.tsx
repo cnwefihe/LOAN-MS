@@ -56,7 +56,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
       <Tabs base={`/admin/products/${id}`} active={tab} tabs={[{ key: "terms", label: "Loan terms" }, { key: "settings", label: "Product settings" }]} />
 
       {tab === "terms" && (manage ? (
-        <PolicyEditor initial={p} action={saveProductTermsAction.bind(null, id)} productName={product.name}
+        <PolicyEditor key={String(current?.effectiveFrom ?? current?.id ?? "new")} initial={p} action={saveProductTermsAction.bind(null, id)} productName={product.name}
           description={<>{updated} Changes apply to new applications at once; loans already taken keep the terms they were approved on.</>} />
       ) : (
         <>
@@ -85,7 +85,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
         <div className="max-w-3xl space-y-6">
           {manage && (
             <Card title="Product details">
-              <ActionForm action={updateProductDetailsAction.bind(null, id)} submitLabel="Save details" confirm="Save the product name and description?">
+              <ActionForm action={updateProductDetailsAction.bind(null, id)} submitLabel="Save details" listChanges confirm="Save these changes to the product?">
                 <label htmlFor="p-name" className="label">Name</label><input id="p-name" name="name" defaultValue={product.name} required minLength={3} maxLength={150} className="input" />
                 <label htmlFor="p-desc" className="label mt-3">Description</label><textarea id="p-desc" name="description" rows={3} defaultValue={product.description ?? ""} maxLength={300} className="input" />
                 <p className="hint">Code {product.code} cannot change.</p>

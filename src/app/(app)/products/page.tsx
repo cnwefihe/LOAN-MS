@@ -38,9 +38,12 @@ function loanFacts(x: PolicyParameters, docs: string[]) {
     ["Guarantors", x.requiredGuarantors
       ? `${x.requiredGuarantors === 2 ? "Two" : "One"}${x.guarantorMustBeConfirmed ? " confirmed" : ""} ${x.requiredGuarantors === 1 ? "member" : "members"} of staff, each with a minimum of ${serviceLength(x.guarantorMinServiceMonths)} of service.`
       : "Not required."],
-    ["Repayment date", `The ${ordinal(x.repaymentDayOfMonth)} of each month${x.gracePeriodMonths ? `, beginning after ${months(x.gracePeriodMonths)}` : ""}.`],
+    ["Repayment date", `The ${ordinal(x.repaymentDayOfMonth)} of each month, starting the month after the loan is paid out${x.gracePeriodMonths ? `, after a further ${months(x.gracePeriodMonths)}` : ""}.`],
     ["Documents", <DocList key="d" docs={docs} />],
-    ["Repayment", "Equal monthly instalments of principal and interest, deducted from salary over the tenor you choose."],
+    ["Repayment", "Equal monthly instalments of principal and interest, deducted from salary over the tenor you choose. After the first deduction is confirmed, each later one is recorded automatically."],
+    ["Early repayment", x.interestMethod === "interest_free"
+      ? "You may repay the whole balance at any time: the loan principal less your total repayments. Part payments are taken only from salary."
+      : "You may repay the whole balance at any time: the loan principal plus interest to date, less your total repayments. Interest for the remaining months is not charged. Part payments are taken only from salary."],
   ];
   return { headline, terms };
 }

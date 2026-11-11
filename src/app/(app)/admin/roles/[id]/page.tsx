@@ -33,7 +33,7 @@ export default async function ManageRole({ params, searchParams }: { params: Pro
       {tab === "details" ? (
         <div className="max-w-2xl space-y-6">
           <Card title="Role details">
-            <ActionForm action={updateRoleDetailsAction.bind(null, role.id)} submitLabel="Save details" confirm="Save the role name and description?">
+            <ActionForm action={updateRoleDetailsAction.bind(null, role.id)} submitLabel="Save details" listChanges confirm="Save these changes to the role?">
               <label htmlFor="name" className="label">Title</label>
               <input id="name" name="name" defaultValue={role.name} required minLength={2} maxLength={60} className="input" />
               <label htmlFor="description" className="label mt-3">Description</label>

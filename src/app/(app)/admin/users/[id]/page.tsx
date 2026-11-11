@@ -42,7 +42,7 @@ export default async function ManageUser({ params }: { params: Promise<{ id: str
             ]} />
           </Card>
           <Card title="Display name" description="Shown everywhere: the sidebar, activity, records and emails. Microsoft no longer changes it at sign-in.">
-            <ActionForm action={setDisplayNameAction.bind(null, u.id)} submitLabel="Save name" className="[&>div:last-child]:mt-3" confirm={`Change the display name of ${u.displayName}?`}>
+            <ActionForm action={setDisplayNameAction.bind(null, u.id)} submitLabel="Save name" className="[&>div:last-child]:mt-3" listChanges confirm={`Change the display name of ${u.displayName}?`}>
               <label htmlFor="displayName" className="sr-only">Display name</label>
               <input id="displayName" name="displayName" defaultValue={u.displayName} maxLength={200} className="input" />
               <p className="hint">{u.nameLocked ? "Set here. Clear it and save to use the Microsoft account name again." : "Currently the Microsoft account name."}</p>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ActionForm } from "./action-form";
+import { ActionForm, type Change } from "./action-form";
 import { Alert, Badge, Card, cx } from "./ui";
 import type { ActionResult } from "@/server/action-result";
 import { assessEligibility, validTenors } from "@/lib/finance/calculator";
@@ -59,11 +59,22 @@ export function PolicyEditor({ initial, action, productName, description }: {
   productName: string;
   description?: React.ReactNode;
 }) {
-  const [v, setV] = useState<Record<string, unknown>>(() => {
+  const [start] = useState<Record<string, unknown>>(() => {
     const o: Record<string, unknown> = {};
     for (const [k, x] of Object.entries(initial)) o[k] = typeof x === "number" ? String(x) : k === "requiredDocumentCodes" ? (x as string[]).join(", ") : x;
     return o;
   });
+  const [v, setV] = useState<Record<string, unknown>>(start);
+  // What has been changed since the terms were loaded, for the confirmation.
+  const show = (k: Key, x: unknown) => {
+    if (typeof x === "boolean") return x ? "Yes" : "No";
+    if (Array.isArray(x)) return x.map((s) => String(s).replace("_", " ")).join(", ") || "None";
+    const opt = OPTIONS[k]?.find(([o]) => o === x);
+    return opt ? opt[1] : String(x ?? "");
+  };
+  const changes: Change[] = GROUPS.flatMap((g) => g.fields)
+    .filter((k) => show(k, start[k]) !== show(k, v[k]))
+    .map((k) => ({ label: POLICY_FIELD_LABELS[k], from: show(k, start[k]), to: show(k, v[k]) }));
   const [example, setExample] = useState({ gross: "450000", net: "380000", amount: "500000" });
   const set = (k: Key, x: unknown) => setV((o) => ({ ...o, [k]: x }));
 
@@ -106,7 +117,7 @@ export function PolicyEditor({ initial, action, productName, description }: {
   return (
     <div className="grid gap-6 xl:grid-cols-3">
       <Card title="Loan terms" description={description} className="xl:col-span-2">
-        <ActionForm action={action} submitLabel="Save" confirm="Save these loan terms? New applications use them at once; loans already taken keep their terms.">
+        <ActionForm action={action} submitLabel="Save" changes={changes} confirm={`Save these changes to the ${productName} terms? New applications use them at once; loans already taken keep the terms they were approved on.`}>
           <div className="space-y-7">
             {GROUPS.map((g) => (
               <fieldset key={g.title}>
