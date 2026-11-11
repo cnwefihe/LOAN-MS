@@ -71,7 +71,7 @@ export function GuarantorChoice({ initialCount, options, initial, children }: {
     <section aria-labelledby="s3">
       {children}
       {options.length === 0 ? (
-        <p className="mt-3 rounded-md border border-amber-200 bg-warning-50 px-3 py-2 text-sm text-warning-ink">The list of guarantors has not been set up yet. Please contact the Bursary.</p>
+        <p className="mt-3 rounded-md border border-amber-200 bg-warning-50 px-3 py-2 text-sm text-warning-ink">The list of guarantors has not been set up yet. Please contact Human Resources.</p>
       ) : (
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
           {Array.from({ length: Math.min(count, 2) }, (_, i) => (
