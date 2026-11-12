@@ -414,7 +414,7 @@ const A11Y: [string, string[]][] = [
   ["Amaka Eze", ["/payroll", "/accounts/repayments"]],
   ["Folake Ojo", ["/payroll", "/payroll/early-repayments"]],
   ["Ibrahim Sani", ["/finance", "/dashboard"]],
-  ["Emeka Nwosu", ["/admin", "/admin/users", "/admin/products", "/admin/branding", "/admin/settings", "/admin/outbox", "/admin/audit", "/reports"]],
+  ["Emeka Nwosu", ["/admin", "/admin/users", "/admin/users/new?tab=many", "/admin/products", "/admin/branding", "/admin/settings", "/admin/outbox", "/admin/audit", "/reports"]],
 ];
 
 test.describe("accessibility (axe, WCAG 2.2 AA)", () => {
@@ -478,7 +478,7 @@ test.describe("responsive layout", () => {
       await signIn(page, "Adaeze Okafor");
       await check(["/dashboard", "/products", "/eligibility", "/applications", "/applications/new", "/loans", "/profile", "/notifications"]);
       await signIn(page, "Emeka Nwosu");
-      await check(["/admin", "/admin/users", "/admin/products", "/admin/branding", "/admin/settings", "/admin/outbox", "/admin/audit", "/reports", "/verify", "/accounts", "/accounts/loans"]);
+      await check(["/admin", "/admin/users", "/admin/users/new", "/admin/products", "/admin/branding", "/admin/settings", "/admin/outbox", "/admin/audit", "/reports", "/verify", "/accounts", "/accounts/loans"]);
       // Administrators cannot open HR or approval pages (no salaries or payslips), so the people who use them are checked.
       await signIn(page, "Kunle Adeyemi");
       await check(["/hr", "/hr/applications", "/hr/staff"]);

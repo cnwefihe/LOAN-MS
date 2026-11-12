@@ -21,7 +21,8 @@ export default async function AdminUsers({ searchParams }: { searchParams: Promi
   return (
     <>
       <PageHeader title="Users" crumbs={[{ label: "Administration", href: "/admin" }, { label: "Users" }]}
-        description="All staff who have signed in. Manage roles, access and two-step verification." />
+        description="Staff who have signed in or been added here. Manage roles, departments, access and two-step verification."
+        actions={<RowMenu label="Add users" items={[{ label: "Add a user", href: "/admin/users/new" }, { label: "Add many at once", href: "/admin/users/new?tab=many" }]} />} />
       <Card bodyClassName="p-5">
         <SearchFilter q={q} placeholder="Search name or email" />
         {pg.items.length === 0 ? <EmptyState title="No users found" description="Try a different name or email." /> : (

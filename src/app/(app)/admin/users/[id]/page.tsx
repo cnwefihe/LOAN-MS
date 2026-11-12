@@ -12,6 +12,8 @@ import { departments } from "@/db/schema";
 import { asc, eq } from "drizzle-orm";
 import { can } from "@/server/actor";
 import { APPROVER_TITLES, type ApproverTitle } from "@/server/wording";
+import { departmentOptions } from "@/server/services/staff";
+import { setUserDepartmentAction } from "@/app/actions/user-setup";
 
 export const metadata = { title: "Manage user" };
 
@@ -24,6 +26,7 @@ export default async function ManageUser({ params }: { params: Promise<{ id: str
   const w = await getWording(db);
   // HOD and Line Manager are set per department: whoever approves for it.
   const depts = can(actor, "admin.org.manage") ? await db.select().from(departments).where(eq(departments.isActive, true)).orderBy(asc(departments.name)) : [];
+  const deptChoices = await departmentOptions(db);
   return (
     <>
       <PageHeader title={u.displayName} crumbs={[{ label: "Administration", href: "/admin" }, { label: "Users", href: "/admin/users" }, { label: u.displayName }]} />
@@ -46,6 +49,15 @@ export default async function ManageUser({ params }: { params: Promise<{ id: str
               <label htmlFor="displayName" className="sr-only">Display name</label>
               <input id="displayName" name="displayName" defaultValue={u.displayName} maxLength={200} className="input" />
               <p className="hint">{u.nameLocked ? "Set here. Clear it and save to use the Microsoft account name again." : "Currently the Microsoft account name."}</p>
+            </ActionForm>
+          </Card>
+          <Card title="Department" description="Their applications go to this department's approver.">
+            <ActionForm action={setUserDepartmentAction.bind(null, u.id)} submitLabel="Save department" className="[&>div:last-child]:mt-3" listChanges confirm={`Change the department of ${u.displayName}?`}>
+              <label htmlFor="departmentId" className="sr-only">Department</label>
+              <select id="departmentId" name="departmentId" defaultValue={u.staff?.departmentId ?? ""} className="input">
+                <option value="">Not set</option>
+                {deptChoices.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
             </ActionForm>
           </Card>
           <Card title="Access">
