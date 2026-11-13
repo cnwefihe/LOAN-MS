@@ -22,7 +22,7 @@ async function setUp(tx: Executor, actor: Actor, input: NewUser, dept: Dept | nu
   const email = input.email.trim().toLowerCase();
   const name = clean(input.name);
   if (name.length < 3) throw new DomainError("Enter the full name.");
-  if (!isInstitutionalEmail(email)) throw new DomainError(`${input.email} is not a university email address.`);
+  if (!/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(email) || !isInstitutionalEmail(email)) throw new DomainError(`${input.email} is not a university email address.`);
   if (input.approver && !dept) throw new DomainError("Choose the department they approve for.");
   let [user] = await tx.select().from(users).where(sql`lower(${users.email}) = ${email}`);
   const created = !user;

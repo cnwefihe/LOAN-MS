@@ -21,6 +21,8 @@ const ERRORS: Record<string, string> = {
   sso_failed: "Sign-in failed. Please try again; if it persists, contact ICT Services.",
   rate_limited: "Too many sign-in attempts. Please wait a few minutes.",
   unknown_fixture: "Unknown development account.",
+  not_institutional: "Only institutional staff accounts may use this system.",
+  account_deactivated: "Your platform access has been deactivated. Contact the Bursary or Human Resources.",
 };
 
 function MicrosoftLogo() {
@@ -45,7 +47,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     const db = await getDb();
     fixtures = await db.select({ id: users.id, displayName: users.displayName, email: users.email }).from(users).where(and(eq(users.isDevFixture, true), eq(users.isActive, true))).orderBy(users.displayName);
   }
-  const error = sp.error ? ERRORS[sp.error] ?? decodeURIComponent(sp.error) : null;
+  const error = sp.error ? ERRORS[sp.error] ?? ERRORS.sso_failed : null;
   const loginHref = `/api/auth/login${sp.returnTo ? `?returnTo=${encodeURIComponent(sp.returnTo)}` : ""}`;
 
   return (

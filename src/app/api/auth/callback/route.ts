@@ -56,7 +56,8 @@ export async function GET(req: NextRequest) {
     await createSession(userId, "entra", Array.isArray(amr) && amr.includes("mfa"));
     return NextResponse.redirect(appUrl(saved.returnTo || "/home", req));
   } catch (err) {
-    if (err instanceof DomainError) return fail(req, err.message);
+    // Only known codes go in the address, so nobody can make the sign-in page show their own text.
+    if (err instanceof DomainError) return fail(req, ["not_institutional", "account_deactivated"].includes(err.code) ? err.code : "sso_failed");
     console.error("[auth] Entra callback failed", err);
     return fail(req, "sso_failed");
   }

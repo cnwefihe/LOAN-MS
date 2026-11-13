@@ -80,7 +80,7 @@ export interface EntraIdentity {
 export async function provisionEntraUser(identity: EntraIdentity): Promise<string> {
   const db = await getDb();
   if (!isInstitutionalEmail(identity.email)) {
-    throw new DomainError("Only institutional staff accounts may use this system.");
+    throw new DomainError("Only institutional staff accounts may use this system.", "not_institutional");
   }
   return db.transaction(async (tx) => {
     let [user] = await tx.select().from(users).where(eq(users.entraOid, identity.oid));
@@ -96,7 +96,7 @@ export async function provisionEntraUser(identity: EntraIdentity): Promise<strin
         displayName: identity.displayName, givenName: identity.givenName ?? null, surname: identity.surname ?? null, lastLoginAt: new Date(),
       }).returning();
     } else {
-      if (!user.isActive) throw new DomainError("Your platform access has been deactivated. Contact the Bursary or Human Resources.");
+      if (!user.isActive) throw new DomainError("Your platform access has been deactivated. Contact the Bursary or Human Resources.", "account_deactivated");
       [user] = await tx.update(users).set({
         entraOid: identity.oid, entraTenantId: identity.tenantId, displayName: user.nameLocked ? user.displayName : identity.displayName,
         givenName: identity.givenName ?? user.givenName, surname: identity.surname ?? user.surname, lastLoginAt: new Date(), updatedAt: new Date(),
