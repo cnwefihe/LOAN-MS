@@ -7,7 +7,7 @@ import type { Executor } from "@/db";
 import { documents, staffPayslips } from "@/db/schema";
 import { readPayslipPdf, PayslipReadError } from "@/lib/finance/payslip-reader";
 import { renderPayslipPdf } from "@/lib/finance/payslip-pdf";
-import { alignPayslipIdentity, payslipMismatches, type Payslip } from "@/lib/finance/payslip";
+import { payslipMismatches, type Payslip } from "@/lib/finance/payslip";
 import type { Actor } from "../actor";
 import { audit } from "../audit";
 import { DomainError } from "../errors";
@@ -29,10 +29,8 @@ export async function uploadPayslip(db: Executor, actor: Actor, file: File): Pro
     throw err;
   }
   const rec = await getStaffRecord(db, actor.userId);
-  const identity = payslipIdentity(rec);
-  const mismatches = payslipMismatches(slip.employee, identity);
+  const mismatches = payslipMismatches(slip.employee, payslipIdentity(rec));
   if (mismatches.length) throw new DomainError(`This payslip does not match your profile. ${mismatches.join(" ")} Update your payslip details on My profile so they read exactly as on the payslip, then upload it again.`);
-  slip = { ...slip, employee: alignPayslipIdentity(slip.employee, identity) };
 
   return db.transaction(async (tx) => {
     const doc = await storeDocument(tx, actor, {

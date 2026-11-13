@@ -17,11 +17,8 @@ import { D, dec, floor2, m, sum, type MoneyInput } from "./money";
 export interface PayslipLine { label: string; amount: string }
 
 export interface Payslip {
-  /**
-   * Name, employee code and pay grade as read under their headings. `details` is every piece of text in the
-   * employee information section, in reading order, so the details can be matched whatever their order or layout.
-   */
-  employee: { name: string; code: string; grade: string; details?: string[] };
+  /** Name, employee code and pay grade: what is printed in each heading's column, on every line beneath it. */
+  employee: { name: string; code: string; grade: string };
   /** Pay month, "YYYY-MM", when it can be read. */
   period: string | null;
   earnings: PayslipLine[];
@@ -154,47 +151,9 @@ export function namesMatch(a: string, b: string): boolean {
   return short.length >= Math.min(2, long.length) && short.every((w) => long.includes(w));
 }
 
-/** True when the value, compared as a code (letters and digits only), is printed as a whole in the text. */
-function codeIn(target: string, details: string[]): boolean {
-  const want = code(target);
-  if (!want) return false;
-  // Within one piece of text at a time, so parts of two different details never join into a match.
-  return details.some((d) => {
-    const tokens = d.split(/\s+/).filter(Boolean);
-    for (let i = 0; i < tokens.length; i++) {
-      let run = "";
-      for (let j = i; j < tokens.length && run.length < want.length; j++) {
-        run += code(tokens[j]);
-        if (run === want) return true;
-      }
-    }
-    return false;
-  });
-}
-
-/**
- * The employee details matched to the staff record however the payslip arranges them: name, employee code
- * and pay grade may come in any order or layout. A detail read under its heading is kept when it matches;
- * otherwise the staff record's value is taken when it is printed in the employee information section.
- */
-export function alignPayslipIdentity(slip: Payslip["employee"], staff: { name: string; staffNumber: string | null; payGrade: string | null }): Payslip["employee"] {
-  const details = slip.details ?? [];
-  if (!details.length) return slip;
-  const all = words(details.join(" "));
-  const nameWords = words(staff.name);
-  const nameFound = nameWords.length >= Math.min(2, all.length) && nameWords.every((w) => all.includes(w));
-  return {
-    ...slip,
-    name: namesMatch(slip.name, staff.name) || !nameFound ? slip.name : staff.name,
-    code: !staff.staffNumber || code(slip.code) === code(staff.staffNumber) || !codeIn(staff.staffNumber, details) ? slip.code : staff.staffNumber,
-    grade: !staff.payGrade || code(slip.grade) === code(staff.payGrade) || !codeIn(staff.payGrade, details) ? slip.grade : staff.payGrade,
-  };
-}
-
-/** Reasons the payslip does not belong to this staff member (empty when it does). The details may be in any order. */
+/** Reasons the payslip does not belong to this staff member (empty when it does). */
 export function payslipMismatches(slip: Payslip["employee"], staff: { name: string; staffNumber: string | null; payGrade: string | null }): string[] {
   const out: string[] = [];
-  slip = alignPayslipIdentity(slip, staff);
   if (!namesMatch(slip.name, staff.name)) out.push(`The name on the payslip (${slip.name || "not found"}) does not match your profile (${staff.name}).`);
   if (!staff.staffNumber || code(slip.code) !== code(staff.staffNumber)) out.push(`The employee code on the payslip (${slip.code || "not found"}) does not match your profile (${staff.staffNumber ?? "not entered"}).`);
   if (!staff.payGrade || code(slip.grade) !== code(staff.payGrade)) out.push(`The pay grade on the payslip (${slip.grade || "not found"}) does not match your profile (${staff.payGrade ?? "not entered"}).`);

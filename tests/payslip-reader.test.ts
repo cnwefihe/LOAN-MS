@@ -106,16 +106,6 @@ describe("payslip details in any order or layout", () => {
     }
   });
 
-  it("matches when the values do not sit under their headings, or share one line", () => {
-    const shifted = withInfo([
-      [25, 709, "N A M E"], [207, 709, "E M P L O Y E E C O D E"], [389, 709, "P A Y G R A D E"],
-      [120, 693, "Tolu Grace Adebayo"], [300, 693, "Senior Officer II Step 3"], [480, 693, "PAU/2020/101"],
-    ]);
-    expect(payslipMismatches(shifted.employee, staff)).toEqual([]);
-    const oneLine = withInfo([[25, 709, "Name: Tolu Grace Adebayo  Pay grade: Senior Officer II Step 3  Employee code: PAU/2020/101"]]);
-    expect(payslipMismatches(oneLine.employee, staff)).toEqual([]);
-  });
-
   it("matches when one heading sits higher than the others and its value wraps around the other details", () => {
     // PAY GRADE on a line of its own; its value starts on the line of the other headings and ends on the line of their values.
     const p = withInfo([
