@@ -128,6 +128,22 @@ describe("payslip details in any order or layout", () => {
     expect(payslipMismatches(p.employee, { ...staff, payGrade: "Senior Officer II Step 4" })).toHaveLength(1);
   });
 
+  it("reads a value of any length, over as many lines as it takes", () => {
+    const grade = ["Copy of Principal", "Senior Accounts and", "Finance Officer", "Grade III", "Step 12"];
+    for (const n of [1, 2, 3, 4, 5]) {
+      const lines = grade.slice(0, n);
+      const p = withInfo([
+        [389, 728, "P A Y G R A D E"],
+        [25, 718, "N A M E"], [207, 718, "E M P L O Y E E C O D E"],
+        [25, 703, "Tolu Grace Adebayo"], [207, 703, "PAU/2020/101"],
+        ...lines.map((s, k): [number, number, string] => [389, 716 - k * 12, s]),
+      ]);
+      const value = lines.join(" ");
+      expect(p.employee.grade, `${n} lines`).toBe(value);
+      expect(payslipMismatches(p.employee, { ...staff, payGrade: value }), `${n} lines`).toEqual([]);
+    }
+  });
+
   it("still refuses details that are not on the payslip", () => {
     const p = withInfo([
       [25, 709, "N A M E"], [207, 709, "P A Y G R A D E"], [389, 709, "E M P L O Y E E C O D E"],
