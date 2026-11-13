@@ -4,7 +4,8 @@
  * scanned or photographed payslip has no text and is refused.
  *
  * Layout read:
- *   EMPLOYEE INFORMATION   NAME | EMPLOYEE CODE | PAY GRADE headings, each value beneath its heading
+ *   EMPLOYEE INFORMATION   NAME, EMPLOYEE CODE and PAY GRADE headings in any order, each value beneath its
+ *                          heading; the whole section is also kept so the details match in any layout
  *   EARNINGS INFORMATION   label … amount rows, ending with "Gross"
  *   EMPLOYEE DEDUCTIONS    label … amount rows, ending with "Total Deductions"
  *   NET PAY                amount
@@ -68,6 +69,12 @@ export function parsePayslipText(items: TextItem[]): Payslip {
       .map((i) => i.str.trim()).join(" ").replace(/\s+/g, " ").trim();
   };
 
+  // Everything printed in the employee information section apart from its headings, so the details can be
+  // matched to the staff record whatever their order or layout.
+  const HEADING_WORDS = new Set(["NAME", "EMPLOYEE", "CODE", "EMPLOYEECODE", "PAY", "GRADE", "PAYGRADE", "EMPLOYEEINFORMATION"]);
+  const details = all.slice(info + 1, earningsAt).flatMap((r) => r.map((i) => i.str.trim()))
+    .filter((s) => s && !HEADING_WORDS.has(squash(s)) && !/^(NAME|EMPLOYEECODE|PAYGRADE)+$/.test(squash(s)));
+
   // Label … amount rows in a section, up to the row whose label is `end`. A long label can wrap onto
   // two lines, with the amount beside the last line or on its own between them: lines of words with
   // no amount, close to an amount, belong to that amount's label.
@@ -112,7 +119,7 @@ export function parsePayslipText(items: TextItem[]): Payslip {
 
   if (!earnings.lines.length) throw new PayslipReadError("The earnings on the payslip could not be read.");
   return {
-    employee: { name: valueOf("NAME"), code: valueOf("EMPLOYEECODE"), grade: valueOf("PAYGRADE") },
+    employee: { name: valueOf("NAME"), code: valueOf("EMPLOYEECODE"), grade: valueOf("PAYGRADE"), details },
     period,
     earnings: earnings.lines,
     deductions: deductions.lines,

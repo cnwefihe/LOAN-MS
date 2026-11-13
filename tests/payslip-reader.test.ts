@@ -2,6 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { parsePayslipText, readPayslipPdf, PayslipReadError, type TextItem } from "@/lib/finance/payslip-reader";
+import { payslipMismatches } from "@/lib/finance/payslip";
 
 /** [x, y, text] as positioned on the page. */
 const LAYOUT: [number, number, string][] = [
@@ -33,7 +34,7 @@ const items: TextItem[] = LAYOUT.map(([x, y, str]) => ({ x, y, str }));
 describe("payslip reader", () => {
   it("reads the employee details, earnings, deductions and totals", () => {
     const p = parsePayslipText(items);
-    expect(p.employee).toEqual({ name: "Tolu Grace Adebayo", code: "PAU/2020/101", grade: "Senior Officer II Step 3" });
+    expect(p.employee).toMatchObject({ name: "Tolu Grace Adebayo", code: "PAU/2020/101", grade: "Senior Officer II Step 3" });
     expect(p.period).toBe("2026-10");
     expect(p.earnings).toEqual([{ label: "Basic", amount: "300000.00" }, { label: "Medical", amount: "50000.00" }, { label: "Leave Allowance", amount: "25000.00" }]);
     expect(p.deductions.map((d) => d.label)).toEqual(["Tax", "Pension", "NHF", "Cooperative Loan Repayment", "Cafeteria Meal Deduction"]);
@@ -77,6 +78,53 @@ describe("payslip reader, headings split into words", () => {
   it("still finds the employee code and pay grade", () => {
     const split = items.flatMap((i) => i.str === "E M P L O Y E E C O D E" ? [{ ...i, str: "E M P L O Y E E" }, { ...i, x: i.x + 75, str: "C O D E" }]
       : i.str === "P A Y G R A D E" ? [{ ...i, str: "P A Y" }, { ...i, x: i.x + 31, str: "G R A D E" }] : [i]);
-    expect(parsePayslipText(split).employee).toEqual({ name: "Tolu Grace Adebayo", code: "PAU/2020/101", grade: "Senior Officer II Step 3" });
+    expect(parsePayslipText(split).employee).toMatchObject({ name: "Tolu Grace Adebayo", code: "PAU/2020/101", grade: "Senior Officer II Step 3" });
+  });
+});
+
+describe("payslip details in any order or layout", () => {
+  const staff = { name: "Tolu Grace Adebayo", staffNumber: "PAU/2020/101", payGrade: "Senior Officer II Step 3" };
+  const withInfo = (info: [number, number, string][]) =>
+    parsePayslipText([...LAYOUT.filter(([, y]) => y <= 652 || y >= 734), ...info].map(([x, y, str]) => ({ x, y, str })));
+
+  it("matches when the pay grade comes after the name and the employee code last", () => {
+    const p = withInfo([
+      [25, 709, "N A M E"], [207, 709, "P A Y G R A D E"], [389, 709, "E M P L O Y E E C O D E"],
+      [25, 693, "Tolu Grace Adebayo"], [207, 693, "Senior Officer II"], [207, 680, "Step 3"], [389, 693, "PAU/2020/101"],
+    ]);
+    expect(p.employee).toMatchObject({ name: "Tolu Grace Adebayo", code: "PAU/2020/101", grade: "Senior Officer II Step 3" });
+    expect(payslipMismatches(p.employee, staff)).toEqual([]);
+  });
+
+  it("matches in every order of the three headings", () => {
+    const heads = { NAME: "N A M E", CODE: "E M P L O Y E E C O D E", GRADE: "P A Y G R A D E" };
+    const vals = { NAME: "Tolu Grace Adebayo", CODE: "PAU/2020/101", GRADE: "Senior Officer II Step 3" };
+    const orders = [["NAME", "CODE", "GRADE"], ["NAME", "GRADE", "CODE"], ["CODE", "NAME", "GRADE"], ["CODE", "GRADE", "NAME"], ["GRADE", "NAME", "CODE"], ["GRADE", "CODE", "NAME"]] as const;
+    for (const order of orders) {
+      const info: [number, number, string][] = order.flatMap((k, i) => [[25 + i * 182, 709, heads[k]], [25 + i * 182, 693, vals[k]]] as [number, number, string][]);
+      expect(payslipMismatches(withInfo(info).employee, staff), order.join(",")).toEqual([]);
+    }
+  });
+
+  it("matches when the values do not sit under their headings, or share one line", () => {
+    const shifted = withInfo([
+      [25, 709, "N A M E"], [207, 709, "E M P L O Y E E C O D E"], [389, 709, "P A Y G R A D E"],
+      [120, 693, "Tolu Grace Adebayo"], [300, 693, "Senior Officer II Step 3"], [480, 693, "PAU/2020/101"],
+    ]);
+    expect(payslipMismatches(shifted.employee, staff)).toEqual([]);
+    const oneLine = withInfo([[25, 709, "Name: Tolu Grace Adebayo  Pay grade: Senior Officer II Step 3  Employee code: PAU/2020/101"]]);
+    expect(payslipMismatches(oneLine.employee, staff)).toEqual([]);
+  });
+
+  it("still refuses details that are not on the payslip", () => {
+    const p = withInfo([
+      [25, 709, "N A M E"], [207, 709, "P A Y G R A D E"], [389, 709, "E M P L O Y E E C O D E"],
+      [25, 693, "Tolu Grace Adebayo"], [207, 693, "Senior Officer II Step 3"], [389, 693, "PAU/2020/101"],
+    ]);
+    expect(payslipMismatches(p.employee, { ...staff, staffNumber: "PAU/2020/102" })).toHaveLength(1);
+    expect(payslipMismatches(p.employee, { ...staff, payGrade: "Senior Officer II Step 4" })).toHaveLength(1);
+    expect(payslipMismatches(p.employee, { ...staff, name: "Ngozi Eze" })).toHaveLength(1);
+    // Part of a value is not enough: "PAU/2020/10" is not "PAU/2020/101".
+    expect(payslipMismatches(p.employee, { ...staff, staffNumber: "PAU/2020/10" })).toHaveLength(1);
   });
 });
