@@ -36,12 +36,21 @@ export async function validateUpload(db: Executor, file: File): Promise<{ buffer
   if (!file || typeof file.arrayBuffer !== "function" || file.size === 0) throw new DomainError("Please choose a file to upload.");
   const maxMb = await getSetting(db, "documents.maxUploadMb");
   if (file.size > maxMb * 1024 * 1024) throw new DomainError(`Files must be ${maxMb} MB or smaller.`);
-  const fileName = file.name.replace(/[^\w.\- ()]/g, "_").slice(0, 200) || "document";
-  const ext = fileName.toLowerCase().slice(fileName.lastIndexOf("."));
-  const buffer = Buffer.from(await file.arrayBuffer());
+  let buffer = Buffer.from(await file.arrayBuffer());
+  // A PDF may have a few bytes before its "%PDF-" header (the standard allows up to 1,024); some
+  // payroll systems add them. Keep the file from the header on, so every reader opens it.
+  const pdfAt = buffer.subarray(0, 1024).indexOf("%PDF-", 0, "latin1");
+  if (pdfAt > 0) buffer = buffer.subarray(pdfAt);
   // Trust file content, not the browser-supplied type or extension.
   const sig = SIGNATURES.find((s) => s.test(buffer));
-  if (!sig || !sig.ext.includes(ext)) throw new DomainError("Only PDF, PNG and JPEG files are accepted, and the file extension must match its content.");
+  if (!sig) throw new DomainError("Only PDF, PNG and JPEG files are accepted. Please upload the file as downloaded, not a screenshot or a shortcut to it.");
+  // The name is only a label: it is cleaned, and given the extension of what the file really is,
+  // since downloads are often saved with no extension or a wrong one.
+  const cleaned = file.name.replace(/[^\w.\- ()]/g, "_").slice(0, 200).trim();
+  const dot = cleaned.lastIndexOf(".");
+  const ext = dot > 0 ? cleaned.slice(dot).toLowerCase() : "";
+  const stem = (sig.ext.includes(ext) ? cleaned.slice(0, dot) : cleaned).replace(/\.+$/, "") || "document";
+  const fileName = `${stem}${sig.ext.includes(ext) ? ext : sig.ext[0]}`;
   return { buffer, mime: sig.mime, fileName };
 }
 
