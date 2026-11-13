@@ -50,30 +50,49 @@ export function parsePayslipText(items: TextItem[]): Payslip {
   const earningsAt = find("EARNINGSINFORMATION");
   const deductionsAt = find("EMPLOYEEDEDUCTIONS");
   if (info < 0 || earningsAt < 0 || deductionsAt < 0) throw new PayslipReadError("This does not look like a University payslip. Please upload the payslip PDF from SeamlessHR.");
-  const headRow = all.slice(info + 1, earningsAt).find((r) => r.some((i) => squash(i.str) === "NAME"));
+  // Headings may come in any order and need not share a line (one may sit higher than the others).
   // A heading may come as one piece or split into words ("E M P L O Y E E" + "C O D E"): join pieces until they spell one.
   const HEADINGS = ["NAME", "EMPLOYEECODE", "PAYGRADE"];
-  const columns: { key: string; x: number }[] = [];
-  let piece: { text: string; x: number } | null = null;
-  for (const i of headRow ?? []) {
-    piece = piece ? { text: piece.text + squash(i.str), x: piece.x } : { text: squash(i.str), x: i.x };
-    if (HEADINGS.includes(piece.text)) { columns.push({ key: piece.text, x: piece.x }); piece = null; }
-    else if (!HEADINGS.some((h) => h.startsWith(piece!.text))) piece = null;
+  const columns: { key: string; x: number; row: number }[] = [];
+  const headingItems = new Set<TextItem>();
+  for (let ri = info + 1; ri < earningsAt; ri++) {
+    let piece: { text: string; x: number; items: TextItem[] } | null = null;
+    for (const i of all[ri]) {
+      piece = piece ? { text: piece.text + squash(i.str), x: piece.x, items: [...piece.items, i] } : { text: squash(i.str), x: i.x, items: [i] };
+      if (HEADINGS.includes(piece.text) && !columns.some((c) => c.key === piece!.text)) {
+        columns.push({ key: piece.text, x: piece.x, row: ri });
+        piece.items.forEach((h) => headingItems.add(h));
+        piece = null;
+      } else if (!HEADINGS.some((h) => h.startsWith(piece!.text))) piece = null;
+    }
   }
+  // A value is everything beneath its heading, in its column, read top to bottom.
   const valueOf = (key: string) => {
     const col = columns.find((c) => c.key === key);
-    if (!col || !headRow) return "";
-    const next = columns.filter((c) => c.x > col.x).map((c) => c.x).sort((a, b) => a - b)[0] ?? Infinity;
-    return all.slice(all.indexOf(headRow) + 1, earningsAt)
-      .flatMap((r) => r.filter((i) => i.x >= col.x - 10 && i.x < next - 10))
+    if (!col) return "";
+    const next = columns.filter((c) => c.x > col.x + 10).map((c) => c.x).sort((a, b) => a - b)[0] ?? Infinity;
+    return all.slice(col.row + 1, earningsAt)
+      .flatMap((r) => r.filter((i) => !headingItems.has(i) && i.x >= col.x - 10 && i.x < next - 10))
       .map((i) => i.str.trim()).join(" ").replace(/\s+/g, " ").trim();
   };
 
   // Everything printed in the employee information section apart from its headings, so the details can be
   // matched to the staff record whatever their order or layout.
   const HEADING_WORDS = new Set(["NAME", "EMPLOYEE", "CODE", "EMPLOYEECODE", "PAY", "GRADE", "PAYGRADE", "EMPLOYEEINFORMATION"]);
-  const details = all.slice(info + 1, earningsAt).flatMap((r) => r.map((i) => i.str.trim()))
-    .filter((s) => s && !HEADING_WORDS.has(squash(s)) && !/^(NAME|EMPLOYEECODE|PAYGRADE)+$/.test(squash(s)));
+  // Kept column by column (text that starts at the same place, top to bottom), so a value that wraps onto
+  // a second line stays in one piece even when other details sit on the lines between.
+  const infoItems = all.slice(info + 1, earningsAt).flat()
+    .filter((i) => i.str.trim() && !headingItems.has(i) && !HEADING_WORDS.has(squash(i.str)) && !/^(NAME|EMPLOYEECODE|PAYGRADE)+$/.test(squash(i.str)));
+  const stacks: TextItem[][] = [];
+  for (const i of infoItems) {
+    const stack = stacks.find((s) => Math.abs(s[0].x - i.x) <= 12);
+    if (stack) stack.push(i); else stacks.push([i]);
+  }
+  const details = [
+    ...stacks.map((s) => s.sort((a, b) => b.y - a.y).map((i) => i.str.trim()).join(" ")),
+    // Line by line as well, for details printed side by side on one line.
+    ...all.slice(info + 1, earningsAt).map((r) => r.filter((i) => infoItems.includes(i)).map((i) => i.str.trim()).join(" ")).filter(Boolean),
+  ];
 
   // Label … amount rows in a section, up to the row whose label is `end`. A long label can wrap onto
   // two lines, with the amount beside the last line or on its own between them: lines of words with

@@ -158,15 +158,18 @@ export function namesMatch(a: string, b: string): boolean {
 function codeIn(target: string, details: string[]): boolean {
   const want = code(target);
   if (!want) return false;
-  const tokens = details.join(" ").split(/\s+/).filter(Boolean);
-  for (let i = 0; i < tokens.length; i++) {
-    let run = "";
-    for (let j = i; j < tokens.length && run.length < want.length; j++) {
-      run += code(tokens[j]);
-      if (run === want) return true;
+  // Within one piece of text at a time, so parts of two different details never join into a match.
+  return details.some((d) => {
+    const tokens = d.split(/\s+/).filter(Boolean);
+    for (let i = 0; i < tokens.length; i++) {
+      let run = "";
+      for (let j = i; j < tokens.length && run.length < want.length; j++) {
+        run += code(tokens[j]);
+        if (run === want) return true;
+      }
     }
-  }
-  return false;
+    return false;
+  });
 }
 
 /**

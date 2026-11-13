@@ -116,6 +116,18 @@ describe("payslip details in any order or layout", () => {
     expect(payslipMismatches(oneLine.employee, staff)).toEqual([]);
   });
 
+  it("matches when one heading sits higher than the others and its value wraps around the other details", () => {
+    // PAY GRADE on a line of its own; its value starts on the line of the other headings and ends on the line of their values.
+    const p = withInfo([
+      [389, 716, "P A Y G R A D E"],
+      [25, 705, "N A M E"], [207, 705, "E M P L O Y E E C O D E"], [389, 702, "Senior Officer II"],
+      [25, 690, "Tolu Grace Adebayo"], [207, 690, "PAU/2020/101"], [389, 688, "Step 3"],
+    ]);
+    expect(p.employee).toMatchObject({ name: "Tolu Grace Adebayo", code: "PAU/2020/101", grade: "Senior Officer II Step 3" });
+    expect(payslipMismatches(p.employee, staff)).toEqual([]);
+    expect(payslipMismatches(p.employee, { ...staff, payGrade: "Senior Officer II Step 4" })).toHaveLength(1);
+  });
+
   it("still refuses details that are not on the payslip", () => {
     const p = withInfo([
       [25, 709, "N A M E"], [207, 709, "P A Y G R A D E"], [389, 709, "E M P L O Y E E C O D E"],
