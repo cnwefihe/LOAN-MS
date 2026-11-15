@@ -56,7 +56,8 @@ export function EligibilityCalculator({ products, ctx, standing, payslipOnFile, 
   // Before a payslip is uploaded on this visit, someone who cannot apply at all (for example, because a loan is still open) is told at once.
   const blocked = useMemo(() => {
     if (ctx.payslip || !standing?.payslip) return null;
-    const r = assessForStaff(p, standing, { requestedAmount: undefined, tenorMonths: isAdvance ? 1 : months, asOf, advanceType: isAdvance ? advanceType : null });
+    // No date: this looks only for what stops them applying at all (such as an open loan), not at the payslip's month.
+    const r = assessForStaff(p, standing, { requestedAmount: undefined, tenorMonths: isAdvance ? 1 : months, asOf: undefined, advanceType: isAdvance ? advanceType : null });
     return blockersOf(r).length ? r : null;
   }, [p, ctx.payslip, standing, months, asOf, isAdvance, advanceType]);
   const shown = result ?? blocked;

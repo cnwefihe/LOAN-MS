@@ -233,14 +233,13 @@ test.describe.serial("application lifecycle through the UI", () => {
     await page.getByLabel("Your latest payslip (PDF)").setInputFiles({ name: "payslip.pdf", mimeType: "application/pdf", buffer: Buffer.from(await renderPayslipPdf(samplePayslip({ name: "Someone Else", code: "DEV-9999", grade: "Lecturer II Step 4", period: LAST_MONTH, basic: "350000", medical: "24500", tax: "52500", pension: "28000" }))) });
     await page.getByRole("button", { name: "Read payslip" }).click();
     await expect(page.getByText(/does not match your profile/)).toBeVisible();
-    // Their own payslip is read and the limit worked out from it: 350,000 + 24,500 − 52,500 − 28,000 = 294,000 net.
-    await page.getByLabel("Your latest payslip (PDF)").setInputFiles({ name: "payslip.pdf", mimeType: "application/pdf", buffer: Buffer.from(await renderPayslipPdf(samplePayslip({ name: "Seun Bakare", code: "DEV-1005", grade: "Lecturer II Step 4", period: LAST_MONTH, basic: "350000", medical: "24500", tax: "52500", pension: "28000", deductions: [{ label: "Cooperative Contribution", amount: "10000" }, { label: "Cafeteria Meal Deduction", amount: "3000" }] }))) });
-    await page.getByRole("button", { name: "Read payslip" }).click();
-    await expect(page.getByText(`${LAST_MONTH_NAME} payslip`, { exact: true })).toBeVisible();
-    // An older payslip is refused: it could leave out deductions that started since.
+    // An older payslip of their own is refused: it could leave out deductions that started since.
     await page.getByLabel("Your latest payslip (PDF)").setInputFiles({ name: "payslip.pdf", mimeType: "application/pdf", buffer: Buffer.from(await renderPayslipPdf(samplePayslip({ name: "Seun Bakare", code: "DEV-1005", grade: "Lecturer II Step 4", period: previousMonth(LAST_MONTH), basic: "350000", medical: "24500", tax: "52500", pension: "28000" }))) });
     await page.getByRole("button", { name: "Read payslip" }).click();
     await expect(page.getByText(/Please upload your latest payslip/)).toBeVisible();
+    // Their own payslip is read and the limit worked out from it: 350,000 + 24,500 − 52,500 − 28,000 = 294,000 net.
+    await page.getByLabel("Your latest payslip (PDF)").setInputFiles({ name: "payslip.pdf", mimeType: "application/pdf", buffer: Buffer.from(await renderPayslipPdf(samplePayslip({ name: "Seun Bakare", code: "DEV-1005", grade: "Lecturer II Step 4", period: LAST_MONTH, basic: "350000", medical: "24500", tax: "52500", pension: "28000", deductions: [{ label: "Cooperative Contribution", amount: "10000" }, { label: "Cafeteria Meal Deduction", amount: "3000" }] }))) });
+    await page.getByRole("button", { name: "Read payslip" }).click();
     await expect(page.getByText(`${LAST_MONTH_NAME} payslip`, { exact: true })).toBeVisible();
     await expect(page.getByText("₦294,000.00").first()).toBeVisible();
     await expect(page.getByText("₦97,902.00").first()).toBeVisible(); // 33.3% of net pay
