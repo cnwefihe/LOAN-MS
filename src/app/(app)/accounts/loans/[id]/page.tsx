@@ -58,7 +58,7 @@ export default async function AccountsLoan({ params, searchParams }: { params: P
       {own && <div className="mb-6"><Alert tone="warning" title="This is your own loan">All financial operations on it are blocked for you.</Alert></div>}
       {pendingRestructure && <div className="mb-6"><Alert tone="info" title={`Restructuring requested: ${monthsText(pendingRestructure.proposedTenorMonths)}`}>{pendingRestructure.reason}</Alert></div>}
 
-      <Card title="Summary" className="mb-6"><LoanSummary d={d} /></Card>
+      <Card title="Summary" className="mb-6"><LoanSummary d={d} showPolicy /></Card>
 
       <Tabs base={`/accounts/loans/${id}`} active={tab} tabs={[
         { key: "overview", label: "Operations" }, { key: "schedule", label: "Schedule" }, { key: "transactions", label: "Transactions", count: d.txns.length },

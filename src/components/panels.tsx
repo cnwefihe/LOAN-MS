@@ -113,7 +113,7 @@ export function GuarantorTable({ guarantors, assessments, hideEmail }: {
             <tr key={g.id}>
               <Td><p className="font-medium">{user.displayName}</p>{!hideEmail && <p className="text-xs text-muted">{user.email}</p>}{g.responseComment && <p className="mt-1 text-xs italic text-muted">“{g.responseComment}”</p>}</Td>
               <Td right><Money value={g.guaranteedAmount} /></Td>
-              <Td><StatusBadge status={g.status} />{g.agreementVersion && <p className="mt-1 text-xs text-muted">Agreement v{g.agreementVersion}</p>}</Td>
+              <Td><StatusBadge status={g.status} />{g.agreementVersion && !hideEmail && <p className="mt-1 text-xs text-muted">Agreement v{g.agreementVersion}</p>}</Td>
               <Td><DateText value={g.respondedAt} withTime /></Td>
               {assessments && <Td>{a ? <><StatusBadge status={a.outcome} /><p className="mt-1 text-xs text-muted">Exposure then: <Money value={a.existingExposure} /></p></> : <span className="text-xs text-muted">Not assessed</span>}</Td>}
             </tr>

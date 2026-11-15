@@ -6,7 +6,8 @@ import type { getLoanDetail } from "@/server/services/loans";
 
 type Detail = Awaited<ReturnType<typeof getLoanDetail>>;
 
-export function LoanSummary({ d }: { d: Detail }) {
+/** `showPolicy` adds the policy version the loan was approved on, for staff; borrowers do not see version numbers. */
+export function LoanSummary({ d, showPolicy }: { d: Detail; showPolicy?: boolean }) {
   const { loan } = d;
   const outstanding = dec(loan.principalOutstanding).plus(loan.interestOutstanding);
   const pct = dec(loan.totalRepayable).isZero() ? 0 : dec(loan.totalRepaid).div(loan.totalRepayable).times(100).toNumber();
@@ -24,7 +25,7 @@ export function LoanSummary({ d }: { d: Detail }) {
         ["Expected completion", <DateText key="c" value={loan.maturityDate} />],
         ["Days past due", loan.daysPastDue ? <Badge tone="warning">{loan.daysPastDue} days</Badge> : "0"],
         ["Overpayment credit", <Money key="ov" value={loan.overpaymentBalance} />],
-        ["Policy", `${d.product.code} v${d.policy.version}`],
+        ...(showPolicy ? [["Policy", `${d.product.code} v${d.policy.version}`] as [string, React.ReactNode]] : []),
       ]} />
       {loan.disbursedAt && <div className="mt-5"><Progress value={pct} label="Repayment progress (confirmed payments)" /></div>}
     </>

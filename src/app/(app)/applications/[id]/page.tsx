@@ -70,7 +70,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
           <Card title="Loan request">
             <KeyValues columns={3} items={[
               ["Product", d.app.advanceType ? `${d.product.name} (against ${ADVANCE_TYPES[d.app.advanceType].toLowerCase()})` : d.product.name], ["Amount requested", <Money key="a" value={app.requestedAmount} />], ["Tenor", `${monthsText(app.tenorMonths)}`],
-              ["Policy version", `v${d.policy.version}`], ["Salary basis used", (app.salarySnapshot as { source?: string }).source?.replace("_", " ")], ["Approval stage", app.status === "pending_approval" ? approvalStageName(w, app.currentApprovalLevel || 1, (await departmentHeadOf(db, app.applicantId))?.approverTitle) : "N/A"],
+              ...(d.access.isStaff ? [["Policy version", `v${d.policy.version}`] as [string, React.ReactNode]] : []), ["Salary basis used", (app.salarySnapshot as { source?: string }).source?.replace("_", " ")], ["Approval stage", app.status === "pending_approval" ? approvalStageName(w, app.currentApprovalLevel || 1, (await departmentHeadOf(db, app.applicantId))?.approverTitle) : "N/A"],
               ["Cooperative loan", app.cooperativeMonthlyDeduction ? <span key="c"><Money value={app.cooperativeMonthlyDeduction} /> a month{app.cooperativeBalance && <>, <Money value={app.cooperativeBalance} /> outstanding</>}</span> : "None declared"],
             ]} />
             <p className="mt-4 text-xs text-muted">Purpose</p>
@@ -109,12 +109,12 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
           </Card>
 
           {editable && terms && (
-            <Card title="Terms, conditions and submission" description={`${terms.title}, version ${terms.version}`}>
+            <Card title="Terms, conditions and submission" description={terms.title}>
               <div className="max-h-56 overflow-y-auto whitespace-pre-line rounded-md border border-line bg-slate-50 p-3 text-sm" tabIndex={0} aria-label="Loan terms and conditions">{terms.body}</div>
               <ActionForm action={submitApplicationAction.bind(null, id)} submitLabel={app.status === "returned" ? "Resubmit application" : "Submit application"} confirm="Submit this application? Your guarantors will be notified.">
                 <label className="mt-4 flex items-start gap-2 text-sm">
                   <input type="checkbox" name="termsAccepted" required className="mt-1" />
-                  <span>I have read and accept the loan terms and conditions (v{terms.version}). I confirm the information provided is accurate and authorise salary deductions for repayment.</span>
+                  <span>I have read and accept the loan terms and conditions. I confirm the information provided is accurate and authorise salary deductions for repayment.</span>
                 </label>
               </ActionForm>
             </Card>

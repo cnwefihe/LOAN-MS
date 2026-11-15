@@ -72,7 +72,7 @@ async function generateAgreements(db: Executor, actor: Actor, loan: Loan, app: t
     .where(and(eq(applicationGuarantors.applicationId, app.id), eq(applicationGuarantors.status, "accepted")));
 
   const brand = await getBranding(db);
-  const pdf = await PdfBuilder.create(db, { kind: "loan_agreement", title: "Staff Loan Agreement", parent: loan.accountNumber, subtitle: `Reference ${loan.accountNumber} | Terms v${terms?.version ?? "-"} | Policy ${product.code} v${policy.version}` });
+  const pdf = await PdfBuilder.create(db, { kind: "loan_agreement", title: "Staff Loan Agreement", parent: loan.accountNumber, subtitle: `Reference ${loan.accountNumber}` });
   pdf.summary([
     { label: "Principal approved", value: naira(loan.principal) }, { label: "Total repayable", value: naira(loan.totalRepayable) },
     { label: instalmentLabel(loan.repaymentPeriodMonths), value: naira(loan.monthlyInstalment) }, { label: "Tenor", value: `${monthsText(loan.tenorMonths)}` },
@@ -104,7 +104,7 @@ async function generateAgreements(db: Executor, actor: Actor, loan: Loan, app: t
   await db.insert(loanAgreements).values({ loanAccountId: loan.id, type: "loan", partyUserId: loan.borrowerId, termsDocumentId: terms?.id ?? null, contentHash: sha256Hex(bytes), documentId: doc.id });
 
   for (const g of guarantors) {
-    const gp = await PdfBuilder.create(db, { kind: "guarantor_agreement", title: "Guarantor Agreement", parent: loan.accountNumber, subtitle: `Reference ${loan.accountNumber} | Agreement v${g.g.agreementVersion ?? gTerms?.version ?? "-"}` });
+    const gp = await PdfBuilder.create(db, { kind: "guarantor_agreement", title: "Guarantor Agreement", parent: loan.accountNumber, subtitle: `Reference ${loan.accountNumber}` });
     gp.heading("Guarantee");
     gp.keyValues([
       ["Guarantor", `${g.name} (${g.email})`], ["Borrower", borrower.displayName], ["Loan principal", naira(loan.principal)],
@@ -113,7 +113,7 @@ async function generateAgreements(db: Executor, actor: Actor, loan: Loan, app: t
     gp.heading("Electronic acknowledgement");
     gp.keyValues([
       ["Signed name", g.g.acknowledgedName ?? "-"], ["Account", g.g.acknowledgedEmail ?? "-"], ["Timestamp", g.g.respondedAt?.toISOString() ?? "-"],
-      ["IP address", g.g.acknowledgedIp ?? "-"], ["Agreement version", String(g.g.agreementVersion ?? "-")], ["Acknowledgement hash", g.g.acknowledgementHash ?? "-"],
+      ["IP address", g.g.acknowledgedIp ?? "-"], ["Acknowledgement hash", g.g.acknowledgementHash ?? "-"],
     ]);
     gp.heading("Agreement");
     gp.text(gTerms?.body ?? "", { size: 9 });

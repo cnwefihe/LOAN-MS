@@ -66,12 +66,12 @@ export default async function GuaranteeRequest({ params }: { params: Promise<{ i
           <Card title="Supporting documents"><DocumentList docs={docs} /></Card>
           {open && terms && (
             <Card title="Your decision">
-              <h3 className="text-sm font-semibold">{terms.title} (version {terms.version})</h3>
+              <h3 className="text-sm font-semibold">{terms.title}</h3>
               <div className="mt-2 max-h-56 overflow-y-auto whitespace-pre-line rounded-md border border-line bg-slate-50 p-3 text-sm" tabIndex={0} aria-label="Guarantor agreement text">{terms.body}</div>
               <div className="mt-6 grid gap-6 lg:grid-cols-3">
                 <div className="lg:col-span-3">
                   <GuarantorAccept action={respondGuaranteeAction.bind(null, id)} policy={d.policy.params} cover={cover} payslipOnFile={cover.uploaded}
-                    applicantName={d.applicant.user.displayName} guaranteedAmount={g.guaranteedAmount} termsVersion={terms.version} relationships={GUARANTOR_RELATIONSHIPS}
+                    applicantName={d.applicant.user.displayName} guaranteedAmount={g.guaranteedAmount} relationships={GUARANTOR_RELATIONSHIPS}
                     phone={me.profile?.phone ?? ""} name={actor.displayName} details={`Department: ${me.department?.name ?? "Not recorded"} · Email: ${actor.email}`} />
                 </div>
                 <div className="rounded-md border border-line p-4 lg:col-span-2">
@@ -95,7 +95,7 @@ export default async function GuaranteeRequest({ params }: { params: Promise<{ i
           )}
           {g.status === "accepted" && (
             <Card title="Your acknowledgement">
-              <KeyValues items={[["Signed as", g.acknowledgedName], ["Account", g.acknowledgedEmail], ["When", <DateText key="w" value={g.respondedAt} withTime />], ["Agreement version", g.agreementVersion], ["IP address", g.acknowledgedIp], ["Fingerprint (SHA-256)", <code key="h" className="break-all text-xs">{g.acknowledgementHash}</code>]]} />
+              <KeyValues items={[["Signed as", g.acknowledgedName], ["Account", g.acknowledgedEmail], ["When", <DateText key="w" value={g.respondedAt} withTime />], ["IP address", g.acknowledgedIp], ["Fingerprint (SHA-256)", <code key="h" className="break-all text-xs">{g.acknowledgementHash}</code>]]} />
             </Card>
           )}
         </div>

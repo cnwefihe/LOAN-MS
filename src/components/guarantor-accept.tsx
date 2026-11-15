@@ -19,14 +19,13 @@ const N = (v: string) => formatNaira(v);
  * of the repayments should the borrower stop paying (within the guarantor deduction limit of their net pay),
  * the acceptance form is shown; otherwise it is not, and they may decline.
  */
-export function GuarantorAccept({ action, policy, cover, payslipOnFile, applicantName, guaranteedAmount, termsVersion, relationships, phone, name, details }: {
+export function GuarantorAccept({ action, policy, cover, payslipOnFile, applicantName, guaranteedAmount, relationships, phone, name, details }: {
   action: (prev: ActionResult | null, fd: FormData) => Promise<ActionResult>;
   policy: PolicyParameters;
   cover: { payslip: Payslip | null; otherGuarantees: string; monthlyShare: string; monthsLeft: number };
   payslipOnFile: { id: string; period: string | null; uploadedOn: string } | null;
   applicantName: string;
   guaranteedAmount: string;
-  termsVersion: number;
   relationships: readonly string[];
   phone: string;
   name: string;
@@ -61,7 +60,7 @@ export function GuarantorAccept({ action, policy, cover, payslipOnFile, applican
             <input type="hidden" name="decision" value="accept" />
             <fieldset className="mt-2 space-y-2 text-sm">
               <legend className="sr-only">Confirmations</legend>
-              <label className="flex gap-2"><input type="checkbox" name="c1" required className="mt-1" /> I have read the guarantor agreement (version {termsVersion}) above.</label>
+              <label className="flex gap-2"><input type="checkbox" name="c1" required className="mt-1" /> I have read the guarantor agreement above.</label>
               <label className="flex gap-2"><input type="checkbox" name="c2" required className="mt-1" /> I understand that I may be liable for up to {N(guaranteedAmount)} if the borrower defaults.</label>
               <label className="flex gap-2"><input type="checkbox" name="c3" required className="mt-1" /> The information I have given is accurate and complete, and the University may contact me directly if the applicant defaults.</label>
             </fieldset>

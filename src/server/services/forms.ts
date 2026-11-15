@@ -130,7 +130,7 @@ export async function guarantorFormPdf(db: Executor, actor: Actor, applicationId
     pdf.heading(`Section ${String.fromCharCode(sec.charCodeAt(0) + 1)}: ${ordinal[i]} guarantor's declaration`);
     pdf.text(declaration(terms?.body));
     pdf.keyValues(g.g.status === "accepted" ? [
-      ["Signature", `Signed electronically as "${g.g.acknowledgedName}" (agreement version ${g.g.agreementVersion})`],
+      ["Signature", `Signed electronically as "${g.g.acknowledgedName}"`],
       ["Date", formatDate(g.g.respondedAt)], ["Record fingerprint", (g.g.acknowledgementHash ?? "").slice(0, 32).replace(/(.{8})/g, "$1 ").trim()],
     ] : [["Signature", "Not yet signed"]]);
   }
