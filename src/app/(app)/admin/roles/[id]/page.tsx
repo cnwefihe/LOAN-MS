@@ -7,7 +7,7 @@ import { ActionForm } from "@/components/action-form";
 import { Switch } from "@/components/switch";
 import { Badge, Card, PageHeader, Tabs } from "@/components/ui";
 import { deleteRoleAction, setRolePermissionsAction, updateRoleDetailsAction } from "@/app/actions/admin";
-import { LOCKED_SUPER_ADMIN_PERMISSIONS, PERMISSION_CATEGORIES, PERMISSIONS, type Permission } from "@/lib/auth/permissions";
+import { PERMISSION_CATEGORIES, PERMISSIONS, type Permission } from "@/lib/auth/permissions";
 
 export const metadata = { title: "Manage role" };
 
@@ -53,7 +53,7 @@ export default async function ManageRole({ params, searchParams }: { params: Pro
       ) : (
         <Card bodyClassName="p-0!">
           <ActionForm action={setRolePermissionsAction.bind(null, role.id)} submitLabel="Save permissions" confirm="Save these permissions? Everyone with this role is affected at once." className="pb-5 [&>div:last-child]:px-5 [&>[role=alert]]:mx-5 [&>[role=status]]:mx-5">
-            {superAdmin && <p className="border-b border-line px-5 py-3 text-sm text-muted">Locked permissions keep administrators from being locked out, and keep financial duties separate.</p>}
+            {superAdmin && <p className="border-b border-line px-5 py-3 text-sm text-muted">Every change here is recorded in the audit log. Keep "Add roles and manage their permissions" on, or no one will be able to change permissions again.</p>}
             <div className="divide-y divide-line border-b border-line">
               {categories.map((c) => {
                 const list = permissions.filter((p) => p.category === c);
@@ -67,11 +67,10 @@ export default async function ManageRole({ params, searchParams }: { params: Pro
                     </summary>
                     <div className="grid gap-x-8 gap-y-1 px-5 pb-4 pl-11 md:grid-cols-2">
                       {list.map((p) => {
-                        const locked = superAdmin && (LOCKED_SUPER_ADMIN_PERMISSIONS.includes(p.code as Permission) || p.code === "transaction.approve");
                         return (
-                          <label key={p.id} className={`flex items-center gap-3 rounded-md py-1.5 text-sm ${locked ? "text-muted" : "cursor-pointer"}`}>
-                            <Switch name="perm" value={p.code} defaultChecked={grants.has(`${role.id}:${p.id}`)} disabled={locked} />
-                            <span>{PERMISSIONS[p.code as Permission]?.description ?? p.description}{locked && " (locked)"}</span>
+                          <label key={p.id} className="flex cursor-pointer items-center gap-3 rounded-md py-1.5 text-sm">
+                            <Switch name="perm" value={p.code} defaultChecked={grants.has(`${role.id}:${p.id}`)} />
+                            <span>{PERMISSIONS[p.code as Permission]?.description ?? p.description}</span>
                           </label>
                         );
                       })}

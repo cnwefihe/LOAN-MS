@@ -6,7 +6,7 @@ import {
 } from "@/db/schema";
 import { sha256Hex } from "@/lib/security/crypto";
 import { LOGO_VARIANTS, type LogoVariant } from "../branding";
-import { LOCKED_SUPER_ADMIN_PERMISSIONS, RETIRED_ROLE_CODES, ROLE_CODES, type Permission, type RoleCode } from "@/lib/auth/permissions";
+import { RETIRED_ROLE_CODES, ROLE_CODES, type Permission, type RoleCode } from "@/lib/auth/permissions";
 import { assertCan, type Actor } from "../actor";
 import { audit } from "../audit";
 import { SETTINGS, getSetting, type SettingKey, type SettingGroup } from "../settings";
@@ -116,10 +116,6 @@ export async function setRolePermission(db: Executor, actor: Actor, roleId: stri
     const [role] = await tx.select().from(roles).where(eq(roles.id, roleId));
     const [perm] = await tx.select().from(permissions).where(eq(permissions.id, permissionId));
     if (!role || !perm) throw new NotFoundError("Role or permission");
-    if (!grant && role.code === "SUPER_ADMIN" && LOCKED_SUPER_ADMIN_PERMISSIONS.includes(perm.code as Permission)) throw new DomainError("This permission is locked on the Super Administrator role to prevent lock-out.");
-    if (grant && role.code === "SUPER_ADMIN" && ["transaction.approve"].includes(perm.code)) {
-      throw new DomainError("Financial checker rights cannot be granted to the Super Administrator role (segregation of duties). Assign the Bursar role to a named user instead.");
-    }
     if (grant) await tx.insert(rolePermissions).values({ roleId, permissionId }).onConflictDoNothing();
     else await tx.delete(rolePermissions).where(and(eq(rolePermissions.roleId, roleId), eq(rolePermissions.permissionId, permissionId)));
     await audit(tx, actor, { action: grant ? "role.permission_granted" : "role.permission_revoked", entityType: "role", entityId: roleId, summary: `${role.code}: ${perm.code}` });
@@ -135,14 +131,13 @@ function cleanRoleDetails(input: { name: string; description: string }) {
   return { name, description };
 }
 
-/** Saves a role's whole permission list at once. Locked permissions stay as they are. */
+/** Saves a role's whole permission list at once. Every change is recorded in the audit log. */
 export async function setRolePermissions(db: Executor, actor: Actor, roleId: string, codes: string[]) {
   assertCan(actor, "admin.roles.manage");
   return db.transaction(async (tx) => {
     const [role] = await tx.select().from(roles).where(eq(roles.id, roleId));
     if (!role) throw new NotFoundError("Role");
     const wanted = new Set(codes);
-    if (role.code === "SUPER_ADMIN") LOCKED_SUPER_ADMIN_PERMISSIONS.forEach((c) => wanted.add(c));
     const current = new Set((await tx.select({ id: rolePermissions.permissionId }).from(rolePermissions).where(eq(rolePermissions.roleId, roleId))).map((x) => x.id));
     let changed = 0;
     for (const p of await tx.select().from(permissions)) {

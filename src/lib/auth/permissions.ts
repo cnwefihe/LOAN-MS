@@ -121,9 +121,3 @@ export const ROLE_DEFINITIONS: Record<RoleCode, { name: string; description: str
   },
 };
 
-/**
- * Grants on SUPER_ADMIN that cannot be removed through the UI, and that seeding restores if they go
- * missing: the administrator can always reach every configuration screen.
- */
-// Administration, plus every report (including the Bursary's and the audit extract), so administrators can always pull any report.
-export const LOCKED_SUPER_ADMIN_PERMISSIONS: Permission[] = ALL_PERMISSIONS.filter((p) => p.startsWith("admin.") || ["reports.view", "reports.export", "accounts.view"].includes(p));

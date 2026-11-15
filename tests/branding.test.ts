@@ -18,7 +18,7 @@ import { getBranding, getLogo } from "@/server/branding";
 import { PdfBuilder } from "@/server/pdf";
 import { policyParametersSchema } from "@/lib/finance/policy";
 import { SUGGESTED_PRODUCTS } from "@/lib/finance/suggested-products";
-import { LOCKED_SUPER_ADMIN_PERMISSIONS, ROLE_DEFINITIONS, ALL_PERMISSIONS } from "@/lib/auth/permissions";
+import { ROLE_DEFINITIONS, ALL_PERMISSIONS } from "@/lib/auth/permissions";
 import { contrastRatio } from "@/lib/colour";
 
 let db: Database;
@@ -141,14 +141,22 @@ describe("administrator privileges", () => {
     expect(granted).not.toContain("transaction.approve"); // segregation of duties
   });
 
-  it("locked administration permissions cannot be removed, and seeding restores any that go missing", async () => {
+  it("the administrator may turn any Super Administrator permission off and on again, and deployments keep their choice", async () => {
     const admin = await actor("admin");
     const [role] = await db.select().from(s.roles).where(eq(s.roles.code, "SUPER_ADMIN"));
-    const [perm] = await db.select().from(s.permissions).where(eq(s.permissions.code, "admin.settings.manage"));
-    expect(LOCKED_SUPER_ADMIN_PERMISSIONS).toContain("admin.settings.manage");
-    await expect(setRolePermission(db, admin, role.id, perm.id, false)).rejects.toThrow(/locked/);
-    await db.delete(s.rolePermissions).where(and(eq(s.rolePermissions.roleId, role.id), eq(s.rolePermissions.permissionId, perm.id)));
+    const has = async (code: string) => (await db.select().from(s.rolePermissions).innerJoin(s.permissions, eq(s.permissions.id, s.rolePermissions.permissionId))
+      .where(and(eq(s.rolePermissions.roleId, role.id), eq(s.permissions.code, code)))).length === 1;
+    const [perm] = await db.select().from(s.permissions).where(eq(s.permissions.code, "reports.export"));
+    expect(await has("reports.export")).toBe(true);
+    await setRolePermission(db, admin, role.id, perm.id, false);
+    expect(await has("reports.export")).toBe(false);
     await seedBase(db);
-    expect(await db.select().from(s.rolePermissions).where(and(eq(s.rolePermissions.roleId, role.id), eq(s.rolePermissions.permissionId, perm.id)))).toHaveLength(1);
+    expect(await has("reports.export")).toBe(false); // a deployment does not turn it back on
+    await setRolePermission(db, admin, role.id, perm.id, true);
+    expect(await has("reports.export")).toBe(true);
+    const [checker] = await db.select().from(s.permissions).where(eq(s.permissions.code, "transaction.approve"));
+    await setRolePermission(db, admin, role.id, checker.id, true);
+    expect(await has("transaction.approve")).toBe(true);
+    await setRolePermission(db, admin, role.id, checker.id, false);
   });
 });

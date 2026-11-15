@@ -5,7 +5,7 @@ import {
   schools, departments, staffCategories, loanProducts, policyVersions, documentRequirements,
   fundPools, guarantorPool,
 } from "@/db/schema";
-import { PERMISSIONS, ROLE_DEFINITIONS, LOCKED_SUPER_ADMIN_PERMISSIONS, RETIRED_ROLE_CODES, type RoleCode } from "@/lib/auth/permissions";
+import { PERMISSIONS, ROLE_DEFINITIONS, RETIRED_ROLE_CODES, type RoleCode } from "@/lib/auth/permissions";
 import { DEFAULT_POLICY } from "@/lib/finance/defaults";
 import { SUGGESTED_PRODUCTS } from "@/lib/finance/suggested-products";
 import { encryptString } from "@/lib/security/crypto";
@@ -57,10 +57,7 @@ export async function seedBase(db: Executor) {
     if (ids.length) await db.insert(rolePermissions).values(ids).onConflictDoNothing();
   }
   await retireRoles(db);
-  // The Super Administrator always keeps every administration permission (prevents lock-out).
-  const [superAdmin] = await db.select().from(roles).where(eq(roles.code, "SUPER_ADMIN"));
-  const locked = permRows.filter((p) => (LOCKED_SUPER_ADMIN_PERMISSIONS as string[]).includes(p.code)).map((p) => ({ roleId: superAdmin.id, permissionId: p.id }));
-  if (locked.length) await db.insert(rolePermissions).values(locked).onConflictDoNothing();
+  // Permissions an administrator has turned on or off are kept as they are; deployments do not change them.
   for (const t of DEFAULT_TEMPLATES) {
     await db.insert(notificationTemplates).values(t).onConflictDoNothing();
   }
