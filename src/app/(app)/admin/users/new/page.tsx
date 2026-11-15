@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { getDb } from "@/db";
+import { schools } from "@/db/schema";
+import { asc, eq } from "drizzle-orm";
 import { requireActor } from "@/lib/auth/session";
 import { can } from "@/server/actor";
 import { departmentOptions } from "@/server/services/staff";
@@ -14,6 +16,7 @@ export default async function AddUsers({ searchParams }: { searchParams: Promise
   const tab = (await searchParams).tab === "many" ? "many" : "one";
   const db = await getDb();
   const depts = await departmentOptions(db);
+  const schoolList = await db.select({ name: schools.name }).from(schools).where(eq(schools.isActive, true)).orderBy(asc(schools.name));
   const approvers = can(actor, "admin.org.manage");
   return (
     <>
@@ -26,11 +29,13 @@ export default async function AddUsers({ searchParams }: { searchParams: Promise
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Full name" htmlFor="name"><input id="name" name="name" required maxLength={200} className="input" /></Field>
               <Field label="University email" htmlFor="email"><input id="email" name="email" type="email" required className="input" /></Field>
-              <Field label="Department" htmlFor="departmentId">
-                <select id="departmentId" name="departmentId" defaultValue="" className="input">
-                  <option value="">Not set</option>
-                  {depts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
+              <Field label="Department" htmlFor="departmentName" hint="Choose one, or type a new name to create it.">
+                <input id="departmentName" name="departmentName" list="department-list" maxLength={200} autoComplete="off" className="input" />
+                <datalist id="department-list">{depts.map((d) => <option key={d.id} value={d.name} />)}</datalist>
+              </Field>
+              <Field label="School or faculty (optional)" htmlFor="schoolName" hint="For a new department. Choose one, or type a new name to create it.">
+                <input id="schoolName" name="schoolName" list="school-list" maxLength={200} autoComplete="off" className="input" />
+                <datalist id="school-list">{schoolList.map((s) => <option key={s.name} value={s.name} />)}</datalist>
               </Field>
               {approvers && (
                 <Field label="Approver for the department" htmlFor="approver" hint="Replaces the department's current approver.">
@@ -47,12 +52,12 @@ export default async function AddUsers({ searchParams }: { searchParams: Promise
         </Card>
       ) : (
         <Card title="Add many at once" className="max-w-3xl"
-          description={`One person per line: full name, university email, department${approvers ? ", then HOD or Line Manager for an approver" : ""}. Separate with commas, or paste rows from a spreadsheet. Someone already known is updated.`}>
+          description={`One person per line: full name, university email, department, school (optional)${approvers ? ", then HOD or Line Manager for an approver" : ""}. Separate with commas, or paste rows from a spreadsheet. Someone already known is updated.`}>
           <ActionForm action={importUsersAction} submitLabel="Add users" resetOnSuccess confirm="Add these users?">
             <label htmlFor="lines" className="label">Users</label>
             <textarea id="lines" name="lines" rows={10} required className="input font-mono text-xs"
-              placeholder={`Ada Obi, ada.obi@example.edu.ng, ${depts[0]?.name ?? "Bursary"}, HOD\nTunde Bello, tunde.bello@example.edu.ng, ${depts[1]?.name ?? depts[0]?.name ?? "Bursary"}`} />
-            <p className="hint">The department is matched by its name or code, as in <Link href="/admin/organisation" className="link">Organisation</Link>. Lines that cannot be read are listed and left out.</p>
+              placeholder={`Ada Obi, ada.obi@example.edu.ng, ${depts[0]?.name ?? "Bursary"}, HOD\nTunde Bello, tunde.bello@example.edu.ng, Library, Central Administration\nKemi Ade, kemi.ade@example.edu.ng, Library`} />
+            <p className="hint">Departments and schools are matched by name or code, as in <Link href="/admin/organisation" className="link">Organisation</Link>; any not set up yet are created. Lines that cannot be read are listed and left out.</p>
           </ActionForm>
         </Card>
       )}

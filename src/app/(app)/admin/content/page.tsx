@@ -76,7 +76,7 @@ export default async function Content({ searchParams }: { searchParams: Promise<
                     <Td>{active ? `Version ${active.version}` : "-"}</Td>
                     <Td>{active ? <DateText value={active.createdAt} /> : "-"}</Td>
                     <Td>{!active ? (kind === "loan_policy" ? <Badge tone="info">Built-in wording</Badge> : kind === "privacy_notice" ? <Badge tone="warning">Draft wording</Badge> : <Badge tone="warning">None active</Badge>) : active.body.includes("[PLACEHOLDER") ? <Badge tone="warning">Placeholder text</Badge> : <Badge tone="success">Active</Badge>}</Td>
-                    <Td right><RowMenu label={label} items={[{ label: "Edit", href: `/admin/content/terms/${kind}${back}` }]} /></Td>
+                    <Td right><RowMenu label={label} items={[{ label: "Manage", href: `/admin/content/terms/${kind}${back}` }]} /></Td>
                   </tr>
                 );
               })}
@@ -99,7 +99,7 @@ export default async function Content({ searchParams }: { searchParams: Promise<
                     <Td>{r.appliesTo === "guarantor" ? "Guarantor" : "Applicant"}</Td>
                     <Td>{r.isRequired ? "Yes" : "No"}</Td>
                     <Td>{r.isActive ? <Badge tone="success">Active</Badge> : <Badge>Inactive</Badge>}</Td>
-                    <Td right><RowMenu label={r.label} items={[{ label: "Edit", href: `/admin/content/documents/${r.id}${back}` }]} /></Td>
+                    <Td right><RowMenu label={r.label} items={[{ label: "Manage", href: `/admin/content/documents/${r.id}${back}` }]} /></Td>
                   </tr>
                 ))}
               </tbody>
@@ -124,7 +124,7 @@ export default async function Content({ searchParams }: { searchParams: Promise<
                       <Td className="max-w-md truncate text-muted"><Subject text={t.subject} /></Td>
                       <Td>{t.sendEmail ? "Email and in-app" : "In-app only"}</Td>
                       <Td>{t.isActive ? <Badge tone="success">Active</Badge> : <Badge>Disabled</Badge>}</Td>
-                      <Td right><RowMenu label={t.name} items={[{ label: "Edit", href: `/admin/content/templates/${t.code}${back}` }]} /></Td>
+                      <Td right><RowMenu label={t.name} items={[{ label: "Manage", href: `/admin/content/templates/${t.code}${back}` }]} /></Td>
                     </tr>
                   </Fragment>
                 ))}

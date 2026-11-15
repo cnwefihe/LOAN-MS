@@ -42,11 +42,15 @@ const GROUPS: { title: string; fields: Key[] }[] = [
 const MONEY: Key[] = ["maxGuarantorExposure", "cafeteriaAmount"];
 const WIDE: Key[] = ["eligibleEmploymentStatuses", "requiredDocumentCodes"];
 
+/** Settings fixed by how the system works (not shown here): kept as stored, as the server does when saving. */
+const FIXED_WORDS = ["deductionBasis", "affordabilityRule", "earlySettlementRebate"];
+
 /** Form values as typed (strings), turned into a policy object for checking and the live example. */
-function toPolicy(v: Record<string, unknown>): unknown {
+export function toPolicy(v: Record<string, unknown>): unknown {
   const out: Record<string, unknown> = { ...v };
   for (const [k, x] of Object.entries(v)) {
-    if (typeof x !== "string" || OPTIONS[k as Key] || k === "requiredDocumentCodes") continue;
+    // Choices and fixed settings stay as words; only typed figures become numbers.
+    if (typeof x !== "string" || OPTIONS[k as Key] || k === "requiredDocumentCodes" || FIXED_WORDS.includes(k)) continue;
     const clean = x.replace(/[,₦\s]/g, "");
     out[k] = MONEY.includes(k as Key) ? clean : clean === "" ? NaN : Number(clean);
   }

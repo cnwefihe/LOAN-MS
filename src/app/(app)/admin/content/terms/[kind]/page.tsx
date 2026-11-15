@@ -6,6 +6,7 @@ import { requireActor } from "@/lib/auth/session";
 import { ActionForm } from "@/components/action-form";
 import { Alert, Badge, Card, DateText, PageHeader, Table, Th, Td } from "@/components/ui";
 import { publishTermsAction } from "@/app/actions/admin";
+import { paginate, Pagination } from "@/components/pagination";
 
 export const metadata = { title: "Edit terms" };
 
@@ -14,7 +15,7 @@ import { DEFAULT_LOAN_POLICY_BODY, DEFAULT_LOAN_POLICY_TITLE } from "@/lib/loan-
 
 const LABELS = { loan_policy: "Loan policy", loan_terms: "Loan terms & conditions", guarantor_agreement: "Guarantor agreement", privacy_notice: "Privacy notice" } as const;
 
-export default async function EditTerms({ params, searchParams }: { params: Promise<{ kind: string }>; searchParams: Promise<{ from?: string }> }) {
+export default async function EditTerms({ params, searchParams }: { params: Promise<{ kind: string }>; searchParams: Promise<{ from?: string; page?: string; size?: string }> }) {
   await requireActor("admin.content.manage");
   const { kind } = await params;
   const sp = await searchParams;
@@ -43,7 +44,7 @@ export default async function EditTerms({ params, searchParams }: { params: Prom
           <Table caption="Version history">
             <thead><tr><Th>Version</Th><Th>Published</Th><Th>Status</Th></tr></thead>
             <tbody>
-              {list.map((t) => (
+              {paginate(list, sp.page, sp.size).items.map((t) => (
                 <tr key={t.id}>
                   <Td className="font-medium">Version {t.version}</Td>
                   <Td><DateText value={t.createdAt} /></Td>
@@ -52,6 +53,7 @@ export default async function EditTerms({ params, searchParams }: { params: Prom
               ))}
             </tbody>
           </Table>
+          <Pagination data={paginate(list, sp.page, sp.size)} base={`/admin/content/terms/${kind}`} params={{ from: sp.from }} label="versions" />
         </Card>
       </div>
     </>

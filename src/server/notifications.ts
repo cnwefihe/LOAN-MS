@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import type { Executor } from "@/db";
-import { notifications, notificationTemplates, emailOutbox, users, userRoles, roles } from "@/db/schema";
-import type { RoleCode } from "@/lib/auth/permissions";
+import { notifications, notificationTemplates, emailOutbox, users, userRoles, roles, rolePermissions, permissions } from "@/db/schema";
+import type { Permission, RoleCode } from "@/lib/auth/permissions";
 import { getSetting } from "./settings";
 import { DEFAULT_TEMPLATES } from "./notification-templates";
 
@@ -26,6 +26,19 @@ interface NotifyInput {
 }
 
 /**
+ * The work each role is told about, by the permission that does it. A notice for a role also reaches anyone
+ * whose roles carry that permission, so a permission an administrator turns on (for any role, built-in or
+ * custom) brings its notices with it.
+ */
+const ROLE_WORK: Partial<Record<RoleCode, Permission>> = {
+  HR_ADMIN: "hr.verify",
+  BURSARY_OFFICER: "bursary.review",
+  ACCOUNTS_ADMIN: "approval.decide",
+  ACCOUNTS_OFFICER: "disbursement.record",
+  PAYROLL_OFFICER: "repayment.confirm",
+};
+
+/**
  * Record in-app notifications and queue institutional emails in the same transaction as the
  * business event. Emails are delivered asynchronously by the outbox dispatcher (server/email.ts).
  */
@@ -39,6 +52,17 @@ export async function notify(db: Executor, input: NotifyInput): Promise<void> {
       .innerJoin(users, eq(users.id, userRoles.userId))
       .where(and(inArray(roles.code, input.roles), eq(users.isActive, true)));
     rows.forEach((r) => ids.add(r.userId));
+    const work = input.roles.map((r) => ROLE_WORK[r]).filter((p): p is Permission => !!p);
+    if (work.length) {
+      const holders = await db
+        .selectDistinct({ userId: userRoles.userId })
+        .from(userRoles)
+        .innerJoin(rolePermissions, eq(rolePermissions.roleId, userRoles.roleId))
+        .innerJoin(permissions, eq(permissions.id, rolePermissions.permissionId))
+        .innerJoin(users, eq(users.id, userRoles.userId))
+        .where(and(inArray(permissions.code, work), eq(users.isActive, true)));
+      holders.forEach((r) => ids.add(r.userId));
+    }
   }
   input.excludeUserIds?.forEach((id) => ids.delete(id));
   if (!ids.size) return;

@@ -8,12 +8,14 @@ import { can } from "@/server/actor";
 import { parsePolicy } from "@/lib/finance/policy";
 import { Card, EmptyState, PageHeader, Badge, Stat, StatGrid, Table, Th, Td, DateText } from "@/components/ui";
 import { RowMenu } from "@/components/row-menu";
+import { paginate, Pagination } from "@/components/pagination";
 
 export const metadata = { title: "Products & policies" };
 
 const months = (n: number) => `${n} ${n === 1 ? "month" : "months"}`;
 
-export default async function Products() {
+export default async function Products({ searchParams }: { searchParams: Promise<{ page?: string; size?: string }> }) {
+  const sp = await searchParams;
   const actor = await requireActor("admin.policy.manage", "admin.policy.approve");
   const db = await getDb();
   const products = await db.select().from(loanProducts).orderBy(loanProducts.name);
@@ -38,7 +40,7 @@ export default async function Products() {
           <Table caption="Loan products">
             <thead><tr><Th>Product</Th><Th>Code</Th><Th>Status</Th><Th>Interest</Th><Th>Tenor</Th><Th>Last updated</Th><Th><span className="sr-only">Action</span></Th></tr></thead>
             <tbody>
-              {products.map((p) => {
+              {paginate(products, sp.page, sp.size).items.map((p) => {
                 const pv = versions.filter((v) => v.productId === p.id);
                 const active = pv.find((v) => v.status === "active");
                 const terms = active ? parsePolicy(active.parameters) : null;
@@ -50,13 +52,14 @@ export default async function Products() {
                     <Td>{!terms ? "-" : terms.interestMethod === "interest_free" ? "Interest free" : `${terms.annualInterestRate}% a year`}</Td>
                     <Td>{!terms ? "-" : terms.minTenorMonths === terms.maxTenorMonths ? months(terms.maxTenorMonths) : `${terms.minTenorMonths} to ${months(terms.maxTenorMonths)}`}</Td>
                     <Td>{active ? <DateText value={active.effectiveFrom ?? active.approvedAt ?? active.createdAt} /> : <Badge tone="warning">Terms not saved</Badge>}</Td>
-                    <Td right><RowMenu label={p.name} items={[{ label: "Edit terms", href: `/admin/products/${p.id}` }, { label: "Product settings", href: `/admin/products/${p.id}?tab=settings` }]} /></Td>
+                    <Td right><RowMenu label={p.name} items={[{ label: "Manage", href: `/admin/products/${p.id}` }]} /></Td>
                   </tr>
                 );
               })}
             </tbody>
           </Table>
         )}
+        <Pagination data={paginate(products, sp.page, sp.size)} base="/admin/products" label="products" />
       </Card>
     </>
   );

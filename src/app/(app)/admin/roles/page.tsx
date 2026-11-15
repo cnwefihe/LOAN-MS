@@ -6,15 +6,16 @@ import { roleMatrix } from "@/server/services/admin";
 import { Badge, Card, EmptyState, PageHeader, Table, Tabs, Th, Td } from "@/components/ui";
 import { RowMenu } from "@/components/row-menu";
 import { SearchFilter } from "@/components/search-filter";
+import { paginate, Pagination } from "@/components/pagination";
 import { PERMISSION_CATEGORIES, PERMISSIONS, type Permission } from "@/lib/auth/permissions";
 
 export const metadata = { title: "Roles and permissions" };
 
 const TABS = [{ key: "roles", label: "Roles" }, { key: "compare", label: "Compare permissions" }];
 
-export default async function Roles({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; category?: string }> }) {
+export default async function Roles({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; category?: string; page?: string; size?: string }> }) {
   const actor = await requireActor("admin.roles.manage");
-  const { tab, q, category } = await searchParams;
+  const { tab, q, category, page, size } = await searchParams;
   const { roles, permissions, grants, holders } = await roleMatrix(await getDb(), actor);
   const textOf = (p: { code: string; description: string | null }) => PERMISSIONS[p.code as Permission]?.description ?? p.description ?? p.code;
   const needle = q?.trim().toLowerCase();
@@ -69,7 +70,7 @@ export default async function Roles({ searchParams }: { searchParams: Promise<{ 
           <Table caption="Roles">
             <thead><tr><Th>Role</Th><Th>Description</Th><Th right>Users</Th><Th right>Permissions</Th><Th>Type</Th><Th><span className="sr-only">Action</span></Th></tr></thead>
             <tbody>
-              {roles.map((r) => (
+              {paginate(roles, page, size).items.map((r) => (
                 <tr key={r.id}>
                   <Td className="font-medium">{r.name}</Td>
                   <Td className="min-w-72 text-muted whitespace-normal!">{r.description ?? "-"}</Td>
@@ -81,6 +82,7 @@ export default async function Roles({ searchParams }: { searchParams: Promise<{ 
               ))}
             </tbody>
           </Table>
+          <Pagination data={paginate(roles, page, size)} base="/admin/roles" params={{ tab }} label="roles" />
         </Card>
       )}
     </>

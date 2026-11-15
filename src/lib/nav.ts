@@ -16,9 +16,6 @@ export type IconName =
 export interface NavItem { href: string; label: string; icon: IconName; badge?: number }
 export interface NavSection { title: string; items: NavItem[] }
 
-/** What administrators keep in the menu from other people's areas. Approvals appears only if they also decide on applications. */
-const OVERSIGHT = ["/hr/staff", "/approvals", "/accounts/advances", "/accounts/reconciliation", "/accounts/loans", "/accounts/servicing"];
-
 async function count(db: Executor, q: Promise<{ n: number }[]>) {
   const [r] = await q;
   return Number(r?.n ?? 0);
@@ -52,9 +49,8 @@ export async function buildNav(db: Executor, actor: Actor): Promise<{ sections: 
   }
 
   // HODs and Line Managers, the HR Director and the Bursar: the badge counts what is waiting for this person.
-  // Administrators decide nothing, so they follow approvals from the Control centre instead.
   const decides = can(actor, "approval.hr_director") || can(actor, "approval.decide") || (await departmentsHeadedBy(db, actor.userId)).length > 0;
-  if (decides || (can(actor, "approval.queue.view") && !actor.roles.includes("SUPER_ADMIN"))) {
+  if (decides || can(actor, "approval.queue.view")) {
     const q = (await myApprovalQueue(db, actor)).length;
     sections.push({ title: w.section.approval, items: [{ href: "/approvals", label: "Approvals", icon: "gavel", badge: q }] });
   }
@@ -110,14 +106,13 @@ export async function buildNav(db: Executor, actor: Actor): Promise<{ sections: 
   if (can(actor, "admin.audit.view")) admin.push({ href: "/admin/audit", label: "Activity", icon: "scroll" }, { href: "/admin/outbox", label: "Emails", icon: "mail" });
   if (admin.length) sections.push({ title: "Administration", items: admin });
 
-  // Administrators configure the system and oversee it. Other people's daily work stays with those people,
-  // and the Control centre shows it all, so only what an administrator acts on or looks up is listed.
+  // Administrators: Administration first, then every other area their permissions open (so turning a permission
+  // on or off shows or hides its menu at once), then Insight.
   if (actor.roles.includes("SUPER_ADMIN")) {
-    const all = sections.flatMap((s) => s.items);
-    const oversight = OVERSIGHT.flatMap((href) => all.filter((i) => i.href === href));
+    const work = sections.filter((s) => s.title !== "Administration" && s.title !== "Insight");
     const menu = [
       { title: "Administration", items: [...admin, self.find((i) => i.href === "/eligibility")!] },
-      ...(oversight.length ? [{ title: "Oversight", items: oversight }] : []),
+      ...work,
       ...(insight.length ? [{ title: "Insight", items: insight }] : []),
     ];
     const unreadCount = await count(db, db.select({ n }).from(notifications).where(and(eq(notifications.userId, actor.userId), isNull(notifications.readAt))));

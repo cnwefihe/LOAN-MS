@@ -52,7 +52,7 @@ test.describe.serial("application lifecycle through the UI", () => {
     await signIn(page, "Emeka Nwosu");
     await page.goto("/admin/organisation");
     await openRowMenu(page, "Actions for Computer Science");
-    await page.getByRole("menuitem", { name: "Edit" }).click();
+    await page.getByRole("menuitem", { name: "Manage" }).click();
     await page.getByLabel("Approved by").selectOption({ label: "HOD" });
     await page.getByLabel("Approver").selectOption({ label: "Funmilayo Adebayo" });
     await page.getByRole("button", { name: "Save changes" }).click();
@@ -424,7 +424,7 @@ const A11Y: [string, string[]][] = [
   ["Amaka Eze", ["/payroll", "/accounts/repayments"]],
   ["Folake Ojo", ["/payroll", "/payroll/early-repayments"]],
   ["Ibrahim Sani", ["/finance", "/dashboard"]],
-  ["Emeka Nwosu", ["/admin", "/admin/users", "/admin/users/new?tab=many", "/admin/products", "/admin/branding", "/admin/settings", "/admin/outbox", "/admin/audit", "/reports"]],
+  ["Emeka Nwosu", ["/admin", "/admin/users", "/admin/users/new?tab=many", "/admin/guarantors", "/admin/guarantors/new?tab=many", "/admin/products", "/admin/branding", "/admin/settings", "/admin/outbox", "/admin/audit", "/reports"]],
 ];
 
 test.describe("accessibility (axe, WCAG 2.2 AA)", () => {
@@ -453,6 +453,7 @@ test.describe("accessibility (axe, WCAG 2.2 AA)", () => {
   }
 
   test("no em dash appears anywhere in the interface", async ({ page }) => {
+    test.setTimeout(300_000); // every page for every user
     const found: string[] = [];
     for (const [user, paths] of A11Y) {
       await signIn(page, user);
@@ -488,7 +489,7 @@ test.describe("responsive layout", () => {
       await signIn(page, "Adaeze Okafor");
       await check(["/dashboard", "/products", "/eligibility", "/applications", "/applications/new", "/loans", "/profile", "/notifications"]);
       await signIn(page, "Emeka Nwosu");
-      await check(["/admin", "/admin/users", "/admin/users/new", "/admin/products", "/admin/branding", "/admin/settings", "/admin/outbox", "/admin/audit", "/reports", "/verify", "/accounts", "/accounts/loans"]);
+      await check(["/admin", "/admin/users", "/admin/users/new", "/admin/guarantors", "/admin/guarantors/new", "/admin/products", "/admin/branding", "/admin/settings", "/admin/outbox", "/admin/audit", "/reports", "/verify", "/accounts", "/accounts/loans"]);
       // Administrators cannot open HR or approval pages (no salaries or payslips), so the people who use them are checked.
       await signIn(page, "Kunle Adeyemi");
       await check(["/hr", "/hr/applications", "/hr/staff"]);

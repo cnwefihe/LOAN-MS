@@ -56,10 +56,17 @@ describe("adding users", () => {
       `Musa Bala\tmusa.bala@example.edu.ng\t${b.code}\tLine Manager`,
       "Ngozi Eze; ngozi.eze@example.edu.ng",
       "No Email Here, Bursary",
-      "Lost Person, lost.person@example.edu.ng, No Such Department",
+      "New Person, new.person@example.edu.ng, Estates and Works, School of Facilities, Line Manager",
+      "Second Person, second.person@example.edu.ng, estates and works",
     ].join("\n"));
-    expect(r).toMatchObject({ added: 2, updated: 1, approvers: 1 });
-    expect(r.skipped).toHaveLength(2);
+    expect(r).toMatchObject({ added: 4, updated: 1, approvers: 2, departmentsAdded: 1 });
+    expect(r.skipped).toEqual(["No Email Here, Bursary"]);
+    const [estates] = await db.select().from(s.departments).where(eq(s.departments.name, "Estates and Works"));
+    const [school] = await db.select().from(s.schools).where(eq(s.schools.id, estates.schoolId!));
+    expect(school.name).toBe("School of Facilities");
+    expect(estates.approverTitle).toBe("line_manager");
+    expect(estates.headUserId).toBe((await byEmail("new.person@example.edu.ng")).id);
+    expect((await profile((await byEmail("second.person@example.edu.ng")).id)).departmentId).toBe(estates.id); // matched, any case
     const musa = await byEmail("musa.bala@example.edu.ng");
     const [dept] = await db.select().from(s.departments).where(eq(s.departments.id, b.id));
     expect(dept.headUserId).toBe(musa.id);
@@ -73,5 +80,18 @@ describe("adding users", () => {
     expect((await profile(id)).departmentId).toBe(depts[0].id);
     await setUserDepartment(db, admin, id, depts[1].id);
     expect((await profile(id)).departmentId).toBe(depts[1].id);
+  });
+});
+
+describe("adding one user with a new department", () => {
+  it("creates the department and its school when they are not set up yet, and reuses them next time", async () => {
+    const r = await addUser(db, admin, { name: "Ifeoma Nnadi", email: "ifeoma.nnadi@example.edu.ng", departmentName: "Sports Centre", schoolName: "Student Affairs", approver: "hod" });
+    expect(r.created).toBe(true);
+    const [dept] = await db.select().from(s.departments).where(eq(s.departments.name, "Sports Centre"));
+    expect(dept.headUserId).toBe(r.userId);
+    const [school] = await db.select().from(s.schools).where(eq(s.schools.name, "Student Affairs"));
+    expect(dept.schoolId).toBe(school.id);
+    await addUser(db, admin, { name: "Bayo Kalu", email: "bayo.kalu@example.edu.ng", departmentName: "SPORTS CENTRE" });
+    expect(await db.select().from(s.departments).where(eq(s.departments.name, "Sports Centre"))).toHaveLength(1);
   });
 });
