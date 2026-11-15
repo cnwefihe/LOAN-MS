@@ -49,7 +49,7 @@ export function SettingsGroupForm({ group, values }: { group: SettingGroup; valu
                   <select id={id} name={k} defaultValue={String(v)} className="input">
                     {options.map((o) => <option key={o} value={o}>{("optionLabels" in def ? (def.optionLabels as Record<string, string>)[o] : undefined) ?? optionLabel(o, type === "number")}</option>)}
                   </select>
-                ) : k.startsWith("reminders.") && k.endsWith("Minutes") ? (
+                ) : (k.startsWith("reminders.") || k.startsWith("automation.")) && k.endsWith("Minutes") ? (
                   <div className="flex gap-2">
                     <input id={id} name={k} type="number" min={1} required defaultValue={splitMinutes(Number(v)).amount} className="input min-w-0 flex-1" />
                     <select aria-label={`${def.label}: unit`} name={`${k}__unit`} defaultValue={splitMinutes(Number(v)).unit} className="input w-28">

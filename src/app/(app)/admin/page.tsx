@@ -74,7 +74,9 @@ export default async function AdminHome() {
     { label: "Undelivered emails", n: Number(mail.n), href: "/admin/outbox" },
     { label: "Overdue or defaulted loans", n: overdue.length, href: "/accounts/loans?status=overdue" },
   ].filter((i) => i.n > 0);
-  const autoRunning = !!lastAuto && Date.now() - lastAuto.at.getTime() < 2 * DAY_MS;
+  const checkEvery = await getSetting(db, "automation.checkEveryMinutes");
+  // Running when the last automatic check is no older than twice the time set between checks (two days at least).
+  const autoRunning = !!lastAuto && Date.now() - lastAuto.at.getTime() < Math.max(2 * DAY_MS, 2 * checkEvery * 60_000);
   const atStatus = (s: string) => pipeline.find((x) => x.status === s)?.n ?? 0;
   const stages = [
     { label: "Human Resources", n: atStatus("pending_hr"), href: can(actor, "hr.queue.view") ? "/hr/applications" : undefined },
@@ -92,7 +94,7 @@ export default async function AdminHome() {
     { label: "Active sessions", value: Number(sess.n), href: "/admin/audit?tab=sessions", ok: true },
     { label: "Open loan products", value: Number(p.n), href: "/admin/products", ok: true },
     { label: "Undelivered emails", value: Number(mail.n), href: "/admin/outbox", ok: mailOk },
-    { label: "Automatic hourly check", value: autoRunning ? "Running" : "Not running", ok: autoRunning },
+    { label: `Automatic check, every ${durationText(checkEvery)}`, value: autoRunning ? "Running" : "Not running", ok: autoRunning },
     { label: "Connections", value: `${ready} of ${connections.length}`, href: "/admin/connections", ok: ready === connections.length },
   ];
   return (

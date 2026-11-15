@@ -99,6 +99,8 @@ export async function canAccessDocument(db: Executor, actor: Actor, doc: typeof 
   if (can(actor, "documents.view_all")) return true;
   if (doc.uploadedBy === actor.userId || doc.ownerUserId === actor.userId) return !INTERNAL.includes(doc.category as DocumentCategory) || doc.uploadedBy === actor.userId;
   if (INTERNAL.includes(doc.category as DocumentCategory)) return false;
+  // A guarantor's payslip holds their salary: only they and staff who see all documents may open it, not the borrower.
+  if (doc.requirementCode === "GUARANTOR_PAYSLIP") return false;
 
   let applicationId = doc.applicationId;
   if (doc.loanAccountId) {

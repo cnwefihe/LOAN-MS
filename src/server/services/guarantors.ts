@@ -13,7 +13,7 @@ import { transition } from "../workflow";
 import { DomainError, ForbiddenError, NotFoundError } from "../errors";
 import { getActiveTerms, getPolicyVersion } from "./policies";
 import { getSettings } from "../settings";
-import { latestPayslip } from "./payslips";
+import { attachGuarantorPayslip, latestPayslip } from "./payslips";
 import { monthsText } from "@/lib/finance/dates";
 
 /** Relationship with the applicant, as asked on the guarantor's form. */
@@ -169,6 +169,7 @@ export async function respondToGuarantee(db: Executor, actor: Actor, guaranteeId
         acknowledgementHash: sha256Hex(text), acknowledgedName: input.typedName.trim(), acknowledgedEmail: actor.email,
         acknowledgedIp: actor.ip ?? null, acknowledgedUserAgent: actor.userAgent ?? null, relationship: input.relationship, guarantorPhone: input.phone.trim(), declaredBasic: cover.payslip.basic, payslipId: inputs.payslipId,
       }).where(eq(applicationGuarantors.id, g.id));
+      await attachGuarantorPayslip(tx, actor, app.id, g.id, inputs.payslipId);
       await audit(tx, actor, { action: "guarantee.accepted", entityType: "application_guarantor", entityId: g.id, summary: `${app.reference}: accepted guarantee of ${g.guaranteedAmount}`, after: { agreementVersion: terms.version, hash: sha256Hex(text) } });
       await notify(tx, { template: "guarantor.accepted", userIds: [app.applicantId], link: `/applications/${app.id}`, vars });
 

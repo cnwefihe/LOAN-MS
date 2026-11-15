@@ -71,7 +71,7 @@ export async function buildNav(db: Executor, actor: Actor): Promise<{ sections: 
     if (can(actor, "transaction.approve")) items.push({ href: "/accounts/approvals", label: "Pending authorisations", icon: "check", badge: checker });
     items.push({ href: "/accounts/advances", label: "Advances", icon: "wallet", badge: await advancesToRecover(db) });
     items.push({ href: "/accounts/reconciliation", label: "Reconciliation", icon: "scale" }, { href: "/accounts/loans", label: "Loan accounts", icon: "landmark" });
-    // The automatic check runs every hour by itself, so it has no menu entry (the Control centre shows whether it is running).
+    // The automatic check runs by itself, as often as set in Settings, so it has no menu entry (the Control centre shows whether it is running).
     sections.push({ title: w.section.bursary, items });
   }
 

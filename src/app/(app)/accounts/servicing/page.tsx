@@ -1,3 +1,5 @@
+import { getSetting } from "@/server/settings";
+import { durationText } from "@/lib/duration";
 import { desc, eq, isNull, and } from "drizzle-orm";
 import { getDb } from "@/db";
 import { auditLogs, users } from "@/db/schema";
@@ -27,6 +29,7 @@ export default async function DailyCheck({ searchParams }: { searchParams: Promi
   const runs = await db.select({ log: auditLogs, runBy: users.displayName }).from(auditLogs).leftJoin(users, eq(users.id, auditLogs.actorId))
     .where(servicing).orderBy(desc(auditLogs.id)).limit(1000);
   const [automatic] = await db.select({ at: auditLogs.createdAt }).from(auditLogs).where(and(servicing, isNull(auditLogs.actorId))).orderBy(desc(auditLogs.id)).limit(1);
+  const checkEvery = await getSetting(db, "automation.checkEveryMinutes");
   const pg = paginate(runs, sp.page, sp.size);
   const emailReady = !!getTransport();
   const last = runs[0];
@@ -41,7 +44,7 @@ export default async function DailyCheck({ searchParams }: { searchParams: Promi
       {!emailReady && <div className="mb-6"><Alert tone="warning" title="Email is not set up">People see notifications in the app, but no emails are sent.</Alert></div>}
       <StatGrid>
         <Stat label="Last check" value={last ? <DateText value={last.log.createdAt} /> : "None yet"} hint={last ? `By ${last.runBy ?? "the system"}` : "Run the first check below"} />
-        <Stat label="Last automatic check" value={automatic ? <DateText value={automatic.at} /> : "None yet"} hint={automatic ? "Run by the system" : "No automatic check recorded"} tone={automatic ? "default" : "warning"} />
+        <Stat label="Last automatic check" value={automatic ? <DateText value={automatic.at} /> : "None yet"} hint={`Runs every ${durationText(checkEvery)}`} tone={automatic ? "default" : "warning"} />
         <Stat label="Loans checked" value={lastCounts?.checked ?? "N/A"} hint="In the last check" />
         <Stat label="Reminders" value={lastCounts ? reminders(lastCounts) ?? "N/A" : "N/A"} hint="In the last check" />
       </StatGrid>

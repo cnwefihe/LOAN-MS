@@ -72,6 +72,23 @@ export async function attachPayslip(db: Executor, actor: Actor, applicationId: s
   });
 }
 
+/**
+ * Files a copy of the guarantor's payslip with the application, so Human Resources and the Bursary can open
+ * it beside the applicant's. Only the guarantor and staff who see all documents may open it.
+ */
+export async function attachGuarantorPayslip(db: Executor, actor: Actor, applicationId: string, applicationGuarantorId: string, payslipId: string) {
+  const slip = await getPayslip(db, payslipId);
+  if (!slip) return;
+  const [source] = await db.select().from(documents).where(eq(documents.id, slip.documentId));
+  const [latest] = await db.select({ sha256: documents.sha256 }).from(documents)
+    .where(and(eq(documents.applicationGuarantorId, applicationGuarantorId), eq(documents.requirementCode, "GUARANTOR_PAYSLIP"))).orderBy(desc(documents.version)).limit(1);
+  if (!source || latest?.sha256 === source.sha256) return;
+  await storeDocument(db, actor, {
+    buffer: await storage().get(source.storageKey), fileName: source.fileName, mimeType: source.mimeType, category: "guarantor_supporting",
+    title: `Guarantor's ${source.title.charAt(0).toLowerCase()}${source.title.slice(1)}`, ownerUserId: slip.userId, applicationId, applicationGuarantorId, requirementCode: "GUARANTOR_PAYSLIP",
+  });
+}
+
 export async function getPayslip(db: Executor, id: string | null | undefined): Promise<StoredPayslip | null> {
   if (!id) return null;
   const [row] = await db.select().from(staffPayslips).where(eq(staffPayslips.id, id));

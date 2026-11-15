@@ -23,6 +23,7 @@ import { reviewByBursary } from "@/server/services/bursary";
 import { decideApplication } from "@/server/services/approvals";
 import { recordDisbursement, submitRepaymentClaim, confirmRepaymentClaim } from "@/server/services/loans";
 import { accountBalances, currentSchedule } from "@/server/services/ledger";
+import { listDocumentsFor, readDocument } from "@/server/services/documents";
 import { todayLagos } from "@/lib/finance/dates";
 
 let db: Database;
@@ -74,6 +75,24 @@ describe("go-live path: payslip only, every role, every notification", () => {
     }
     expect(await status()).toBe("pending_hr");
     expect(await notified()).toEqual(expect.arrayContaining([expect.stringMatching(/^Kunle Adeyemi: Application .* is ready for Human Resources verification$/)]));
+  });
+
+  it("both payslips are filed with the application: HR and the Bursary can open the applicant's and each guarantor's; the borrower cannot open a guarantor's", async () => {
+    const codes = async (email: string) => (await listDocumentsFor(db, await actor(email), { applicationId: appId })).filter((d) => d.isLatest).map((d) => d.requirementCode).filter(Boolean).sort();
+    const both = ["GUARANTOR_PAYSLIP", "GUARANTOR_PAYSLIP", "PAYSLIP"];
+    expect(await codes("kunle.adeyemi.dev@example.edu.ng")).toEqual(both); // HR Administrator
+    expect(await codes("chioma.nnaji.dev@example.edu.ng")).toEqual(both); // Bursary Officer
+    expect(await codes("bisi.lawal.dev@example.edu.ng")).toEqual(both); // Bursar
+    expect(await codes(SEUN)).toEqual(["PAYSLIP"]); // the borrower: their own only
+    expect(await codes("tunde.bello.dev@example.edu.ng")).toEqual(["GUARANTOR_PAYSLIP"]); // a guarantor: their own only
+    const hr = await actor("kunle.adeyemi.dev@example.edu.ng");
+    const docs = await listDocumentsFor(db, hr, { applicationId: appId });
+    for (const d of docs.filter((x) => x.requirementCode?.includes("PAYSLIP"))) {
+      const { data } = await readDocument(db, hr, d.id);
+      expect(data.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+    }
+    const guarantorSlip = docs.find((d) => d.requirementCode === "GUARANTOR_PAYSLIP")!;
+    await expect(readDocument(db, await actor(SEUN), guarantorSlip.id)).rejects.toThrow(/do not have access/);
   });
 
   it("HR verifies on the payslip alone, which becomes the verified salary; the Bursary Officer is told", async () => {

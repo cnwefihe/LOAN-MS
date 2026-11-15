@@ -4,7 +4,7 @@ import type { Executor } from "@/db";
 import { systemSettings } from "@/db/schema";
 import { contrastRatio } from "@/lib/colour";
 
-export const SETTING_GROUPS = ["Organisation and branding", "Documents", "Workflow", "Workflow wording", "Lending rules", "Early repayment", "Reminders", "Financial controls", "Security", "Notifications", "Data retention", "Privacy", "Announcements"] as const;
+export const SETTING_GROUPS = ["Organisation and branding", "Documents", "Workflow", "Workflow wording", "Lending rules", "Early repayment", "Reminders", "Automation", "Financial controls", "Security", "Notifications", "Data retention", "Privacy", "Announcements"] as const;
 export type SettingGroup = (typeof SETTING_GROUPS)[number];
 
 const text = (max: number) => z.string().trim().min(1).max(max);
@@ -60,6 +60,8 @@ export const SETTINGS = {
   "reminders.guarantorMinutes": { group: "Reminders", schema: reminderMinutes(60), default: DAY, sensitive: false, label: "Remind guarantors after" },
   "reminders.repeatMinutes": { group: "Reminders", schema: reminderMinutes(30), default: DAY, sensitive: false, label: "Repeat each reminder every" },
   "reminders.escalateMinutes": { group: "Reminders", schema: reminderMinutes(90), default: 5 * DAY, sensitive: false, label: "Alert Super Administrators after" },
+
+  "automation.checkEveryMinutes": { group: "Automation", schema: z.number().int().min(60).max(8 * 7 * DAY), default: 7 * DAY, sensitive: false, label: "Run the automatic loan check every (hourly at most)" },
 
   "finance.makerChecker.repayment": { group: "Financial controls", schema: z.boolean(), default: false, sensitive: true, label: "Repayment confirmations" },
   "finance.makerChecker.adjustment": { group: "Financial controls", schema: z.boolean(), default: true, sensitive: true, label: "Waivers, adjustments and refunds" },

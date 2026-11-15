@@ -1,5 +1,5 @@
-/** Reminder timings are stored in minutes and entered as minutes, hours or days. */
-export const DURATION_UNITS = [[1440, "Days"], [60, "Hours"], [1, "Minutes"]] as const;
+/** Timings are stored in minutes and entered as minutes, hours, days or weeks. */
+export const DURATION_UNITS = [[10080, "Weeks"], [1440, "Days"], [60, "Hours"], [1, "Minutes"]] as const;
 
 const words = (n: number, unit: string) => `${n} ${unit}${n === 1 ? "" : "s"}`;
 
@@ -12,7 +12,7 @@ export function splitMinutes(minutes: number): { amount: number; unit: number } 
 /** An exact setting in words, such as "30 minutes" or "2 days". */
 export function durationText(minutes: number): string {
   const { amount, unit } = splitMinutes(minutes);
-  return words(amount, unit === 1440 ? "day" : unit === 60 ? "hour" : "minute");
+  return words(amount, unit === 10080 ? "week" : unit === 1440 ? "day" : unit === 60 ? "hour" : "minute");
 }
 
 /** How long something has waited, rounded down to the largest whole unit. */

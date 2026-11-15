@@ -3,7 +3,7 @@ import type { Executor } from "@/db";
 import {
   loanAccounts, loanApplications, loanAgreements, disbursements, repaymentSchedules, scheduleInstalments, repaymentClaims,
   financialTransactions, ledgerEntries, restructureRequests, users, staffProfiles, applicationGuarantors, loanProducts, documents,
-  notifications, emailOutbox, sessions, rateLimits, earlyRepayments,
+  notifications, emailOutbox, sessions, rateLimits, earlyRepayments, auditLogs,
 } from "@/db/schema";
 import { buildSchedule, quoteLoan, instalmentLabel, rescheduleRemaining, PERIOD_MONTHS, type EligibilityResult } from "@/lib/finance/calculator";
 import { dec, m, sum, formatNaira, D } from "@/lib/finance/money";
@@ -894,6 +894,20 @@ export async function runServicing(db: Executor, actor: Actor | null, asOf = tod
     after: { checked: live.length, deductions, changes, reminders, guarantorReminders, workReminders: work.reminders, escalations: work.escalations, purged },
   });
   return { checked: live.length, deductions, changes, reminders, guarantorReminders, workReminders: work.reminders, escalations: work.escalations, purged, asOf };
+}
+
+/**
+ * Whether the automatic loan check is due: the scheduler calls every hour, and the check runs only when the
+ * time set by the administrator has passed since the last automatic run. A few minutes early counts, so a run
+ * that took a little longer last time does not push the next one back an hour.
+ */
+export async function automaticCheckDue(db: Executor, now = new Date()): Promise<{ due: boolean; nextAfter: string | null }> {
+  const every = await getSetting(db, "automation.checkEveryMinutes");
+  const [last] = await db.select({ at: auditLogs.createdAt }).from(auditLogs)
+    .where(and(eq(auditLogs.action, "servicing.run"), sql`${auditLogs.actorId} is null`)).orderBy(desc(auditLogs.id)).limit(1);
+  if (!last) return { due: true, nextAfter: null };
+  const next = new Date(new Date(last.at).getTime() + (every - 5) * 60_000);
+  return { due: now >= next, nextAfter: next.toISOString() };
 }
 
 /** The reminders alone, so they can run more often than the full loan check. */

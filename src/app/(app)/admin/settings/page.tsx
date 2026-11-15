@@ -14,6 +14,7 @@ const DESCRIPTIONS: Record<string, string> = {
   "Workflow wording": "Names shown on queues, trackers, documents and menus.",
   "Lending rules": "Limits on borrowing and guaranteeing.",
   Reminders: "Timing starts when an item reaches the person who has to act. Reminders go out at the next automatic check.",
+  Automation: "The automatic loan check posts salary deductions, updates overdue loans, sends repayment reminders and tidies old records. Repayment reminders and overdue updates wait for the next check, so a long gap delays them. The Bursary can also run it at any time from Automation.",
   "Financial controls": "Which transactions need the Bursar's authorisation.",
   Security: "All users means applicants, guarantors, approvers, Human Resources and the Bursary.",
   Notifications: "In-app notifications are always recorded; these control email.",
