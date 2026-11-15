@@ -52,19 +52,23 @@ describe("custom roles", () => {
     expect((await actor("applicant")).permissions.has("admin.audit.view")).toBe(true);
   });
 
-  it("keeps locked Super Administrator permissions when the list leaves them out", async () => {
+  it("saves the Super Administrator's permissions exactly as ticked: none is locked", async () => {
     const admin = await actor("admin");
     const id = await roleId("SUPER_ADMIN");
-    await setRolePermissions(db, admin, id, []);
-    expect(await codesOf(id)).toEqual(expect.arrayContaining(["admin.roles.manage", "admin.users.manage", "reports.view"]));
-    await expect(setRolePermissions(db, admin, id, ["transaction.approve"])).rejects.toThrow(/segregation of duties/);
+    const before = await codesOf(id);
+    await setRolePermissions(db, admin, id, before.filter((c) => c !== "reports.export"));
+    expect(await codesOf(id)).not.toContain("reports.export");
+    await setRolePermissions(db, admin, id, [...before, "transaction.approve"]);
+    expect(await codesOf(id)).toEqual(expect.arrayContaining(["reports.export", "transaction.approve"]));
+    await setRolePermissions(db, admin, id, before); // as it was
+    expect((await codesOf(id)).sort()).toEqual([...before].sort());
   });
 
-  it("deletes only unused custom roles", async () => {
+  it("deletes custom roles, asking for a two-step code when someone still holds one; built-in roles stay", async () => {
     const admin = await actor("admin");
     const id = await roleId("INTERNAL_AUDITOR");
     await expect(deleteRole(db, admin, await roleId("HR_DIRECTOR"))).rejects.toThrow(/Built-in/);
-    await expect(deleteRole(db, admin, id)).rejects.toThrow(/every user/);
+    await expect(deleteRole(db, admin, id)).rejects.toThrow(/holds this role.*two-step verification code/);
     await setUserRole(db, admin, ids.applicant, "INTERNAL_AUDITOR" as RoleCode, false);
     await deleteRole(db, admin, id);
     expect((await roleMatrix(db, admin)).roles.some((r) => r.id === id)).toBe(false);

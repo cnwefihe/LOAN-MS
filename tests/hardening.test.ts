@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import os from "node:os";
 import path from "node:path";
 import fs from "node:fs";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 process.env.PGLITE_DIR = "memory://";
 process.env.STORAGE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "pau-loans-hard-"));
@@ -60,10 +60,15 @@ describe("hardening", () => {
     expect(await canAccessDocument(db, hr, doc)).toBe(true);
   });
 
-  it("financial checker rights cannot be granted to the Super Administrator role", async () => {
+  it("the Super Administrator does not hold financial checker rights unless an administrator turns them on", async () => {
     const [role] = await db.select().from(s.roles).where(eq(s.roles.code, "SUPER_ADMIN"));
     const [perm] = await db.select().from(s.permissions).where(eq(s.permissions.code, "transaction.approve"));
-    await expect(setRolePermission(db, await actor("admin"), role.id, perm.id, true)).rejects.toThrow(/segregation of duties/);
+    const held = async () => (await db.select().from(s.rolePermissions).where(and(eq(s.rolePermissions.roleId, role.id), eq(s.rolePermissions.permissionId, perm.id)))).length;
+    expect(await held()).toBe(0);
+    await setRolePermission(db, await actor("admin"), role.id, perm.id, true);
+    expect(await held()).toBe(1);
+    await setRolePermission(db, await actor("admin"), role.id, perm.id, false);
+    expect(await held()).toBe(0);
   });
 
   it("malformed ids map to a safe message", async () => {

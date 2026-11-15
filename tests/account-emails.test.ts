@@ -94,14 +94,14 @@ describe("administrators and staff records", () => {
 });
 
 describe("organisation: delete and approvers", () => {
-  it("deletes an unused school but refuses one still in use", async () => {
+  it("deletes an unused school, and asks for a two-step code before deleting one still in use", async () => {
     const a = await admin();
     const [spare] = await db.insert(s.schools).values({ code: "TMP", name: "Temporary School", isActive: true }).returning();
     await deleteOrgItem(db, a, "school", spare.id);
     expect(await db.select().from(s.schools).where(eq(s.schools.id, spare.id))).toHaveLength(0);
     const [used] = await db.select().from(s.departments).where(eq(s.departments.code, "SST-CS"));
-    await expect(deleteOrgItem(db, a, "school", used.schoolId!)).rejects.toThrow(/inactive instead/);
-    await expect(deleteOrgItem(db, a, "department", used.id)).rejects.toThrow(/staff record/);
+    await expect(deleteOrgItem(db, a, "school", used.schoolId!)).rejects.toThrow(/two-step verification code/);
+    await expect(deleteOrgItem(db, a, "department", used.id)).rejects.toThrow(/staff record.*two-step verification code/);
   });
 
   it("makes someone the HOD of a department, then removes them", async () => {

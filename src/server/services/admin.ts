@@ -14,6 +14,7 @@ import { notify } from "../notifications";
 import { preferredName } from "./staff";
 import { DomainError, NotFoundError } from "../errors";
 import { grantRole } from "./identity";
+import { confirmWithCode } from "./mfa";
 
 /* ───────────────────────── Users & roles ───────────────────────── */
 
@@ -171,15 +172,23 @@ export async function createRole(db: Executor, actor: Actor, input: { name: stri
   });
 }
 
-/** Only roles added by an administrator can be deleted, and only once nobody holds them. */
-export async function deleteRole(db: Executor, actor: Actor, roleId: string) {
+/**
+ * Deletes a role added by an administrator. A role people still hold can be deleted too, with the
+ * administrator's two-step verification code: it is taken from everyone who holds it.
+ */
+export async function deleteRole(db: Executor, actor: Actor, roleId: string, mfaCode?: string) {
   assertCan(actor, "admin.roles.manage");
   return db.transaction(async (tx) => {
     const [role] = await tx.select().from(roles).where(eq(roles.id, roleId));
     if (!role) throw new NotFoundError("Role");
     if (role.isSystem) throw new DomainError("Built-in roles cannot be deleted.");
     const [{ n }] = await tx.select({ n: sql<number>`count(*)` }).from(userRoles).where(eq(userRoles.roleId, roleId));
-    if (Number(n) > 0) throw new DomainError("Remove this role from every user before deleting it.");
+    if (Number(n) > 0) {
+      if (!mfaCode?.trim()) throw new DomainError(`${Number(n)} ${Number(n) === 1 ? "person holds" : "people hold"} this role. Enter your two-step verification code to delete it anyway; it will be taken from them.`);
+      await confirmWithCode(tx, actor, mfaCode, `delete the ${role.name} role`);
+      await tx.delete(userRoles).where(eq(userRoles.roleId, roleId));
+    }
+    await tx.delete(rolePermissions).where(eq(rolePermissions.roleId, roleId));
     await tx.delete(roles).where(eq(roles.id, roleId));
     await audit(tx, actor, { action: "role.deleted", entityType: "role", entityId: roleId, summary: `Deleted ${role.code}: "${role.name}"`, before: { name: role.name, description: role.description } });
   });
@@ -225,8 +234,12 @@ export async function upsertDepartment(db: Executor, actor: Actor, input: { id?:
   await audit(db, actor, { action: input.id ? "org.department_updated" : "org.department_created", entityType: "department", entityId: row.id, after: values });
 }
 
-/** Deletes a school, department or staff category that nothing uses. Anything in use is made inactive instead. */
-export async function deleteOrgItem(db: Executor, actor: Actor, kind: "school" | "department" | "category", id: string) {
+/**
+ * Deletes a school, department or staff category. One still in use can be deleted too, with the
+ * administrator's two-step verification code: the staff records (and, for a school, departments) that
+ * used it are left without one until it is set again.
+ */
+export async function deleteOrgItem(db: Executor, actor: Actor, kind: "school" | "department" | "category", id: string, mfaCode?: string) {
   assertCan(actor, "admin.org.manage");
   return db.transaction(async (tx) => {
     const count = async (q: Promise<{ n: number }[]>) => Number((await q)[0]?.n ?? 0);
@@ -236,25 +249,41 @@ export async function deleteOrgItem(db: Executor, actor: Actor, kind: "school" |
       if (!row) throw new NotFoundError("School");
       const depts = await count(tx.select({ n }).from(departments).where(eq(departments.schoolId, id)));
       const staff = await count(tx.select({ n }).from(staffProfiles).where(eq(staffProfiles.schoolId, id)));
-      if (depts || staff) throw new DomainError(`${row.name} is still used by ${depts} department${depts === 1 ? "" : "s"} and ${staff} staff record${staff === 1 ? "" : "s"}. Move them first, or make it inactive instead.`);
+      if (depts || staff) {
+        await confirmOverride(tx, actor, mfaCode, `${row.name} is still used by ${depts} department${depts === 1 ? "" : "s"} and ${staff} staff record${staff === 1 ? "" : "s"}`, `delete the school ${row.name}`);
+        await tx.update(departments).set({ schoolId: null }).where(eq(departments.schoolId, id));
+        await tx.update(staffProfiles).set({ schoolId: null, updatedAt: new Date() }).where(eq(staffProfiles.schoolId, id));
+      }
       await tx.delete(schools).where(eq(schools.id, id));
       await audit(tx, actor, { action: "org.school_deleted", entityType: "school", entityId: id, summary: `Deleted ${row.name}`, before: row });
     } else if (kind === "department") {
       const [row] = await tx.select().from(departments).where(eq(departments.id, id));
       if (!row) throw new NotFoundError("Department");
       const staff = await count(tx.select({ n }).from(staffProfiles).where(eq(staffProfiles.departmentId, id)));
-      if (staff) throw new DomainError(`${row.name} still has ${staff} staff record${staff === 1 ? "" : "s"}. Move them first, or make it inactive instead.`);
+      if (staff) {
+        await confirmOverride(tx, actor, mfaCode, `${row.name} still has ${staff} staff record${staff === 1 ? "" : "s"}`, `delete the department ${row.name}`);
+        await tx.update(staffProfiles).set({ departmentId: null, updatedAt: new Date() }).where(eq(staffProfiles.departmentId, id));
+      }
       await tx.delete(departments).where(eq(departments.id, id));
       await audit(tx, actor, { action: "org.department_deleted", entityType: "department", entityId: id, summary: `Deleted ${row.name}`, before: row });
     } else {
       const [row] = await tx.select().from(staffCategories).where(eq(staffCategories.id, id));
       if (!row) throw new NotFoundError("Category");
       const staff = await count(tx.select({ n }).from(staffProfiles).where(eq(staffProfiles.categoryId, id)));
-      if (staff) throw new DomainError(`${row.name} still has ${staff} staff record${staff === 1 ? "" : "s"}. Move them first, or make it inactive instead.`);
+      if (staff) {
+        await confirmOverride(tx, actor, mfaCode, `${row.name} still has ${staff} staff record${staff === 1 ? "" : "s"}`, `delete the staff category ${row.name}`);
+        await tx.update(staffProfiles).set({ categoryId: null, updatedAt: new Date() }).where(eq(staffProfiles.categoryId, id));
+      }
       await tx.delete(staffCategories).where(eq(staffCategories.id, id));
       await audit(tx, actor, { action: "org.category_deleted", entityType: "category", entityId: id, summary: `Deleted ${row.name}`, before: row });
     }
   });
+}
+
+/** Something in use may still be deleted, but only with the administrator's two-step verification code. */
+async function confirmOverride(db: Executor, actor: Actor, mfaCode: string | undefined, inUse: string, what: string) {
+  if (!mfaCode?.trim()) throw new DomainError(`${inUse}. To delete it anyway, open it and enter your two-step verification code: they will be left without one until it is set again.`);
+  await confirmWithCode(db, actor, mfaCode, what);
 }
 
 /** Makes someone the HOD or Line Manager of a department, replacing whoever approved for it before. */

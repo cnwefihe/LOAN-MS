@@ -67,10 +67,12 @@ export default async function OrgRecord({ params }: { params: Promise<{ kind: st
       </Card>
       {!isNew && row && (
         <Card className="mt-6 max-w-2xl" title={`Delete ${noun}`}>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <p className="max-w-md text-sm text-muted">Only possible when nothing uses it. Otherwise, make it inactive instead.</p>
-            <ActionForm inline action={deleteOrgAction.bind(null, kind, row.id)} submitLabel="Delete" submitClassName="btn-danger" confirm={`Delete ${row.name}? This cannot be undone.`} />
-          </div>
+          <ActionForm action={deleteOrgAction.bind(null, kind, row.id)} submitLabel={`Delete ${noun}`} submitClassName="btn-danger" confirm={`Delete ${row.name}? This cannot be undone.`}>
+            <p className="mb-3 max-w-xl text-sm text-muted">If nothing uses it, it is deleted at once. If staff records{kind === "school" ? " or departments" : ""} still use it, enter your two-step verification code: they are left without one until it is set again, and the deletion is recorded in the audit log.</p>
+              <label htmlFor="mfaCode" className="label">Two-step verification code</label>
+              <input id="mfaCode" name="mfaCode" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} placeholder="123456" className="input max-w-48 text-center tracking-[0.3em]" />
+              <p className="hint">Needed only when it is still in use.</p>
+          </ActionForm>
         </Card>
       )}
     </>

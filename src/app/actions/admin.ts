@@ -96,9 +96,9 @@ export async function createRoleAction(_: Prev, fd: FormData) {
   }, { revalidate: ["/admin/roles"] });
 }
 
-export async function deleteRoleAction(roleId: string, _: Prev) {
+export async function deleteRoleAction(roleId: string, _: Prev, fd?: FormData) {
   return runAction(async (actor) => {
-    await deleteRole(await getDb(), actor, roleId);
+    await deleteRole(await getDb(), actor, roleId, fd ? str(fd, "mfaCode") : undefined);
     return { redirectTo: "/admin/roles", message: "Role deleted." };
   }, { revalidate: ["/admin/roles"] });
 }
@@ -168,10 +168,10 @@ export async function saveProductTermsAction(productId: string, _: Prev, fd: For
   }, { revalidate: ["/admin/products", "/products"] });
 }
 
-export async function deleteOrgAction(kind: "school" | "department" | "category", id: string, _: Prev) {
+export async function deleteOrgAction(kind: "school" | "department" | "category", id: string, _: Prev, fd?: FormData) {
   return runAction(async (actor) => {
     if (!["school", "department", "category"].includes(kind)) throw new DomainError("Unknown organisation type.");
-    await deleteOrgItem(await getDb(), actor, kind, id);
+    await deleteOrgItem(await getDb(), actor, kind, id, fd ? str(fd, "mfaCode") : undefined);
     const tab = { school: "schools", department: "departments", category: "categories" }[kind];
     return { redirectTo: `/admin/organisation?tab=${tab}`, message: "Deleted." };
   }, { revalidate: ["/admin/organisation"] });

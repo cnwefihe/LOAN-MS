@@ -43,10 +43,13 @@ export default async function ManageRole({ params, searchParams }: { params: Pro
           </Card>
           {!role.isSystem && (
             <Card title="Delete role">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <p className="max-w-md text-sm text-muted">{users ? "Remove this role from every user before deleting it." : "Removes this role. This cannot be undone."}</p>
-                <ActionForm inline action={deleteRoleAction.bind(null, role.id)} submitLabel="Delete role" submitClassName="btn-danger" confirm={`Delete the ${role.name} role?`} />
-              </div>
+              <ActionForm action={deleteRoleAction.bind(null, role.id)} submitLabel="Delete role" submitClassName="btn-danger" confirm={`Delete the ${role.name} role? This cannot be undone.`}>
+                <p className="mb-3 max-w-xl text-sm text-muted">{users ? `${users} active ${users === 1 ? "person holds" : "people hold"} this role. Enter your two-step verification code to delete it; it is taken from them, and the deletion is recorded in the audit log.` : "Removes this role. This cannot be undone."}</p>
+                {users > 0 && <>
+              <label htmlFor="mfaCode" className="label">Two-step verification code</label>
+              <input id="mfaCode" name="mfaCode" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} placeholder="123456" className="input max-w-48 text-center tracking-[0.3em]" />
+              <p className="hint">The current six-digit code from your authenticator app.</p></>}
+              </ActionForm>
             </Card>
           )}
         </div>
