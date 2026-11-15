@@ -149,7 +149,8 @@ export async function respondToGuarantee(db: Executor, actor: Actor, guaranteeId
       const inputs = await guarantorCoverInputs(tx, actor.userId, g.id);
       if (!inputs.payslip || !inputs.payslipId) throw new DomainError("Upload your latest payslip first.");
       const policyForCover = await getPolicyVersion(tx, app.policyVersionId);
-      const cover = guarantorCover(policyForCover.params, { ...inputs, payslip: inputs.payslip });
+      const cover = guarantorCover(policyForCover.params, { ...inputs, payslip: inputs.payslip, asOf: todayLagos() });
+      if (cover.payslip.problems.length) throw new DomainError(cover.payslip.problems.join(" "));
       if (!cover.ok) throw new DomainError(`On your payslip, ${formatNaira(cover.available)} a month is left within the ${cover.payslip.capPercent}% deduction limit, less than your share of ${formatNaira(cover.monthlyShare)} a month. You may decline this request.`);
       if (!GUARANTOR_RELATIONSHIPS.includes(input.relationship as never)) throw new DomainError("State your relationship with the applicant.");
       if (!/^[+\d][\d\s-]{6,20}(\s*[,/]\s*[+\d][\d\s-]{6,20})?$/.test(input.phone.trim())) throw new DomainError("Enter a valid phone number (two may be separated by a comma).");

@@ -138,6 +138,31 @@ export function assessPayslip(p: Payslip, rules: PayslipRules = DEFAULT_PAYSLIP_
   };
 }
 
+/* ───────────────────────── Which month's payslip is accepted ───────────────────────── */
+
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const monthName = (period: string) => `${MONTH_NAMES[Number(period.slice(5, 7)) - 1]} ${period.slice(0, 4)}`;
+/** "YYYY-MM" of the month before. */
+export function previousMonth(period: string): string {
+  const [y, mo] = period.split("-").map(Number);
+  return mo === 1 ? `${y - 1}-12` : `${y}-${String(mo - 1).padStart(2, "0")}`;
+}
+
+/**
+ * Only the latest payslip is accepted: last month's, or this month's once salary has been paid. An older
+ * payslip would leave out deductions that started since, and so overstate what the person can afford.
+ * Returns why the payslip cannot be used on `asOf` (the day they apply or accept), or null when it can.
+ */
+export function payslipMonthProblem(period: string | null, asOf: string): string | null {
+  const current = asOf.slice(0, 7);
+  const last = previousMonth(current);
+  const latest = `${monthName(last)} or ${monthName(current)}`;
+  if (!period) return `The pay month could not be read from this payslip. Please upload your latest payslip (${latest}) as downloaded from SeamlessHR.`;
+  if (period === current || period === last) return null;
+  if (period > current) return `This payslip is for ${monthName(period)}, which has not yet come. Please upload your latest payslip (${latest}).`;
+  return `This is your ${monthName(period)} payslip. Please upload your latest payslip (${latest}), so that every current deduction is counted.`;
+}
+
 /* ───────────────────────── Matching the payslip to the staff record ───────────────────────── */
 
 const words = (s: string) => s.toUpperCase().replace(/[^A-Z\s]/g, " ").split(/\s+/).filter((w) => w.length > 1);

@@ -84,7 +84,14 @@ export async function setRolePermissionsAction(roleId: string, _: Prev, fd: Form
 
 export async function createRoleAction(_: Prev, fd: FormData) {
   return runAction(async (actor) => {
-    const role = await createRole(await getDb(), actor, { name: str(fd, "name", true), description: str(fd, "description"), copyFrom: str(fd, "copyFrom") || undefined });
+    const db = await getDb();
+    const role = await createRole(db, actor, { name: str(fd, "name", true), description: str(fd, "description"), copyFrom: str(fd, "copyFrom") || undefined });
+    // The permissions ticked on the new-role page.
+    if (fd.get("withPermissions")) {
+      const perms = fd.getAll("perm").map(String);
+      if (perms.length) await setRolePermissions(db, actor, role.id, perms);
+      return { redirectTo: `/admin/roles/${role.id}`, message: `Role created with ${perms.length} ${perms.length === 1 ? "permission" : "permissions"}. Grant it to people from Users.` };
+    }
     return { redirectTo: `/admin/roles/${role.id}`, message: "Role created. Choose its permissions." };
   }, { revalidate: ["/admin/roles"] });
 }

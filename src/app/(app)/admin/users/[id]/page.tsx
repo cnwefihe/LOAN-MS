@@ -77,7 +77,7 @@ export default async function ManageUser({ params }: { params: Promise<{ id: str
                 const name = w.role[r].name;
                 return (
                   <tr key={r}>
-                    <Td className="font-medium">{name}</Td>
+                    <Td className="whitespace-normal!"><span className="font-medium">{name}</span>{w.role[r].description && <span className="mt-0.5 block max-w-md text-xs text-muted">{w.role[r].description}</span>}</Td>
                     <Td>{has ? <Badge tone="success">Assigned</Badge> : <span className="text-muted">Not assigned</span>}</Td>
                     <Td right><ActionForm inline action={setUserRoleAction.bind(null, u.id, r, !has)} submitLabel={has ? "Remove" : "Grant"} submitClassName="btn-secondary h-8 text-xs" confirm={has ? `Remove the ${name} role from ${u.displayName}?` : `Give ${u.displayName} the ${name} role?`} /></Td>
                   </tr>

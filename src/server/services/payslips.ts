@@ -7,7 +7,8 @@ import type { Executor } from "@/db";
 import { documents, staffPayslips } from "@/db/schema";
 import { readPayslipPdf, PayslipReadError } from "@/lib/finance/payslip-reader";
 import { renderPayslipPdf } from "@/lib/finance/payslip-pdf";
-import { payslipMismatches, type Payslip } from "@/lib/finance/payslip";
+import { payslipMismatches, payslipMonthProblem, type Payslip } from "@/lib/finance/payslip";
+import { todayLagos } from "@/lib/finance/dates";
 import type { Actor } from "../actor";
 import { audit } from "../audit";
 import { DomainError } from "../errors";
@@ -28,6 +29,9 @@ export async function uploadPayslip(db: Executor, actor: Actor, file: File): Pro
     if (err instanceof PayslipReadError) throw new DomainError(err.message);
     throw err;
   }
+  // Only the latest payslip: last month's, or this month's once salary has been paid.
+  const month = payslipMonthProblem(slip.period, todayLagos());
+  if (month) throw new DomainError(month);
   const rec = await getStaffRecord(db, actor.userId);
   const mismatches = payslipMismatches(slip.employee, payslipIdentity(rec));
   if (mismatches.length) throw new DomainError(`This payslip does not match your profile. ${mismatches.join(" ")} Update your payslip details on My profile so they read exactly as on the payslip, then upload it again.`);

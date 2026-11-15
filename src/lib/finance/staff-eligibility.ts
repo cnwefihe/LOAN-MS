@@ -9,7 +9,7 @@
  */
 import { assessEligibility, type EligibilityResult } from "./calculator";
 import { dec, formatNaira, m } from "./money";
-import { assessPayslip, type Payslip, type PayslipAssessment, type PayslipRules } from "./payslip";
+import { assessPayslip, payslipMonthProblem, type Payslip, type PayslipAssessment, type PayslipRules } from "./payslip";
 import type { AdvanceType, PolicyParameters } from "./policy";
 
 export interface StaffContext {
@@ -74,6 +74,10 @@ function blocked(policy: PolicyParameters, ctx: StaffContext, reasons: string[],
 
 export function assessForStaff(policy: PolicyParameters, ctx: StaffContext, opts: AssessOptions): StaffEligibility {
   if (!ctx.payslip) return blocked(policy, ctx, [NO_PAYSLIP_REASON], null);
+  // The staff member applying must use their latest payslip (last month's or this month's). Reviewers later
+  // assess on the payslip the application was submitted with, whatever the month they review it.
+  const stale = ctx.checkRecord === false && opts.asOf ? payslipMonthProblem(ctx.payslip.period, opts.asOf) : null;
+  if (stale) return blocked(policy, ctx, [stale], null);
   const slip = assessPayslip(ctx.payslip, payslipRules(policy));
   if (slip.problems.length) return blocked(policy, ctx, slip.problems, slip);
   if (policy.productType === "advance") return assessAdvance(policy, ctx, slip, opts);
@@ -131,8 +135,11 @@ function assessAdvance(policy: PolicyParameters, ctx: StaffContext, slip: Paysli
  * guarantor deduction limit (30% of net pay unless the product says otherwise), after the deductions on
  * their own payslip and the other loans they guarantee.
  */
-export function guarantorCover(policy: PolicyParameters, input: { payslip: Payslip; otherGuarantees: string; monthlyShare: string }) {
-  const slip = assessPayslip(input.payslip, { ...payslipRules(policy), capPercent: policy.guarantorMaxDeductionPercent });
+export function guarantorCover(policy: PolicyParameters, input: { payslip: Payslip; otherGuarantees: string; monthlyShare: string; asOf?: string }) {
+  const read = assessPayslip(input.payslip, { ...payslipRules(policy), capPercent: policy.guarantorMaxDeductionPercent });
+  // A guarantor, too, must use their latest payslip (last month's or this month's) on the day they accept.
+  const stale = input.asOf ? payslipMonthProblem(input.payslip.period, input.asOf) : null;
+  const slip = stale ? { ...read, problems: [stale, ...read.problems] } : read;
   const available = dec(slip.room).minus(input.otherGuarantees);
   return {
     payslip: slip, otherGuarantees: m(input.otherGuarantees),

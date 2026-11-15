@@ -6,6 +6,7 @@ import { Alert } from "./ui";
 import { formatNaira } from "@/lib/finance/money";
 import type { Payslip } from "@/lib/finance/payslip";
 import { guarantorCover } from "@/lib/finance/staff-eligibility";
+import { todayLagos } from "@/lib/finance/dates";
 import type { PolicyParameters } from "@/lib/finance/policy";
 import type { ActionResult } from "@/server/action-result";
 import { PayslipBreakdown } from "./payslip-breakdown";
@@ -31,7 +32,7 @@ export function GuarantorAccept({ action, policy, cover, payslipOnFile, applican
   name: string;
   details: string;
 }) {
-  const check = cover.payslip ? guarantorCover(policy, { payslip: cover.payslip, otherGuarantees: cover.otherGuarantees, monthlyShare: cover.monthlyShare }) : null;
+  const check = cover.payslip ? guarantorCover(policy, { payslip: cover.payslip, otherGuarantees: cover.otherGuarantees, monthlyShare: cover.monthlyShare, asOf: todayLagos() }) : null;
 
   return (
     <div className="space-y-5">
