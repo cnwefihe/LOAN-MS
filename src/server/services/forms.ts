@@ -9,7 +9,7 @@ import type { EligibilityResult } from "@/lib/finance/calculator";
 import { formatNaira } from "@/lib/finance/money";
 import { addMonths, firstDueDate, formatDate, todayLagos } from "@/lib/finance/dates";
 import { humanise } from "@/lib/text";
-import type { Actor } from "../actor";
+import { canSeePay, type Actor } from "../actor";
 import { audit } from "../audit";
 import { PdfBuilder } from "../pdf";
 import { ForbiddenError } from "../errors";
@@ -76,7 +76,7 @@ export async function applicationFormPdf(db: Executor, actor: Actor, application
   pdf.heading(w.stage.hr);
   pdf.keyValues(hr ? [
     ["Loan status of employee", `${humanise(p?.employmentStatus ?? "not recorded")}, ${hr.v.serviceMonths ?? 0} months' service`],
-    ["Verified monthly gross / net", `${N(hr.v.verifiedMonthlyGross)} / ${N(hr.v.verifiedMonthlyNet)}`],
+    ["Verified monthly gross / net", canSeePay(actor) || d.access.isApplicant ? `${N(hr.v.verifiedMonthlyGross)} / ${N(hr.v.verifiedMonthlyNet)}` : "Seen by Human Resources and the Bursary only"],
     ["Outcome", humanise(hr.v.outcome)], ["Verified by", hr.officerName], ["Date", formatDate(hr.v.createdAt)], ["Notes", hr.v.dueDiligenceNotes],
   ] : [["Status", `Awaiting ${w.stage.hr.toLowerCase()}`]]);
 

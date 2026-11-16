@@ -2,7 +2,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Executor } from "@/db";
 import { getDb } from "@/db";
 import { users, roles, userRoles, rolePermissions, permissions, staffProfiles } from "@/db/schema";
-import type { Permission, RoleCode } from "@/lib/auth/permissions";
+import { withImplied, type Permission, type RoleCode } from "@/lib/auth/permissions";
 import type { Actor } from "../actor";
 import { audit } from "../audit";
 import { DomainError } from "../errors";
@@ -30,7 +30,8 @@ export async function loadActor(db: Executor, userId: string, ctx: { ip?: string
     email: u.email,
     displayName: u.displayName,
     roles: roleRows.map((r) => r.code as RoleCode),
-    permissions: new Set(permRows.map((p) => p.code as Permission)),
+    // Each permission brings the access it needs to be used (see IMPLIED_PERMISSIONS).
+    permissions: withImplied(permRows.map((p) => p.code as Permission)),
     ip: ctx.ip ?? null,
     userAgent: ctx.userAgent ?? null,
   };
@@ -136,7 +137,7 @@ export async function provisionEntraUser(identity: EntraIdentity): Promise<strin
 /** Find or create a placeholder user for a colleague nominated by email who has not yet signed in. */
 export async function findOrCreateStaffByEmail(db: Executor, email: string, actor: Actor, name?: string): Promise<typeof users.$inferSelect> {
   const normalized = email.trim().toLowerCase();
-  if (!isInstitutionalEmail(normalized)) throw new DomainError(`${email} is not an institutional email address.`);
+  if (!isInstitutionalEmail(normalized)) throw new DomainError(`${email} is not a work email address.`);
   const [existing] = await db.select().from(users).where(sql`lower(${users.email}) = ${normalized}`);
   if (existing) return existing;
   const local = normalized.split("@")[0];

@@ -7,7 +7,7 @@ import { ActionForm } from "@/components/action-form";
 import { Switch } from "@/components/switch";
 import { Badge, Card, PageHeader, Tabs } from "@/components/ui";
 import { deleteRoleAction, setRolePermissionsAction, updateRoleDetailsAction } from "@/app/actions/admin";
-import { PERMISSION_CATEGORIES, PERMISSIONS, type Permission } from "@/lib/auth/permissions";
+import { PERMISSION_CATEGORIES, PERMISSIONS, IMPLIED_PERMISSIONS, type Permission } from "@/lib/auth/permissions";
 
 export const metadata = { title: "Manage role" };
 
@@ -62,7 +62,7 @@ export default async function ManageRole({ params, searchParams }: { params: Pro
                 const list = permissions.filter((p) => p.category === c);
                 const n = granted(list);
                 return (
-                  <details key={c} open={n > 0} className="group">
+                  <details key={c} className="group">
                     <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-3 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
                       <ChevronRight aria-hidden className="h-4 w-4 text-muted transition-transform group-open:rotate-90" />
                       <span className="text-sm font-semibold text-ink">{c}</span>
@@ -73,7 +73,7 @@ export default async function ManageRole({ params, searchParams }: { params: Pro
                         return (
                           <label key={p.id} className="flex cursor-pointer items-center gap-3 rounded-md py-1.5 text-sm">
                             <Switch name="perm" value={p.code} defaultChecked={grants.has(`${role.id}:${p.id}`)} />
-                            <span>{PERMISSIONS[p.code as Permission]?.description ?? p.description}</span>
+                            <span>{PERMISSIONS[p.code as Permission]?.description ?? p.description}{IMPLIED_PERMISSIONS[p.code as Permission] && <span className="block text-xs text-muted">Includes: {IMPLIED_PERMISSIONS[p.code as Permission]!.map((c) => PERMISSIONS[c].description).join("; ")}</span>}</span>
                           </label>
                         );
                       })}

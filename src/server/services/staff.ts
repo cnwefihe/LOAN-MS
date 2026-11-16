@@ -188,9 +188,10 @@ export async function hrUpdateStaffRecord(db: Executor, actor: Actor, userId: st
       employmentVerifiedBy: actor.userId, employmentVerifiedAt: new Date(), updatedAt: new Date(),
       ...(salaryChanged ? { salarySource: "hr_verified" as const, salaryVerifiedBy: actor.userId, salaryVerifiedAt: new Date() } : {}),
     };
-    // Payslip details entered by HR are confirmed by HR.
-    const detailsChanged = (["staffNumber", "payGrade", "payslipName"] as const).some((k) => input[k] !== undefined && (input[k] ?? null) !== (before?.[k] ?? null));
-    if (detailsChanged && patch.staffNumber !== null && patch.payGrade !== null) Object.assign(patch, { payslipDetailsConfirmedBy: actor.userId, payslipDetailsConfirmedAt: new Date() });
+    // Saving the record confirms the payslip details (name, employee code, pay grade) as checked by Human Resources.
+    const staffNumber = input.staffNumber !== undefined ? input.staffNumber : before?.staffNumber;
+    const payGrade = input.payGrade !== undefined ? input.payGrade : before?.payGrade;
+    if (staffNumber && payGrade) Object.assign(patch, { payslipDetailsConfirmedBy: actor.userId, payslipDetailsConfirmedAt: new Date() });
     if (patch.monthlyNet && patch.monthlyGross && Number(patch.monthlyNet) > Number(patch.monthlyGross)) throw new DomainError("Net salary cannot exceed gross salary.");
     await tx.insert(staffProfiles).values({ userId, ...patch }).onConflictDoUpdate({ target: staffProfiles.userId, set: patch });
     await audit(tx, actor, { action: "staff.record_updated", entityType: "staff_profile", entityId: userId, before, after: patch, summary: note });

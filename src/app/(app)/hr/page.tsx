@@ -25,11 +25,12 @@ export default async function HrDashboard() {
   return (
     <>
       <PageHeader title="Overview" description="Employment, salary and guarantor checks." actions={<Link href="/hr/applications" className="btn-primary">Open verification queue</Link>} />
+      {/* Only the stage Human Resources works on links to its queue; the others are for information. */}
       <StatGrid>
-        <Stat label="Awaiting guarantors" value={Number(counts.awaitingGuarantors)} href="/hr/applications?status=pending_guarantor" />
+        <Stat label="Awaiting guarantors" value={Number(counts.awaitingGuarantors)} hint="Before Human Resources" />
         <Stat label="Awaiting verification" value={Number(counts.pendingHr)} tone="warning" href="/hr/applications?status=pending_hr" />
-        <Stat label="Returned to applicants" value={Number(counts.returned)} href="/hr/applications?status=returned" />
-        <Stat label="With the Bursary" value={Number(counts.forwarded)} tone="brand" href="/hr/applications?status=pending_bursary" />
+        <Stat label="Returned to applicants" value={Number(counts.returned)} hint="For the applicant to correct" />
+        <Stat label="With the Bursary" value={Number(counts.forwarded)} tone="brand" hint="After Human Resources" />
       </StatGrid>
       <div className="grid gap-6 xl:grid-cols-3">
         <Card title="Next in queue" className="xl:col-span-2" bodyClassName="p-5 pt-0"><QueueTable rows={queue} hrefBase="/hr/applications" empty="No applications awaiting verification." /></Card>

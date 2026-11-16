@@ -60,7 +60,7 @@ describe("calculator explained", () => {
     const ctx: StaffContext = { payslip, serviceMonths: 36, employmentStatus: "confirmed", guaranteeCommitment: "10000.00", openCount: 0, oneLoanAtATime: true };
     const r = assessForStaff(policy, ctx, {});
     expect(r.monthlyDeductionCap).toBe("99900.00");
-    expect(r.availableMonthlyCapacity).toBe("89900.00"); // less 10,000 set aside for the loan guaranteed
+    expect(r.availableMonthlyCapacity).toBe("64900.00"); // less 25,000 cafeteria (always counted) and 10,000 set aside for the loan guaranteed
     const busy = assessForStaff(policy, { ...ctx, openCount: 1 }, {});
     expect(busy.eligible).toBe(false);
     expect(busy.reasons[0]).toBe(ONE_LOAN_REASON);
@@ -71,7 +71,7 @@ describe("calculator explained", () => {
     const ctx: StaffContext = { payslip: slip([]), serviceMonths: 36, employmentStatus: "confirmed", guaranteeCommitment: "0.00", openCount: 0, oneLoanAtATime: true };
     const free = assessForStaff(policy, ctx, {});
     const owing = assessForStaff(policy, { ...ctx, payslip: slip([{ label: "Cooperative Loan", amount: "30000" }, { label: "Cafeteria", amount: "1200" }]) }, {});
-    expect(free.availableMonthlyCapacity).toBe("99900.00");
+    expect(free.availableMonthlyCapacity).toBe("74900.00"); // cafeteria is counted every month, even when not on the payslip
     expect(owing.availableMonthlyCapacity).toBe("44900.00"); // 99,900 less 30,000 cooperative and 25,000 cafeteria
     expect(dec(owing.maxEligibleAmount).lessThan(free.maxEligibleAmount)).toBe(true);
     // Deductions above the limit leave nothing to borrow, and say why.

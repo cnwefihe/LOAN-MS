@@ -252,6 +252,13 @@ export function Field({ label, htmlFor, hint, children, className }: { label: st
 export const MENU_ACTION = "block w-full px-3 py-2 text-left text-sm text-ink hover:bg-slate-100 focus:bg-slate-100 focus:outline-none";
 export const MENU_FORM = "[&>div]:flex [&>div]:w-full";
 
+/**
+ * The side column of a two-column page. On wide screens it stays in view while the main column scrolls, and
+ * scrolls by itself when taller than the window, so neither column is left with an empty stretch.
+ */
+export const SIDE_COLUMN = "space-y-6 xl:sticky xl:top-0 xl:-m-1 xl:max-h-[calc(100dvh-7rem)] xl:self-start xl:overflow-y-auto xl:p-1";
+export const SIDE_COLUMN_LG = "space-y-6 lg:sticky lg:top-0 lg:-m-1 lg:max-h-[calc(100dvh-7rem)] lg:self-start lg:overflow-y-auto lg:p-1";
+
 export function Tabs({ tabs, active, base }: { tabs: { key: string; label: string; count?: number }[]; active: string; base: string }) {
   return (
     <nav aria-label="Sections" className="relative mb-5 flex gap-1 overflow-x-auto border-b border-line">

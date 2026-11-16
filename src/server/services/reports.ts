@@ -246,7 +246,7 @@ export async function collectionsRegister(db: Executor, actor: Actor, p: ReportP
  * plus any instalments from earlier months that are already past due and unpaid, from the current schedule.
  */
 export async function payrollDeductionSchedule(db: Executor, actor: Actor, month: string) {
-  if (!canAny(actor, "reports.view", "accounts.view")) throw new ForbiddenError();
+  if (!canAny(actor, "reports.view", "accounts.view", "repayment.confirm")) throw new ForbiddenError();
   const start = `${month}-01`;
   const end = addMonths(start, 1);
   const today = todayLagos();
@@ -273,7 +273,7 @@ export async function payrollDeductionSchedule(db: Executor, actor: Actor, month
 
 /** Deductions that staff marked as taken from their salary in a month, and what Accounts did about each. */
 export async function repaymentClaimsForMonth(db: Executor, actor: Actor, month: string) {
-  if (!canAny(actor, "reports.view", "accounts.view")) throw new ForbiddenError();
+  if (!canAny(actor, "reports.view", "accounts.view", "repayment.confirm")) throw new ForbiddenError();
   const reviewer = alias(users, "reviewer");
   const rows = await db.select({
     staffNumber: staffProfiles.staffNumber, borrower: users.displayName, department: departments.name, reference: loanAccounts.accountNumber,

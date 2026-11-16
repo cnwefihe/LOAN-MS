@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { canSeePay } from "@/server/actor";
 import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/db";
 import { requireActor } from "@/lib/auth/session";
@@ -10,7 +11,7 @@ import { approvalStageName, getWording } from "@/server/wording";
 import { ADVANCE_TYPES } from "@/lib/finance/policy";
 import { departmentHeadOf } from "@/server/services/staff";
 import { ActionForm } from "@/components/action-form";
-import { Alert, Card, KeyValues, Money, PageHeader, StatusBadge, DateText } from "@/components/ui";
+import { Alert, Card, KeyValues, Money, PageHeader, StatusBadge, DateText, SIDE_COLUMN_LG } from "@/components/ui";
 import { LifecycleTracker } from "@/components/lifecycle";
 import { FormDownloads } from "@/components/form-downloads";
 import { DocumentList, GuarantorTable, MessageThread, QuoteSummary, UploadForm, WorkflowHistory } from "@/components/panels";
@@ -71,7 +72,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
             <KeyValues columns={3} items={[
               ["Product", d.app.advanceType ? `${d.product.name} (against ${ADVANCE_TYPES[d.app.advanceType].toLowerCase()})` : d.product.name], ["Amount requested", <Money key="a" value={app.requestedAmount} />], ["Tenor", `${monthsText(app.tenorMonths)}`],
               ...(d.access.isStaff ? [["Policy version", `v${d.policy.version}`] as [string, React.ReactNode]] : []), ["Salary basis used", (app.salarySnapshot as { source?: string }).source?.replace("_", " ")], ["Approval stage", app.status === "pending_approval" ? approvalStageName(w, app.currentApprovalLevel || 1, (await departmentHeadOf(db, app.applicantId))?.approverTitle) : "N/A"],
-              ["Cooperative loan", app.cooperativeMonthlyDeduction ? <span key="c"><Money value={app.cooperativeMonthlyDeduction} /> a month{app.cooperativeBalance && <>, <Money value={app.cooperativeBalance} /> outstanding</>}</span> : "None declared"],
+              ...(d.access.isApplicant || canSeePay(actor) ? [["Cooperative loan", app.cooperativeMonthlyDeduction ? <span key="c"><Money value={app.cooperativeMonthlyDeduction} /> a month{app.cooperativeBalance && <>, <Money value={app.cooperativeBalance} /> outstanding</>}</span> : "None declared"] as [string, React.ReactNode]] : []),
             ]} />
             <p className="mt-4 text-xs text-muted">Purpose</p>
             <p className="text-sm">{app.purpose}</p>
@@ -121,7 +122,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
           )}
         </div>
 
-        <div className="space-y-6">
+        <div className={SIDE_COLUMN_LG}>
           <Card title="Messages">
             <MessageThread messages={d.messages} />
             {(d.access.isApplicant || d.access.isGuarantor) && !["approved", "declined", "cancelled"].includes(app.status) && (

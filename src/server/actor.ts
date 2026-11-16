@@ -32,3 +32,12 @@ export function assertCan(actor: Actor, permission: Permission): void {
 export function roleFor(actor: Actor, preferred: RoleCode[]): string {
   return preferred.find((r) => actor.roles.includes(r)) ?? actor.roles[0] ?? "UNKNOWN";
 }
+
+/**
+ * Who may see a person's pay: salary figures, deductions and payslips. Human Resources, the Bursary, Payroll and
+ * those who see every document (the HR Director and the Bursar). A Head of Department or Line Manager approving
+ * an application sees the request and the eligible amount, not the pay behind it.
+ */
+export function canSeePay(actor: Actor): boolean {
+  return canAny(actor, "hr.queue.view", "hr.staff.view", "accounts.view", "payroll.view", "documents.view_all");
+}

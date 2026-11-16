@@ -23,7 +23,7 @@ export default async function MyApplications({ searchParams }: { searchParams: P
     <>
       <PageHeader title="My applications" description="Track each request from submission to decision."
         crumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "My applications" }]}
-        actions={<Link href="/applications/new" className="btn-primary">New application</Link>} />
+        actions={rows.length ? <Link href="/applications/new" className="btn-primary">New application</Link> : undefined} />
 
       {rows.length === 0 && (
         <Card><EmptyState title="No applications yet" action={<Link href="/applications/new" className="btn-primary">Start an application</Link>} /></Card>

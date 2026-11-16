@@ -9,7 +9,7 @@ import { listDocumentsFor } from "@/server/services/documents";
 import { can } from "@/server/actor";
 import type { EligibilityResult } from "@/lib/finance/calculator";
 import { ActionForm } from "@/components/action-form";
-import { Alert, Badge, Card, PageHeader, StatusBadge, Money, KeyValues, DateText } from "@/components/ui";
+import { Alert, Badge, Card, PageHeader, StatusBadge, Money, KeyValues, DateText, SIDE_COLUMN } from "@/components/ui";
 import { FundPoolCard } from "@/components/fund-pool";
 import { LifecycleTracker } from "@/components/lifecycle";
 import { PayslipBreakdown } from "@/components/payslip-breakdown";
@@ -119,7 +119,7 @@ export default async function BursaryReview({ params }: { params: Promise<{ id: 
             </Card>
           )}
         </div>
-        <div className="space-y-6">
+        <div className={SIDE_COLUMN}>
           <Card title={`Previous ${words.stage.bursary.toLowerCase()} decisions`}>
             {w.reviews.length === 0 ? <p className="text-sm text-muted">None yet.</p> : (
               <ul className="space-y-3 text-sm">{w.reviews.map(({ r, reviewer }) => (

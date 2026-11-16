@@ -68,7 +68,7 @@ export async function saveGuarantorEntry(db: Executor, actor: Actor, input: Guar
   const email = input.email.trim().toLowerCase();
   const cadre = clean(input.cadre ?? "") || "Managerial";
   if (name.length < 3) throw new DomainError("Enter the guarantor's full name.");
-  if (!isInstitutionalEmail(email)) throw new DomainError(`${email || "The email"} is not a university email address.`);
+  if (!isInstitutionalEmail(email)) throw new DomainError(`${email || "The email"} is not a work email address.`);
   return db.transaction(async (tx) => {
     const [clash] = await tx.select({ id: guarantorPool.id }).from(guarantorPool).where(sql`lower(${guarantorPool.email}) = ${email}`);
     if (clash && clash.id !== input.id) throw new DomainError(`${email} is already on the list.`);

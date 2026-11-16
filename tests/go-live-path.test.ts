@@ -24,6 +24,7 @@ import { decideApplication } from "@/server/services/approvals";
 import { recordDisbursement, submitRepaymentClaim, confirmRepaymentClaim } from "@/server/services/loans";
 import { accountBalances, currentSchedule } from "@/server/services/ledger";
 import { listDocumentsFor, readDocument } from "@/server/services/documents";
+import { canSeePay } from "@/server/actor";
 import { todayLagos } from "@/lib/finance/dates";
 
 let db: Database;
@@ -85,6 +86,12 @@ describe("go-live path: payslip only, every role, every notification", () => {
     expect(await codes("bisi.lawal.dev@example.edu.ng")).toEqual(both); // Bursar
     expect(await codes(SEUN)).toEqual(["PAYSLIP"]); // the borrower: their own only
     expect(await codes("tunde.bello.dev@example.edu.ng")).toEqual(["GUARANTOR_PAYSLIP"]); // a guarantor: their own only
+    // The Head of Department approves, but does not see pay: neither payslip is open to them.
+    const hod = await actor("funmi.adebayo.dev@example.edu.ng");
+    expect(canSeePay(hod)).toBe(false);
+    expect(canSeePay(await actor("kunle.adeyemi.dev@example.edu.ng"))).toBe(true);
+    expect((await listDocumentsFor(db, hod, { applicationId: appId })).map((d) => d.requirementCode)).not.toEqual(expect.arrayContaining(["PAYSLIP"]));
+    expect((await listDocumentsFor(db, hod, { applicationId: appId })).some((d) => d.requirementCode?.includes("PAYSLIP"))).toBe(false);
     const hr = await actor("kunle.adeyemi.dev@example.edu.ng");
     const docs = await listDocumentsFor(db, hr, { applicationId: appId });
     for (const d of docs.filter((x) => x.requirementCode?.includes("PAYSLIP"))) {

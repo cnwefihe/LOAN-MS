@@ -17,7 +17,7 @@ export const metadata = { title: "Disbursements" };
 
 export default async function Disbursements({ searchParams }: { searchParams: Promise<{ page?: string; size?: string; awaitingPage?: string; awaitingPageSize?: string }> }) {
   const sp = await searchParams;
-  const actor = await requireActor("accounts.view");
+  const actor = await requireActor("accounts.view", "disbursement.record");
   const db = await getDb();
   const awaiting = await db.select({ loan: loanAccounts, borrower: users.displayName, profile: staffProfiles }).from(loanAccounts)
     .innerJoin(users, eq(users.id, loanAccounts.borrowerId)).leftJoin(staffProfiles, eq(staffProfiles.userId, loanAccounts.borrowerId))
@@ -45,10 +45,9 @@ export default async function Disbursements({ searchParams }: { searchParams: Pr
                       <p className="text-sm font-medium"><Link className="link" href={`/accounts/loans/${loan.id}`}>{loan.accountNumber}</Link> · {borrower}</p>
                       <p className="text-xs text-muted">Approved <DateText value={loan.approvedAt} /> · amount to pay <Money value={loan.principal} className="font-semibold text-ink" /></p>
                     </div>
-                    {profile?.bankAccountLast4 ? <Badge>{profile.bankName} ••••{profile.bankAccountLast4}</Badge> : <Badge tone="danger">No bank details</Badge>}
+                    {profile?.bankAccountLast4 ? <Badge>{profile.bankName} ••••{profile.bankAccountLast4}</Badge> : <Badge>Salary account</Badge>}
                   </div>
-                  {!profile?.bankAccountLast4 ? <div className="mt-3"><Alert tone="warning">The borrower must add bank details to their profile before the loan can be paid out.</Alert></div>
-                    : can(actor, "disbursement.record") && loan.borrowerId !== actor.userId && (
+                  {can(actor, "disbursement.record") && loan.borrowerId !== actor.userId && (
                       <details className="mt-3">
                         <summary className="cursor-pointer text-sm font-medium text-brand">Enter payment details</summary>
                         <ActionForm action={recordDisbursementAction.bind(null, loan.id, randomToken(16))} submitLabel="Record payment" encType="multipart/form-data">

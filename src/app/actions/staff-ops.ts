@@ -33,7 +33,7 @@ export async function hrDecisionAction(applicationId: string, guaranteeIds: stri
     await recordHrDecision(await getDb(), actor, applicationId, {
       outcome,
       employmentVerified: bool(fd, "employmentVerified"), salaryVerified: bool(fd, "salaryVerified"),
-      staffStatusVerified: bool(fd, "staffStatusVerified"), departmentVerified: bool(fd, "departmentVerified"),
+      staffStatusVerified: bool(fd, "staffStatusVerified"), departmentVerified: bool(fd, "departmentVerified"), detailsVerifiedFor: fd.getAll("detailsVerified").map(String),
       employmentStatus: employmentStatus(fd), employmentDate: str(fd, "employmentDate") || null,
       notes: str(fd, "notes"),
       guarantorAssessments: guaranteeIds.filter((id) => str(fd, `g_${id}`)).map((id) => ({ guaranteeId: id, outcome: str(fd, `g_${id}`) as "capable", notes: str(fd, `gn_${id}`) })),

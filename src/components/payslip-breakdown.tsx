@@ -40,7 +40,7 @@ export function PayslipBreakdown({ a, period, guarantees, instalment, who = "you
     { label: `Deduction limit (${a.capPercent}% of net pay)`, amount: a.limit, tone: "total" },
     ...a.commitments.map((c): Row => ({
       label: c.label, amount: c.counted, tone: "less",
-      note: c.kind === "cafeteria" ? `${N(c.shown)} used; ${N(c.counted)} is counted` : undefined,
+      note: c.kind === "cafeteria" ? (Number(c.shown) > 0 ? `${N(c.shown)} used; ${N(c.counted)} is counted` : `Not on this payslip; ${N(c.counted)} is counted every month`) : undefined,
     })),
     ...(guaranteed ? [{ label: "your share of loans you guarantee", amount: guaranteed, tone: "less" } as Row] : []),
     { label: "Maximum monthly instalment", amount: available, tone: "key", note: "Principal + interest" },

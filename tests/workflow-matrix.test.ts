@@ -56,9 +56,9 @@ const PDF = Buffer.from("%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF");
 let productId: string;
 
 const CASES = [
-  { key: "small", name: "Bola Ade", amount: "500000", tenor: 6, salary: ["300000", "450000", "400000"] },
+  { key: "small", name: "Bola Ade", amount: "500000", tenor: 6, salary: ["380000", "540000", "480000"] },
   { key: "medium", name: "Chika Nwafor", amount: "1500000", tenor: 12, salary: ["600000", "900000", "750000"] },
-  { key: "large", name: "Dayo Martins", amount: "3300000", tenor: 12, salary: ["1000000", "1500000", "1200000"] },
+  { key: "large", name: "Dayo Martins", amount: "3300000", tenor: 12, salary: ["1050000", "1560000", "1250000"] },
   { key: "declined", name: "Efe Okoro", amount: "2000000", tenor: 12, salary: ["700000", "1000000", "850000"] },
 ] as const;
 type Case = (typeof CASES)[number];

@@ -159,7 +159,8 @@ export async function recordDisbursement(db: Executor, actor: Actor, loanId: str
     await assertFundsFor(tx, { amount: loan.principal, isAdvance: !!app?.advanceType, stage: "payout", year: Number(input.paymentDate.slice(0, 4)) });
     const [profile] = await tx.select().from(staffProfiles).where(eq(staffProfiles.userId, loan.borrowerId));
     const [borrower] = await tx.select().from(users).where(eq(users.id, loan.borrowerId));
-    if (!profile?.bankAccountLast4 || !profile.bankName) throw new DomainError("The borrower has not provided bank details. Ask them to update their profile before disbursement.");
+    // With no other account on the profile, the loan is paid into the staff member's salary account.
+    const salaryAccount = !profile?.bankAccountLast4 || !profile.bankName;
 
     let evidenceId: string | null = null;
     if (input.evidence) {
@@ -169,7 +170,7 @@ export async function recordDisbursement(db: Executor, actor: Actor, loanId: str
     const [d] = await tx.insert(disbursements).values({
       loanAccountId: loan.id, approvedAmount: loan.principal, feesDeducted: "0.00", amountDisbursed: m(input.amountDisbursed),
       paymentDate: input.paymentDate, paymentMethod: input.paymentMethod, transactionReference: ref,
-      beneficiaryName: profile.bankAccountName ?? borrower.displayName, beneficiaryBank: profile.bankName, beneficiaryAccountLast4: profile.bankAccountLast4,
+      beneficiaryName: (!salaryAccount && profile?.bankAccountName) || borrower.displayName, beneficiaryBank: salaryAccount ? "Salary account" : profile!.bankName, beneficiaryAccountLast4: salaryAccount ? null : profile!.bankAccountLast4,
       evidenceDocumentId: evidenceId, notes: input.notes?.trim() || null, recordedBy: actor.userId, idempotencyKey: input.idempotencyKey,
     }).returning();
     await audit(tx, actor, { action: "disbursement.recorded", entityType: "disbursement", entityId: d.id, summary: `${loan.accountNumber}: ${naira(d.amountDisbursed)} ref ${ref}` });
@@ -226,7 +227,7 @@ async function postDisbursement(db: Executor, actor: Actor, disbursementId: stri
     { label: "First repayment due", value: formatDate(first) }, { label: instalmentLabel(loan.repaymentPeriodMonths), value: naira(loan.monthlyInstalment) },
   ], [], "Key facts");
   pdf.keyValues([
-    ["Beneficiary", `${d.beneficiaryName}, ${d.beneficiaryBank} ****${d.beneficiaryAccountLast4}`], ["Borrower", borrower.displayName],
+    ["Beneficiary", `${d.beneficiaryName}, ${d.beneficiaryBank}${d.beneficiaryAccountLast4 ? ` ****${d.beneficiaryAccountLast4}` : ""}`], ["Borrower", borrower.displayName],
     ["Approved amount", naira(d.approvedAmount)], ["Amount disbursed", naira(d.amountDisbursed)],
     ["Payment date", formatDate(d.paymentDate)], ["Payment method", d.paymentMethod.replace("_", " ")], ["Bank reference", d.transactionReference],
     ["First repayment due", formatDate(first)], [instalmentLabel(loan.repaymentPeriodMonths), naira(loan.monthlyInstalment)], ["Final repayment due", formatDate(lines.at(-1)!.dueDate)],

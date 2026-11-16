@@ -50,9 +50,10 @@ describe("payslip affordability", () => {
     expect(q.monthlyInstalment).toBe("51070.50");
   });
 
-  it("without NHF, cooperative or cafeteria the whole 33.3% is available", () => {
+  it("counts cafeteria at the fixed amount even when it is not on the payslip; NHF only where deducted", () => {
     const a = assessPayslip(slip({ deductions: [{ label: "PAYE", amount: "30000.00" }, { label: "Pension", amount: "24000.00" }], totals: { gross: null, deductions: null, net: null } }));
-    expect(a).toMatchObject({ netPay: "296000.00", limit: "98568.00", committed: "0.00", room: "98568.00" });
+    expect(a).toMatchObject({ netPay: "296000.00", limit: "98568.00", committed: "25000.00", room: "73568.00" });
+    expect(a.commitments).toEqual([{ label: "Cafeteria", kind: "cafeteria", shown: "0.00", counted: "25000.00" }]);
   });
 
   it("other deductions count; leave allowance and 13th month do not", () => {

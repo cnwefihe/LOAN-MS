@@ -8,11 +8,11 @@ import { listDocumentsFor } from "@/server/services/documents";
 import { canDecideAt } from "@/server/services/approvals";
 import { departmentHeadOf } from "@/server/services/staff";
 import { APPROVAL_LEVEL } from "@/server/workflow";
-import { can } from "@/server/actor";
+import { can, canSeePay } from "@/server/actor";
 import type { EligibilityResult } from "@/lib/finance/calculator";
 import { dec } from "@/lib/finance/money";
 import { ActionForm } from "@/components/action-form";
-import { Alert, Card, PageHeader, StatusBadge, Money, KeyValues, DateText } from "@/components/ui";
+import { Alert, Card, PageHeader, StatusBadge, Money, KeyValues, DateText, SIDE_COLUMN } from "@/components/ui";
 import { LifecycleTracker } from "@/components/lifecycle";
 import { FormDownloads } from "@/components/form-downloads";
 import { DocumentList, GuarantorTable, MessageThread, QuoteSummary, UploadForm, WorkflowHistory } from "@/components/panels";
@@ -38,6 +38,7 @@ export default async function ApprovalReview({ params }: { params: Promise<{ id:
   const canDecide = !conflicted && (await canDecideAt(db, actor, d.app));
   const isBursar = level === APPROVAL_LEVEL.BURSAR;
   const p = d.policy.params;
+  const pay = canSeePay(actor) || d.access.isApplicant;
   const w = await getWording(db);
   const title = (await departmentHeadOf(db, d.app.applicantId))?.approverTitle;
   const stage = approvalStageName(w, level, title);
@@ -82,22 +83,21 @@ export default async function ApprovalReview({ params }: { params: Promise<{ id:
             <Card title={w.stage.hr} actions={<StatusBadge status="verified" />}>
               <KeyValues columns={3} items={[
                 ["Verified by", d.hr[0].officerName], ["Date", <DateText key="d" value={hr.createdAt} withTime />], ["Service", `${monthsText(hr.serviceMonths)}`],
-                ["Verified net salary", <Money key="n" value={hr.verifiedMonthlyNet} />], ["Eligible amount (verified)", <Money key="e" value={hr.recomputedEligibleAmount} />], ["Existing monthly obligations", <Money key="o" value={hr.existingObligations} />],
+                ...(pay ? [["Verified net salary", <Money key="n" value={hr.verifiedMonthlyNet} />]] as [string, React.ReactNode][] : []), ["Eligible amount (verified)", <Money key="e" value={hr.recomputedEligibleAmount} />], ...(pay ? [["Existing monthly obligations", <Money key="o" value={hr.existingObligations} />]] as [string, React.ReactNode][] : []),
               ]} />
               <p className="mt-4 text-xs text-muted">Due-diligence notes</p><p className="text-sm">{hr.dueDiligenceNotes}</p>
             </Card>
           )}
           <Card title="Request and quote">
             <QuoteSummary quote={quote} />
-            <p className="mt-4 text-xs text-muted">Cooperative loan</p>
-            <p className="text-sm">{d.app.cooperativeMonthlyDeduction ? <><Money value={d.app.cooperativeMonthlyDeduction} /> a month{d.app.cooperativeBalance && <>, <Money value={d.app.cooperativeBalance} /> outstanding</>}</> : "None declared"}</p>
+            {pay && <><p className="mt-4 text-xs text-muted">Cooperative loan</p>
+            <p className="text-sm">{d.app.cooperativeMonthlyDeduction ? <><Money value={d.app.cooperativeMonthlyDeduction} /> a month{d.app.cooperativeBalance && <>, <Money value={d.app.cooperativeBalance} /> outstanding</>}</> : "None declared"}</p></>}
             <p className="mt-4 text-xs text-muted">Purpose</p><p className="text-sm">{d.app.purpose}</p>
           </Card>
-          <Card title="Guarantors"><GuarantorTable guarantors={d.guarantors.filter((g) => g.g.status === "accepted")} assessments={d.assessments} /></Card>
-          <ApplicantRecord d={d} ctx={ctx} />
+          <ApplicantRecord d={d} ctx={ctx} assessments={d.assessments} showPay={pay} />
           {d.loan && <Alert tone="success" title={`Loan account ${d.loan.accountNumber} opened`}>Status: {d.loan.status.replace("_", " ")}. The Accounts Payable Officer will pay it out.</Alert>}
         </div>
-        <div className="space-y-6">
+        <div className={SIDE_COLUMN}>
           <Card title="Documents">
             <DocumentList docs={docs} />
             {can(actor, "approval.decide") && !conflicted && (

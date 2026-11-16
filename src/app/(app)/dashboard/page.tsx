@@ -78,7 +78,8 @@ export default async function Dashboard() {
   return (
     <>
       <PageHeader title={overview ? "Overview" : `Welcome, ${greetName}`} description={subtitle}
-        actions={<><Link href="/eligibility" className="btn-secondary h-8 px-3 text-xs">Check eligibility</Link><Link href="/applications/new" className="btn-primary h-8 px-3 text-xs">New application</Link></>} />
+        actions={<><Link href="/eligibility" className="btn-secondary h-8 px-3 text-xs">Check eligibility</Link>{/* With no applications yet, the Recent applications card offers this instead. */}
+          {(apps.length > 0 || compact) && <Link href="/applications/new" className="btn-primary h-8 px-3 text-xs">New application</Link>}</>} />
 
       {pool && <FundPoolCard pos={pool} manage={actor.permissions.has("fund.manage")} />}
       {overview && <ApprovalOverview db={db} actor={actor} aside={notices}><OverviewHeading>My loans</OverviewHeading>{myStats}</ApprovalOverview>}

@@ -8,14 +8,15 @@ import { can } from "@/server/actor";
 import type { EligibilityResult } from "@/lib/finance/calculator";
 import { EMPLOYMENT_STATUSES } from "@/lib/finance/policy";
 import { ActionForm } from "@/components/action-form";
-import { Alert, Card, PageHeader, StatusBadge, Money, KeyValues, DateText, Badge } from "@/components/ui";
+import { Alert, Card, PageHeader, StatusBadge, Money, KeyValues, DateText, Badge, SIDE_COLUMN, Table, Th, Td } from "@/components/ui";
 import { LifecycleTracker } from "@/components/lifecycle";
 import { FormDownloads } from "@/components/form-downloads";
 import { DocumentList, GuarantorTable, MessageThread, QuoteSummary, UploadForm, WorkflowHistory } from "@/components/panels";
 import { ApplicantRecord, loadReviewContext } from "@/components/review-context";
 import { hrDecisionAction, hrUploadAction } from "@/app/actions/staff-ops";
 import { postMessageAction } from "@/app/actions/applicant";
-import { PayslipDetails } from "@/components/payslip-details";
+import { payslipDetailsBadge } from "@/components/payslip-details";
+import { payslipDetailsConfirmed } from "@/server/services/staff";
 import { monthsText } from "@/lib/finance/dates";
 
 export const metadata = { title: "Human Resources review" };
@@ -31,6 +32,11 @@ export default async function HrReview({ params }: { params: Promise<{ id: strin
   const quote = d.app.quote as unknown as EligibilityResult;
   const p = d.applicant.profile;
   const current = await computeEligibilityFor(db, d.app.applicantId, d.policy.params, { requestedAmount: d.app.requestedAmount, tenorMonths: d.app.tenorMonths, excludeApplicationId: id, ...assessedWith(d.app) }).catch(() => null);
+  const people = [
+    { userId: d.app.applicantId, role: "Applicant", displayName: d.applicant.user.displayName, profile: p, confirmable: true },
+    ...ctx.guarantors.map((g) => ({ userId: g.g.guarantorId, role: "Guarantor", displayName: g.user.displayName, profile: g.rec.profile, confirmable: g.g.status === "accepted" })),
+  ];
+  const applicantPerson = people[0];
   const canDecide = can(actor, "hr.verify") && d.app.status === "pending_hr" && d.app.applicantId !== actor.userId && !ctx.guarantors.some((g) => g.g.guarantorId === actor.userId);
   const guaranteeIds = ctx.guarantors.map((g) => g.g.id);
 
@@ -58,42 +64,41 @@ export default async function HrReview({ params }: { params: Promise<{ id: strin
               <KeyValues columns={3} items={[["Maximum eligible", <Money key="m" value={current.maxEligibleAmount} />], ["Available each month (33.3% limit)", <Money key="c" value={current.availableMonthlyCapacity} />], ["Monthly repayment requested", <Money key="i" value={current.quote?.monthlyInstalment} />]]} />
             </Card>
           )}
-          <ApplicantRecord d={d} ctx={ctx} />
-          <Card title="Payslip details" description="Entered by each person from their payslip. Confirm they match the personnel record before verifying.">
-            <div className="space-y-5">
-              <PayslipDetails who={`Applicant: ${d.applicant.user.displayName}`} userId={d.app.applicantId} displayName={d.applicant.user.displayName} profile={p} canConfirm={canDecide} back={`/hr/applications/${id}`} />
-              {ctx.guarantors.map((g) => <PayslipDetails key={g.g.id} who={`Guarantor: ${g.user.displayName}`} userId={g.g.guarantorId} displayName={g.user.displayName} profile={g.rec.profile} canConfirm={canDecide} back={`/hr/applications/${id}`} />)}
-            </div>
-          </Card>
-          <Card title="Guarantor responses"><GuarantorTable guarantors={d.guarantors} assessments={d.assessments} /></Card>
+          <ApplicantRecord d={d} ctx={ctx} assessments={d.assessments} />
 
           {canDecide && (
             <Card title="Record due diligence" description="Your verification updates the Human Resources record and is logged.">
               <ActionForm action={hrDecisionAction.bind(null, id, guaranteeIds)} submitLabel="Record decision" confirm="Record this Human Resources decision?">
-                <fieldset className="grid gap-4 sm:grid-cols-2">
-                  <legend className="mb-2 text-sm font-semibold text-navy">Employment</legend>
-                  <div><label htmlFor="employmentStatus" className="label">Employment status</label>
-                    <select id="employmentStatus" name="employmentStatus" defaultValue={p?.employmentStatus ?? ""} className="input"><option value="">Keep unchanged</option>{EMPLOYMENT_STATUSES.map((s) => <option key={s} value={s}>{s.replace("_", " ")}</option>)}</select></div>
-                  <div><label htmlFor="employmentDate" className="label">Employment date</label><input id="employmentDate" name="employmentDate" type="date" defaultValue={p?.employmentDate ?? ""} className="input" /></div>
+                <fieldset className="rounded-md border border-line p-4">
+                  <legend className="px-1 text-sm font-semibold text-navy">Applicant: {d.applicant.user.displayName}</legend>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div><label htmlFor="employmentStatus" className="label">Employment status</label>
+                      <select id="employmentStatus" name="employmentStatus" defaultValue={p?.employmentStatus ?? ""} className="input"><option value="">Keep unchanged</option>{EMPLOYMENT_STATUSES.map((s) => <option key={s} value={s}>{s.replace("_", " ")}</option>)}</select></div>
+                    <div><label htmlFor="employmentDate" className="label">Employment date</label><input id="employmentDate" name="employmentDate" type="date" defaultValue={p?.employmentDate ?? ""} className="input" /></div>
+                  </div>
+                  <div className="mt-4 grid gap-2">
+                    {[["employmentVerified","Employment confirmed against the personnel file"],["salaryVerified","Payslip figures confirmed against payroll"],["staffStatusVerified","Staff status confirmed (active, not on notice or suspension)"],["departmentVerified","Department and designation confirmed"]].map(([n, l]) => (
+                      <label key={n} className="flex gap-2 text-sm"><input type="checkbox" name={n} className="mt-1" /> {l}</label>
+                    ))}
+                    <label className="flex gap-2 text-sm"><input type="checkbox" name="detailsVerified" value={applicantPerson.userId} defaultChecked={payslipDetailsConfirmed(applicantPerson.profile)} className="mt-1" /> Payslip details ({applicantPerson.profile?.payslipName ?? applicantPerson.displayName}, {applicantPerson.profile?.staffNumber ?? "no employee code"}, {applicantPerson.profile?.payGrade ?? "no pay grade"}) match the personnel record</label>
+                  </div>
                 </fieldset>
-                <fieldset className="mt-5 grid gap-2 sm:grid-cols-2">
-                  <legend className="mb-2 text-sm font-semibold text-navy">Checks</legend>
-                  {[["employmentVerified", "Employment confirmed against personnel file"], ["salaryVerified", "Payslip figures confirmed against payroll"], ["staffStatusVerified", "Staff status (active, not on notice/suspension) confirmed"], ["departmentVerified", "Department and designation confirmed"]].map(([n, l]) => (
-                    <label key={n} className="flex gap-2 text-sm"><input type="checkbox" name={n} className="mt-1" /> {l}</label>
-                  ))}
-                </fieldset>
-                {ctx.guarantors.length > 0 && (
-                  <fieldset className="mt-5 space-y-3">
-                    <legend className="mb-2 text-sm font-semibold text-navy">Guarantor assessment</legend>
-                    {ctx.guarantors.map((g) => (
-                      <div key={g.g.id} className="grid gap-3 rounded-md border border-line p-3 sm:grid-cols-3">
-                        <div className="text-sm"><p className="font-medium">{g.user.displayName}</p><p className="text-xs text-muted">Exposure <Money value={g.exp.total} /> · net <Money value={g.rec.profile?.monthlyNet} /></p></div>
-                        <div><label htmlFor={`g_${g.g.id}`} className="label">Outcome</label><select id={`g_${g.g.id}`} name={`g_${g.g.id}`} className="input" defaultValue=""><option value="">Not assessed</option><option value="capable">Capable</option><option value="not_capable">Not capable</option><option value="needs_review">Needs review</option></select></div>
+                {ctx.guarantors.length > 0 && !can(actor, "hr.guarantor.assess") && (
+                  <p className="mt-5 text-sm text-muted">Assessing the guarantors needs the &quot;Assess guarantor eligibility and capacity&quot; permission, which you do not have. You can still return or decline the application.</p>
+                )}
+                {can(actor, "hr.guarantor.assess") && ctx.guarantors.map((g) => {
+                  const person = people.find((x) => x.userId === g.g.guarantorId)!;
+                  return (
+                    <fieldset key={g.g.id} className="mt-4 rounded-md border border-line p-4">
+                      <legend className="px-1 text-sm font-semibold text-navy">Guarantor: {g.user.displayName}</legend>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div><label htmlFor={`g_${g.g.id}`} className="label">Can cover their share</label><select id={`g_${g.g.id}`} name={`g_${g.g.id}`} className="input" defaultValue=""><option value="">Not assessed</option><option value="capable">Capable</option><option value="not_capable">Not capable</option><option value="needs_review">Needs review</option></select></div>
                         <div><label htmlFor={`gn_${g.g.id}`} className="label">Notes</label><input id={`gn_${g.g.id}`} name={`gn_${g.g.id}`} className="input" /></div>
                       </div>
-                    ))}
-                  </fieldset>
-                )}
+                      {person.confirmable && <div className="mt-3"><label className="flex gap-2 text-sm"><input type="checkbox" name="detailsVerified" value={person.userId} defaultChecked={payslipDetailsConfirmed(person.profile)} className="mt-1" /> Payslip details ({person.profile?.payslipName ?? person.displayName}, {person.profile?.staffNumber ?? "no employee code"}, {person.profile?.payGrade ?? "no pay grade"}) match the personnel record</label></div>}
+                    </fieldset>
+                  );
+                })}
                 <div className="mt-5"><label htmlFor="notes" className="label">Due-diligence notes / comments to applicant</label><textarea id="notes" name="notes" rows={4} required minLength={10} className="input" /></div>
                 <fieldset className="mt-4">
                   <legend className="label">Outcome</legend>
@@ -108,7 +113,7 @@ export default async function HrReview({ params }: { params: Promise<{ id: strin
           )}
         </div>
 
-        <div className="space-y-6">
+        <div className={SIDE_COLUMN}>
           <Card title="Documents">
             <DocumentList docs={docs} />
             {can(actor, "hr.verify") && <div className="mt-4 border-t border-line pt-4"><UploadForm action={hrUploadAction.bind(null, id)} defaultTitle="Employment verification" /></div>}

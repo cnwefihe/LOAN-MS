@@ -21,7 +21,7 @@ export default async function AddGuarantors({ searchParams }: { searchParams: Pr
           </ActionForm>
         </Card>
       ) : (
-        <Card title="Add many at once" className="max-w-3xl" description="One person per line: full name, then university email. A name already on the list is updated.">
+        <Card title="Add many at once" className="max-w-3xl" description="One person per line: full name, then work email. A name already on the list is updated.">
           <ActionForm action={importGuarantorsAction} submitLabel="Add to the list" resetOnSuccess confirm="Add these people to the list of guarantors?">
             <label htmlFor="lines" className="label">Names and emails</label>
             <textarea id="lines" name="lines" rows={10} required className="input font-mono text-xs" placeholder={"Ada Obi, ada.obi@example.edu.ng\nTunde Bello, tunde.bello@example.edu.ng"} />

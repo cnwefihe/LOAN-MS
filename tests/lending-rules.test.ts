@@ -114,7 +114,7 @@ describe("lending rules", () => {
     newer.deductions.push({ label: "Cooperative Contribution", amount: "40000.00" });
     await recordSamplePayslip(db, await A("guarantor2"), ids.guarantor2, newer);
     const owing = await computeEligibilityFor(db, ids.guarantor2, policy, {});
-    expect(owing.payslip?.committed).toBe("40000.00");
+    expect(owing.payslip?.committed).toBe("65000.00"); // 40,000 cooperative and 25,000 cafeteria (always counted)
     expect(dec(free.availableMonthlyCapacity).minus(owing.availableMonthlyCapacity).toFixed(2)).toBe("40000.00");
     expect(dec(owing.maxEligibleAmount).lessThan(free.maxEligibleAmount)).toBe(true);
   });

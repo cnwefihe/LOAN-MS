@@ -5,6 +5,7 @@ import { users, auditLogs, policyVersions, departments, financialTransactions, l
 import { requireActor } from "@/lib/auth/session";
 import { can } from "@/server/actor";
 import { connectionStatus } from "@/server/integrations/status";
+import { linkIf } from "@/lib/route-access";
 import { AlertTriangle, CheckCircle2, ClipboardCheck, FileText, Wallet, type LucideIcon } from "lucide-react";
 import { Card, Money, PageHeader, DateText, Badge } from "@/components/ui";
 import { getSetting } from "@/server/settings";
@@ -24,16 +25,20 @@ const described = (action: string) => {
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
 
-function Kpi({ icon: Icon, label, value, hint, href, warn }: { icon: LucideIcon; label: string; value: React.ReactNode; hint: React.ReactNode; href: string; warn?: boolean }) {
+/** A headline figure; it links to the page behind it only for someone who may open that page. */
+function Kpi({ icon: Icon, label, value, hint, href, warn }: { icon: LucideIcon; label: string; value: React.ReactNode; hint: React.ReactNode; href?: string; warn?: boolean }) {
+  const Box = ({ children }: { children: React.ReactNode }) => href
+    ? <Link href={href} className="card flex items-center gap-4 p-4 transition-colors hover:border-brand">{children}</Link>
+    : <div className="card flex items-center gap-4 p-4">{children}</div>;
   return (
-    <Link href={href} className="card flex items-center gap-4 p-4 transition-colors hover:border-brand">
+    <Box>
       <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-lg ${warn ? "bg-warning-50 text-warning-ink" : "bg-brand-50 text-brand"}`}><Icon aria-hidden className="h-5 w-5" /></span>
       <span className="min-w-0">
         <span className="block truncate text-sm text-muted">{label}</span>
         <span className="tabular block text-2xl font-semibold leading-tight text-ink">{value}</span>
         <span className="block truncate text-xs text-muted">{hint}</span>
       </span>
-    </Link>
+    </Box>
   );
 }
 
@@ -97,18 +102,22 @@ export default async function AdminHome() {
     { label: `Automatic check, every ${durationText(checkEvery)}`, value: autoRunning ? "Running" : "Not running", ok: autoRunning },
     { label: "Connections", value: `${ready} of ${connections.length}`, href: "/admin/connections", ok: ready === connections.length },
   ];
+  const go = (href: string | undefined) => linkIf(actor.permissions, href);
+  const reviewItems = toReview.map((i) => ({ ...i, href: go(i.href) }));
+  const stageItems = stages.map((x) => ({ ...x, href: go(x.href) }));
+  const systemItems = system.map((s) => ({ ...s, href: go(s.href) }));
   return (
     <>
       <PageHeader title="Control centre" description="What is happening across the system." />
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi icon={Wallet} label="Outstanding balance" value={<Money value={summary.loans.outstanding} />} hint={`${summary.loans.activeCount} active loans`} href="/accounts/loans" />
-        <Kpi icon={FileText} label="Applications in progress" value={inProgress} hint="Across all stages" href="/reports" />
-        <Kpi icon={AlertTriangle} label="Overdue or defaulted" value={overdue.length} hint={<Money value={m(dec(summary.loans.overdueAmount).plus(summary.loans.defaultedAmount))} />} href="/accounts/loans?status=overdue" warn={overdue.length > 0} />
-        <Kpi icon={ClipboardCheck} label="Repayments to confirm" value={Number(claims.n)} hint="Reported by staff" href="/accounts/repayments" />
+        <Kpi icon={Wallet} label="Outstanding balance" value={<Money value={summary.loans.outstanding} />} hint={`${summary.loans.activeCount} active loans`} href={go("/accounts/loans")} />
+        <Kpi icon={FileText} label="Applications in progress" value={inProgress} hint="Across all stages" href={go("/reports")} />
+        <Kpi icon={AlertTriangle} label="Overdue or defaulted" value={overdue.length} hint={<Money value={m(dec(summary.loans.overdueAmount).plus(summary.loans.defaultedAmount))} />} href={go("/accounts/loans?status=overdue")} warn={overdue.length > 0} />
+        <Kpi icon={ClipboardCheck} label="Repayments to confirm" value={Number(claims.n)} hint="Reported by staff" href={go("/accounts/repayments")} />
       </div>
       <Card title="Application progress" className="mb-6">
         <ol className="grid grid-cols-2 gap-y-5 sm:grid-cols-3 xl:grid-cols-6">
-          {stages.map((x, i) => {
+          {stageItems.map((x, i) => {
             const step = <>
               <span className={`tabular relative z-10 mx-auto grid h-11 w-11 place-items-center rounded-full text-base font-semibold ring-4 ring-white ${x.n ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}>{x.n}</span>
               <span className="mt-2 block text-sm text-muted">{x.label}</span>
@@ -122,8 +131,8 @@ export default async function AdminHome() {
           })}
         </ol>
       </Card>
-      <div className="grid items-start gap-6 xl:grid-cols-3">
-        <Card title="Recent activity" actions={<Link href="/admin/audit" className="link text-sm">View all</Link>} className="min-w-0 xl:col-span-2" bodyClassName="p-0!">
+      <div className="grid gap-6 xl:grid-cols-3">
+        <Card title="Recent activity" actions={go("/admin/audit") && <Link href="/admin/audit" className="link text-sm">View all</Link>} className="min-w-0 xl:col-span-2" bodyClassName="p-0!">
           {recent.length ? (
             <ul className="divide-y divide-line">
               {recent.map(({ log, actorName }) => (
@@ -138,14 +147,13 @@ export default async function AdminHome() {
         </Card>
         <div className="space-y-6">
           <Card title="To review" bodyClassName="p-0!">
-            {toReview.length ? (
+            {reviewItems.length ? (
               <ul className="divide-y divide-line">
-                {toReview.map((i) => (
+                {reviewItems.map((i) => (
                   <li key={i.label}>
-                    <Link href={i.href} className="flex items-center justify-between gap-3 px-5 py-2.5 text-sm hover:bg-slate-50">
-                      <span>{i.label}</span>
-                      <Badge tone="warning">{i.n}</Badge>
-                    </Link>
+                    {i.href
+                      ? <Link href={i.href} className="flex items-center justify-between gap-3 px-5 py-2.5 text-sm hover:bg-slate-50"><span>{i.label}</span><Badge tone="warning">{i.n}</Badge></Link>
+                      : <div className="flex items-center justify-between gap-3 px-5 py-2.5 text-sm"><span>{i.label}</span><Badge tone="warning">{i.n}</Badge></div>}
                   </li>
                 ))}
               </ul>
@@ -153,7 +161,7 @@ export default async function AdminHome() {
           </Card>
           <Card title="System health" bodyClassName="p-0!">
             <ul className="divide-y divide-line">
-              {system.map((s) => (
+              {systemItems.map((s) => (
                 <li key={s.label}>
                   {(() => {
                     const row = <>{dot(s.ok)}<span className="text-muted">{s.label}</span><span className="tabular ml-auto font-medium text-ink">{s.value}</span></>;

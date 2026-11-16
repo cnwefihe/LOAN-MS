@@ -34,7 +34,7 @@ export function ApplicationForm({ products, initial, applicationId, applicant, d
             <KeyValues columns={3} items={[
               ["Name", applicant.name], ["Email", applicant.email], ["Staff number", applicant.staffNumber ?? "Not recorded"],
               ["School", applicant.school ?? "Not recorded"], ["Designation", applicant.designation ?? "Not recorded"], ["Pay grade", applicant.payGrade ?? "Not recorded"],
-              ["Employment status", applicant.employmentStatus?.replace("_", " ") ?? "Not recorded"], ["Length of service", `${monthsText(applicant.serviceMonths)}`], ["Salary account", applicant.bank ?? "Not provided"],
+              ["Employment status", applicant.employmentStatus?.replace("_", " ") ?? "Not recorded"], ["Length of service", `${monthsText(applicant.serviceMonths)}`], ["Paid into", applicant.bank ?? "Salary account"],
             ]} />
           </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-3">

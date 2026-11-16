@@ -24,7 +24,7 @@ function Variance({ reported, due }: { reported: string; due: string | undefined
 }
 
 export default async function Repayments({ searchParams }: { searchParams: Promise<{ month?: string; page?: string; size?: string; duePage?: string; duePageSize?: string; donePage?: string; donePageSize?: string }> }) {
-  const actor = await requireActor("accounts.view");
+  const actor = await requireActor("accounts.view", "repayment.confirm");
   const sp = await searchParams;
   const today = todayLagos();
   const month = /^\d{4}-\d{2}$/.test(sp.month ?? "") && sp.month! <= today.slice(0, 7) ? sp.month! : today.slice(0, 7);

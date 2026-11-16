@@ -33,9 +33,9 @@ export const PERMISSIONS = {
   "repayment.confirm": { category: "Payroll", description: "Confirm the first salary deduction on each loan and record repayments" },
   "payroll.view": { category: "Payroll", description: "See salary deductions, repayments and early repayment requests" },
   "settlement.confirm": { category: "Payroll", description: "Close a loan repaid in full early (needs a two-step verification code)" },
-  "fund.view": { category: "Bursary", description: "See the fund pool for staff loans and what is left of it" },
-  "fund.manage": { category: "Bursary", description: "Set the fund pool for staff loans each year" },
-  "finance.overview": { category: "Bursary", description: "See the overview of lending, repayments and the fund pool" },
+  "fund.view": { category: "Finance", description: "See the fund pool for staff loans and what is left of it" },
+  "fund.manage": { category: "Finance", description: "Set the fund pool for staff loans each year" },
+  "finance.overview": { category: "Finance", description: "See the overview of lending, repayments and the fund pool" },
   "transaction.adjust": { category: "Bursary", description: "Propose adjustments and refunds" },
   "transaction.approve": { category: "Bursary", description: "Approve or reject pending financial transactions (checker)" },
   "transaction.reverse": { category: "Bursary", description: "Propose reversals of posted transactions" },
@@ -57,10 +57,48 @@ export const PERMISSIONS = {
 } as const;
 
 /** Display order: the workflow first, then reporting and administration. */
-export const PERMISSION_CATEGORIES = ["Self-service", "Guarantor", "Human Resources", "Bursary", "Payroll", "Approval", "Documents", "Reporting", "Administration"];
+export const PERMISSION_CATEGORIES = ["Self-service", "Guarantor", "Human Resources", "Bursary", "Payroll", "Finance", "Approval", "Documents", "Reporting", "Administration"];
 
 export type Permission = keyof typeof PERMISSIONS;
 export const ALL_PERMISSIONS = Object.keys(PERMISSIONS) as Permission[];
+
+/**
+ * The access each permission needs in order to be used: granting a permission also grants these, so a
+ * permission always works on its own (for example, approving restructuring opens the loan accounts it is
+ * done from). Applied when a person's permissions are loaded, so every page, menu and action agrees.
+ */
+export const IMPLIED_PERMISSIONS: Partial<Record<Permission, Permission[]>> = {
+  "profile.edit_own": ["profile.view_own"],
+  "application.create": ["application.view_own"],
+  "repayment.claim": ["loan.view_own"],
+  "restructure.request": ["loan.view_own"],
+  "guarantee.respond": ["guarantee.view_own"],
+  "hr.verify": ["hr.queue.view"],
+  "hr.guarantor.assess": ["hr.queue.view"],
+  "hr.staff.edit": ["hr.staff.view"],
+  "approval.hr_director": ["approval.queue.view"],
+  "approval.decide": ["approval.queue.view"],
+  "bursary.review": ["accounts.view"],
+  "disbursement.record": ["accounts.view"],
+  "transaction.adjust": ["accounts.view"],
+  "transaction.approve": ["accounts.view"],
+  "transaction.reverse": ["accounts.view"],
+  "restructure.approve": ["accounts.view"],
+  "servicing.run": ["accounts.view"],
+  "repayment.confirm": ["payroll.view"],
+  "settlement.confirm": ["payroll.view"],
+  "fund.manage": ["fund.view"],
+  "finance.overview": ["fund.view"],
+  "reports.export": ["reports.view"],
+};
+
+/** A set of permissions with everything they need added (see IMPLIED_PERMISSIONS). */
+export function withImplied(granted: Iterable<Permission>): Set<Permission> {
+  const out = new Set(granted);
+  const queue = [...out];
+  while (queue.length) for (const n of IMPLIED_PERMISSIONS[queue.pop()!] ?? []) if (!out.has(n)) { out.add(n); queue.push(n); }
+  return out;
+}
 
 /** In workflow order: HR, Bursary Officer, (Line Manager), HR Director, Bursar, Accounts Payable, then repayment and oversight. */
 export const ROLE_CODES = [

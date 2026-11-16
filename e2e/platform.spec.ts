@@ -109,6 +109,7 @@ test.describe.serial("application lifecycle through the UI", () => {
     await signIn(page, "Kunle Adeyemi");
     await page.goto(`/hr${appPath}`);
     for (const n of ["employmentVerified", "salaryVerified", "staffStatusVerified", "departmentVerified"]) await page.locator(`input[name="${n}"]`).check();
+    for (const box of await page.locator('input[name="detailsVerified"]').all()) await box.check(); // each person's payslip details
     for (const sel of await page.locator('select[name^="g_"]').all()) await sel.selectOption("capable");
     await page.getByLabel(/Due-diligence notes/).fill("Employment and salary confirmed against payroll; guarantors capable.");
     await page.locator('input[name="outcome"][value="verified"]').check();

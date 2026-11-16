@@ -43,7 +43,7 @@ describe("list of eligible guarantors", () => {
     const admin = await actor("admin");
     await saveGuarantorEntry(db, admin, { name: "Grace  Okon", email: "Grace.Okon@example.edu.ng" });
     await expect(saveGuarantorEntry(db, admin, { name: "Grace Okon", email: "grace.okon@example.edu.ng" })).rejects.toThrow(/already on the list/);
-    await expect(saveGuarantorEntry(db, admin, { name: "Someone Else", email: "someone@gmail.com" })).rejects.toThrow(/not a university email/);
+    await expect(saveGuarantorEntry(db, admin, { name: "Someone Else", email: "someone@gmail.com" })).rejects.toThrow(/not a work email/);
     await expect(saveGuarantorEntry(db, await actor("applicant"), { name: "Ada Obi", email: "ada.obi@example.edu.ng" })).rejects.toThrow();
 
     const r = await importGuarantors(db, admin, "Name, Email\nAda Obi, ada.obi@example.edu.ng\nGrace Okon-Bassey\tgrace.okon@example.edu.ng\nno email here");

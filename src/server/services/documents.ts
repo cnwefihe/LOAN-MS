@@ -5,7 +5,7 @@ import { sha256Hex, randomToken } from "@/lib/security/crypto";
 import { storage } from "../storage";
 import { getSetting } from "../settings";
 import { audit } from "../audit";
-import { can, type Actor } from "../actor";
+import { can, type Actor, canSeePay } from "../actor";
 import { DomainError, ForbiddenError } from "../errors";
 import { departmentHeadOf } from "./staff";
 
@@ -112,7 +112,7 @@ export async function canAccessDocument(db: Executor, actor: Actor, doc: typeof 
   const [app] = await db.select({ applicantId: loanApplications.applicantId }).from(loanApplications).where(eq(loanApplications.id, applicationId));
   if (app?.applicantId === actor.userId) return true;
   // The applicant's Line Manager sees what other approvers see.
-  if (app && (await departmentHeadOf(db, app.applicantId))?.headUserId === actor.userId) return true;
+  if (app && (await departmentHeadOf(db, app.applicantId))?.headUserId === actor.userId) return doc.requirementCode !== "PAYSLIP" || canSeePay(actor);
 
   // Guarantors may see the applicant's supporting documents and the loan agreement; guarantor documents only if their own.
   const [g] = await db.select({ id: applicationGuarantors.id }).from(applicationGuarantors).where(and(

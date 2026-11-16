@@ -2,7 +2,7 @@ import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import type { Executor } from "@/db";
 import { loanApplications, applicationGuarantors, guarantorAssessments, hrVerifications, users, loanProducts, staffProfiles, departments, applicationMessages } from "@/db/schema";
 import { dec, m, formatNaira } from "@/lib/finance/money";
-import { assertCan, type Actor } from "../actor";
+import { assertCan, can, type Actor } from "../actor";
 import { audit } from "../audit";
 import { notify } from "../notifications";
 import { transition } from "../workflow";
@@ -41,6 +41,10 @@ export interface HrDecisionInput {
   salaryVerified: boolean;
   staffStatusVerified: boolean;
   departmentVerified: boolean;
+  /** Everyone's payslip details (name, employee code, pay grade) match the personnel record: verifying confirms them. */
+  detailsVerified?: boolean;
+  /** The people (applicant, guarantors) whose payslip details Human Resources ticked as matching: verifying confirms them. */
+  detailsVerifiedFor?: string[];
   employmentStatus?: (typeof staffProfiles.$inferInsert)["employmentStatus"];
   employmentDate?: string | null;
   monthlyBasic?: string;
@@ -83,6 +87,10 @@ export async function recordHrDecision(db: Executor, actor: Actor, applicationId
 
     // Guarantor assessments (one per live guarantee).
     const guarantees = await tx.select().from(applicationGuarantors).where(and(eq(applicationGuarantors.applicationId, app.id), inArray(applicationGuarantors.status, [...LIVE_GUARANTEE_STATUSES])));
+    // Assessing guarantors is its own permission; verifying an application with guarantors needs it.
+    if (guarantees.length && (input.outcome === "verified" || input.guarantorAssessments.length) && !can(actor, "hr.guarantor.assess")) {
+      throw new DomainError("Assessing guarantors needs the 'Assess guarantor eligibility and capacity' permission. Ask an administrator, or leave the application for a colleague who has it.");
+    }
     for (const g of guarantees) {
       const a = input.guarantorAssessments.find((x) => x.guaranteeId === g.id);
       if (!a) {
@@ -102,7 +110,14 @@ export async function recordHrDecision(db: Executor, actor: Actor, applicationId
       if (input.guarantorAssessments.some((a) => a.outcome !== "capable")) throw new DomainError("All guarantors must be assessed as capable to forward the application. Return it so the applicant can nominate a replacement.");
       const people = [app.applicantId, ...guarantees.filter((g) => g.status === "accepted").map((g) => g.guarantorId)];
       const details = await tx.select({ userId: staffProfiles.userId, d: staffProfiles }).from(staffProfiles).where(inArray(staffProfiles.userId, people));
-      if (people.some((u) => !payslipDetailsConfirmed(details.find((r) => r.userId === u)?.d))) throw new DomainError("Confirm the payslip details (name, employee code and pay grade) of the applicant and each guarantor before verifying.");
+      const ticked = input.detailsVerified ? people : people.filter((u) => input.detailsVerifiedFor?.includes(u));
+      const blank = ticked.filter((u) => { const d = details.find((r) => r.userId === u)?.d; return !d?.staffNumber || !d.payGrade; });
+      if (blank.length) throw new DomainError(`${blank.includes(app.applicantId) ? "The applicant has" : "A guarantor has"} not entered their payslip details (employee code and pay grade) on My profile.`);
+      if (ticked.length) await tx.update(staffProfiles).set({ payslipDetailsConfirmedBy: actor.userId, payslipDetailsConfirmedAt: new Date() }).where(inArray(staffProfiles.userId, ticked));
+      const unconfirmed = people.filter((u) => !ticked.includes(u) && !payslipDetailsConfirmed(details.find((r) => r.userId === u)?.d));
+      if (unconfirmed.length) {
+        throw new DomainError(`Confirm the payslip details (name, employee code and pay grade) of ${unconfirmed.includes(app.applicantId) ? "the applicant" : "each guarantor"} before verifying: tick each person under "Payslip details match the personnel record".`);
+      }
     }
 
     await tx.insert(hrVerifications).values({

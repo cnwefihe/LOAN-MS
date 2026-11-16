@@ -14,7 +14,7 @@ export const metadata = { title: "Pending authorisations" };
 
 export default async function CheckerQueue({ searchParams }: { searchParams: Promise<{ page?: string; size?: string }> }) {
   const sp = await searchParams;
-  const actor = await requireActor("accounts.view");
+  const actor = await requireActor("accounts.view", "transaction.approve");
   const db = await getDb();
   const rows = await db.select({ t: financialTransactions, acct: loanAccounts.accountNumber, borrowerId: loanAccounts.borrowerId, maker: users.displayName }).from(financialTransactions)
     .innerJoin(loanAccounts, eq(loanAccounts.id, financialTransactions.loanAccountId)).innerJoin(users, eq(users.id, financialTransactions.makerId))

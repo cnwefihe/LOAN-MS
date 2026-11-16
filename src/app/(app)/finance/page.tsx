@@ -2,6 +2,9 @@ import { getDb } from "@/db";
 import { requireActor } from "@/lib/auth/session";
 import { can } from "@/server/actor";
 import { financeOverview } from "@/server/services/finance";
+import { currentYear, fundPosition } from "@/server/services/funds";
+import { fundPools } from "@/db/schema";
+import { desc } from "drizzle-orm";
 import { setFundPoolAction } from "@/app/actions/payroll";
 import { ActionForm } from "@/components/action-form";
 import { FundPoolCard } from "@/components/fund-pool";
@@ -9,15 +12,23 @@ import { Card, DateText, Money, PageHeader, Stat, StatGrid, Table, Td, Th } from
 
 export const metadata = { title: "Finance overview" };
 
-/** The Head of Account's overview: the fund pool, lending and repayments, and who is holding what. */
+/**
+ * The Head of Account's overview: the fund pool, lending and repayments, and who is holding what. Opens for
+ * anyone who may see the overview or set the fund pool; each part shows only to those allowed to see it.
+ */
 export default async function Finance() {
-  const actor = await requireActor("finance.overview");
+  const actor = await requireActor("finance.overview", "fund.manage");
   const db = await getDb();
-  const f = await financeOverview(db, actor);
+  const overview = can(actor, "finance.overview");
+  const f = overview ? await financeOverview(db, actor) : null;
+  const year = f?.year ?? currentYear();
+  const pool = f?.pool ?? await fundPosition(db, year);
+  const pools = f?.pools ?? await db.select().from(fundPools).orderBy(desc(fundPools.year)).limit(6);
   return (
     <>
-      <PageHeader title="Finance overview" description="The fund pool, lending and repayments, and the work waiting at each stage." />
-      <FundPoolCard pos={f.pool} />
+      <PageHeader title={overview ? "Finance overview" : "Fund pool"} description={overview ? "The fund pool, lending and repayments, and the work waiting at each stage." : "The money set aside for staff loans each year."} />
+      <FundPoolCard pos={pool} />
+      {f && <>
       <StatGrid>
         <Stat label="Loans being repaid" value={f.book.live} hint={<><Money value={f.book.outstanding} /> outstanding</>} tone="brand" />
         <Stat label={`Repaid in ${f.year}`} value={<Money value={f.repaid.total} />} hint={`${f.repaid.count} repayments · ${f.book.closedThisYear} loans closed`} tone="success" />
@@ -44,15 +55,16 @@ export default async function Finance() {
           </tbody>
         </Table>
       </Card>
+      </>}
 
       {can(actor, "fund.manage") && (
         <div id="pool" className="grid gap-6 lg:grid-cols-2">
           <Card title="Set the fund pool" description="The money set aside for staff loans in the year. Loans paid out that year reduce it; repayments do not add back to it.">
             <ActionForm action={setFundPoolAction} submitLabel="Save">
               <div className="grid gap-4 sm:grid-cols-2">
-                <div><label htmlFor="year" className="label">Year</label><input id="year" name="year" type="number" min={2000} max={2100} required defaultValue={f.year} className="input" /></div>
-                <div><label htmlFor="amount" className="label">Amount (₦)</label><input id="amount" name="amount" inputMode="decimal" required defaultValue={f.pool.set ? f.pool.amount : ""} className="input" /></div>
-                <div className="sm:col-span-2"><label htmlFor="note" className="label">Note (optional)</label><input id="note" name="note" maxLength={300} defaultValue={f.pool.note ?? ""} className="input" /></div>
+                <div><label htmlFor="year" className="label">Year</label><input id="year" name="year" type="number" min={2000} max={2100} required defaultValue={year} className="input" /></div>
+                <div><label htmlFor="amount" className="label">Amount (₦)</label><input id="amount" name="amount" inputMode="decimal" required defaultValue={pool.set ? pool.amount : ""} className="input" /></div>
+                <div className="sm:col-span-2"><label htmlFor="note" className="label">Note (optional)</label><input id="note" name="note" maxLength={300} defaultValue={pool.note ?? ""} className="input" /></div>
               </div>
             </ActionForm>
           </Card>
@@ -60,8 +72,8 @@ export default async function Finance() {
             <Table caption="Pools by year">
               <thead><tr><Th>Year</Th><Th right>Pool</Th><Th>Last changed</Th></tr></thead>
               <tbody>
-                {f.pools.map((p) => <tr key={p.id}><Td>{p.year}</Td><Td right><Money value={p.amount} /></Td><Td><DateText value={p.updatedAt} /></Td></tr>)}
-                {!f.pools.length && <tr><Td colSpan={3} className="text-muted">No pool set yet.</Td></tr>}
+                {pools.map((p) => <tr key={p.id}><Td>{p.year}</Td><Td right><Money value={p.amount} /></Td><Td><DateText value={p.updatedAt} /></Td></tr>)}
+                {!pools.length && <tr><Td colSpan={3} className="text-muted">No pool set yet.</Td></tr>}
               </tbody>
             </Table>
           </Card>

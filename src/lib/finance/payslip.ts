@@ -5,7 +5,8 @@
  *   Net pay           = Pay for lending − Tax − Pension − NHF (NHF only where it is deducted)
  *   Deduction limit   = 33.3% of net pay
  *   Already committed = every other deduction on the payslip: cooperative loans and contributions at
- *                       the amount shown, cafeteria at a fixed ₦25,000 whatever was used, and any other
+ *                       the amount shown, cafeteria at a fixed ₦25,000 every month (whether used or not, and
+ *                       whether or not it appears on the payslip), and any other
  *                       deduction (leave allowance and 13th month pay excepted, as they offset earnings)
  *   Room for a loan   = Deduction limit − Already committed
  *
@@ -54,7 +55,7 @@ export function classifyDeduction(label: string): DeductionKind {
 export interface PayslipRules {
   /** Most of net pay that all further deductions together may take, as a percentage. */
   capPercent: number;
-  /** Counted for cafeteria whenever it appears, whatever was used. */
+  /** Counted for cafeteria every month, whether used or not and whether or not it appears on the payslip. */
   cafeteriaAmount: string;
 }
 
@@ -113,9 +114,10 @@ export function assessPayslip(p: Payslip, rules: PayslipRules = DEFAULT_PAYSLIP_
     if (kind === "leave_allowance" || kind === "thirteenth_month") ignored.push({ ...l, section: "deductions" });
     else if (kind === "cooperative" || kind === "other") commitments.push({ label: l.label, kind, shown: m(l.amount), counted: m(l.amount) });
   }
-  // Cafeteria is counted once at the fixed amount, however many lines or however little was used.
+  // Cafeteria is counted every month at the fixed amount, however many lines, however little was used, and
+  // even when none appears: the allowance is always available, so a month without it must not raise the limit.
   const cafeteria = deductionsOf("cafeteria");
-  if (cafeteria.length) commitments.push({ label: cafeteria.map((l) => l.label).join(", "), kind: "cafeteria", shown: m(total(cafeteria)), counted: m(rules.cafeteriaAmount) });
+  commitments.push({ label: cafeteria.length ? cafeteria.map((l) => l.label).join(", ") : "Cafeteria", kind: "cafeteria", shown: m(total(cafeteria)), counted: m(rules.cafeteriaAmount) });
 
   const limit = netPay.greaterThan(0) ? floor2(netPay.times(rules.capPercent).div(100)) : dec(0);
   const committed = sum(commitments.map((c) => c.counted));

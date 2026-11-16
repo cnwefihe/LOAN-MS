@@ -11,7 +11,7 @@ import { getActiveTerms } from "@/server/services/policies";
 import { listDocumentsFor } from "@/server/services/documents";
 import { instalmentLabel, type EligibilityResult } from "@/lib/finance/calculator";
 import { ActionForm } from "@/components/action-form";
-import { Alert, Card, KeyValues, Money, PageHeader, StatusBadge, DateText } from "@/components/ui";
+import { Alert, Card, KeyValues, Money, PageHeader, StatusBadge, DateText, SIDE_COLUMN_LG } from "@/components/ui";
 import { DocumentList, MessageThread, UploadForm } from "@/components/panels";
 import { GuarantorAccept } from "@/components/guarantor-accept";
 import { respondGuaranteeAction, uploadGuarantorDocumentAction } from "@/app/actions/guarantor";
@@ -99,7 +99,7 @@ export default async function GuaranteeRequest({ params }: { params: Promise<{ i
             </Card>
           )}
         </div>
-        <div className="space-y-6">
+        <div className={SIDE_COLUMN_LG}>
           <Card title="Messages with the applicant"><MessageThread messages={d.messages.filter((m) => m.msg.kind === "clarification")} /></Card>
           <Card title="Your supporting documents" description="Optional: for example, if Human Resources asks for evidence of your capacity.">
             <UploadForm action={uploadGuarantorDocumentAction.bind(null, id)} defaultTitle="Guarantor supporting document" />

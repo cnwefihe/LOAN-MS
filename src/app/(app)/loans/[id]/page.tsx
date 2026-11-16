@@ -87,7 +87,7 @@ export default async function LoanPage({ params, searchParams }: { params: Promi
           <KeyValues columns={3} items={[
             ["Approved amount", <Money key="a" value={disbursed.approvedAmount} />], ["Amount disbursed", <Money key="p" value={disbursed.amountDisbursed} />],
             ["Payment date", <DateText key="d" value={disbursed.paymentDate} />], ["Method", disbursed.paymentMethod.replace("_", " ")], ["Bank reference", disbursed.transactionReference],
-            ["Paid into", `${disbursed.beneficiaryName}, ${disbursed.beneficiaryBank ?? ""} ••••${disbursed.beneficiaryAccountLast4 ?? ""}`], ["First repayment due", <DateText key="fd" value={loan.firstDueDate} />], ["Final repayment due", <DateText key="md" value={loan.maturityDate} />],
+            ["Paid into", `${disbursed.beneficiaryName}, ${disbursed.beneficiaryBank ?? "Salary account"}${disbursed.beneficiaryAccountLast4 ? ` ••••${disbursed.beneficiaryAccountLast4}` : ""}`], ["First repayment due", <DateText key="fd" value={loan.firstDueDate} />], ["Final repayment due", <DateText key="md" value={loan.maturityDate} />],
           ]} />
         </Card>
       )}
