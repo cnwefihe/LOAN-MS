@@ -63,7 +63,7 @@ export function ChangeList({ changes }: { changes: Change[] }) {
  * and follows redirects.
  */
 export function ActionForm({
-  action, children, submitLabel = "Save", variant = "primary", confirm, className, resetOnSuccess, hideSubmit, submitClassName, inline, listChanges, changes,
+  action, children, submitLabel = "Save", variant = "primary", confirm, className, resetOnSuccess, hideSubmit, submitClassName, inline, listChanges, changes, footerClassName,
 }: {
   inline?: boolean;
   action: ServerAction;
@@ -80,6 +80,8 @@ export function ActionForm({
   resetOnSuccess?: boolean;
   hideSubmit?: boolean;
   submitClassName?: string;
+  /** Extra classes for the row holding the submit button, for example padding when the form fills a card edge to edge. */
+  footerClassName?: string;
   /** Accepted for clarity at the call site; React sets it for forms with an action function. */
   encType?: "multipart/form-data";
 }) {
@@ -147,7 +149,7 @@ export function ActionForm({
         </div>
       )}
       {!hideSubmit && (
-        <div className={inline ? "inline-flex" : "mt-4 flex items-center gap-3"}>
+        <div className={inline ? "inline-flex" : `mt-4 flex items-center gap-3 ${footerClassName ?? ""}`}>
           <button type="submit" disabled={pending} className={submitClassName ?? `btn-${variant}`}>
             {pending ? "Working…" : submitLabel}
           </button>

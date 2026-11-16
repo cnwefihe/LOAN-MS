@@ -55,7 +55,7 @@ export default async function ManageRole({ params, searchParams }: { params: Pro
         </div>
       ) : (
         <Card bodyClassName="p-0!">
-          <ActionForm action={setRolePermissionsAction.bind(null, role.id)} submitLabel="Save permissions" confirm="Save these permissions? Everyone with this role is affected at once." className="pb-5 [&>div:last-child]:px-5 [&>[role=alert]]:mx-5 [&>[role=status]]:mx-5">
+          <ActionForm action={setRolePermissionsAction.bind(null, role.id)} submitLabel="Save permissions" confirm="Save these permissions? Everyone with this role is affected at once." className="pb-5 [&>[role=alert]]:mx-5 [&>[role=status]]:mx-5" footerClassName="px-5">
             {superAdmin && <p className="border-b border-line px-5 py-3 text-sm text-muted">Every change here is recorded in the audit log. Keep "Add roles and manage their permissions" on, or no one will be able to change permissions again.</p>}
             <div className="divide-y divide-line border-b border-line">
               {categories.map((c) => {

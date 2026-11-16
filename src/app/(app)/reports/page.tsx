@@ -136,7 +136,7 @@ export default async function Reports({ searchParams }: { searchParams: Promise<
         <div><label htmlFor="from" className="label">Period from</label><input id="from" name="from" type="date" defaultValue={p.from} className="input h-9 py-0" /></div>
         <div><label htmlFor="to" className="label">Period to</label><input id="to" name="to" type="date" defaultValue={p.to} className="input h-9 py-0" /></div>
         <div><label htmlFor="month" className="label">Payroll month</label><input id="month" name="month" type="month" defaultValue={p.month} className="input h-9 py-0" /></div>
-        <button className="btn-primary h-9 px-4">Apply</button>
+        <button className="btn-primary">Apply</button>
       </form>
       <Card title="Report library" description="Downloads are recorded under Activity." bodyClassName="p-5 py-0">
         <Table caption="All reports">
@@ -174,7 +174,7 @@ export default async function Reports({ searchParams }: { searchParams: Promise<
           <div className="flex items-center gap-2"><label htmlFor="from" className="shrink-0 text-sm font-medium text-slate-700">Period from</label><input id="from" name="from" type="date" defaultValue={p.from} className="input h-9 min-w-0 flex-1" /></div>
           <div className="flex items-center gap-2"><label htmlFor="to" className="shrink-0 text-sm font-medium text-slate-700">Period to</label><input id="to" name="to" type="date" defaultValue={p.to} className="input h-9 min-w-0 flex-1" /></div>
           <div className="flex items-center gap-2"><label htmlFor="month" className="shrink-0 text-sm font-medium text-slate-700">Payroll month</label><input id="month" name="month" type="month" defaultValue={p.month} className="input h-9 min-w-0 flex-1" /></div>
-          <button className="btn-primary h-9 px-4">Apply</button>
+          <button className="btn-primary">Apply</button>
         </form>
         {exportable && (
           <section className="mb-6">

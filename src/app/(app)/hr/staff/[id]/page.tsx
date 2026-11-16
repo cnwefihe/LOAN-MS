@@ -45,7 +45,7 @@ export default async function StaffRecord({ params }: { params: Promise<{ id: st
   return (
     <>
       <PageHeader title={rec.user.displayName} crumbs={[{ label: "Human Resources", href: "/hr" }, { label: "Staff", href: "/hr/staff" }, { label: rec.user.displayName }]} description={rec.user.email}
-        actions={rec.salaryVerified ? <Badge tone="success">Salary verified <DateText value={p?.salaryVerifiedAt} /></Badge> : <Badge tone="warning">Salary unverified</Badge>} />
+        actions={rec.salaryVerified ? <Badge tone="success">Salary verified{" "}<DateText value={p?.salaryVerifiedAt} /></Badge> : <Badge tone="warning">Salary unverified</Badge>} />
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
           <Card title="Staff record" actions={<span className="flex flex-wrap gap-1.5">{statusBadge}{payslipDetailsBadge(p)}</span>}
@@ -54,7 +54,7 @@ export default async function StaffRecord({ params }: { params: Promise<{ id: st
               <ActionForm key={String(p?.updatedAt ?? "new")} action={staffRecordAction.bind(null, id)} submitLabel="Save and confirm" confirm={`Save ${rec.user.displayName}'s record and confirm their payslip details?`}>
                 <h3 className="mb-3 text-sm font-semibold text-navy">As on the payslip</h3>
                 <div className="grid gap-4 sm:grid-cols-3">
-                  <div><label htmlFor="payslipName" className="label">Name on payslip</label><input id="payslipName" name="payslipName" defaultValue={p?.payslipName ?? ""} placeholder={rec.user.displayName} className="input" /></div>
+                  <div><label htmlFor="payslipName" className="label">Name on payslip</label><input id="payslipName" name="payslipName" defaultValue={p?.payslipName ?? rec.user.displayName} className="input" /></div>
                   <div><label htmlFor="staffNumber" className="label">Employee code</label><input id="staffNumber" name="staffNumber" defaultValue={p?.staffNumber ?? ""} className="input" /></div>
                   <div><label htmlFor="payGrade" className="label">Pay grade</label><input id="payGrade" name="payGrade" defaultValue={p?.payGrade ?? ""} className="input" /></div>
                   <div><label htmlFor="monthlyBasic" className="label">Monthly basic salary (₦)</label><input id="monthlyBasic" name="monthlyBasic" inputMode="decimal" defaultValue={basicPrefill} className="input" />{!p?.monthlyBasic && slipBasic && <p className="hint">From the {slip?.period ? `${payslipMonth(slip.period)} ` : "latest "}payslip.</p>}</div>

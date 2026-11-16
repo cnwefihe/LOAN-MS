@@ -34,7 +34,7 @@ export default async function NewRole({ searchParams }: { searchParams: Promise<
       </Card>
       <Card bodyClassName="p-0!" className="max-w-3xl">
         <ActionForm key={base?.id ?? "none"} action={createRoleAction} submitLabel="Create role" confirm="Create this role with the permissions ticked?"
-          className="pb-5 [&>div:last-child]:px-5 [&>[role=alert]]:mx-5 [&>[role=status]]:mx-5">
+          className="pb-5 [&>[role=alert]]:mx-5 [&>[role=status]]:mx-5" footerClassName="px-5">
           <div className="grid gap-3 border-b border-line p-5">
             <div>
               <label htmlFor="name" className="label">Title</label>

@@ -65,17 +65,19 @@ export function ApplicantRecord({ d, ctx, assessments, showPay = true }: { d: De
           ["School", d.applicant.school?.name], ["Department", d.applicant.department?.name], ["Designation", p?.designation],
           ["Email", d.applicant.user.email], ["Directory job title", p?.entraJobTitle], ["Directory department", p?.entraDepartment],
         ]} />
-        {showPay && <>
-        <h3 className="mb-2 mt-5 border-t border-line pt-4 text-sm font-semibold text-navy">Existing loans and obligations</h3>
+      </Card>
+
+      {showPay && (
+      <Card title="Existing loans and obligations" bodyClassName={ctx.loans.length ? "p-5 pb-0" : undefined}>
         <KeyValues columns={3} items={[["Active loans", ctx.obligations.liveLoanCount], ["Monthly deductions", <Money key="m" value={ctx.obligations.monthlyDeductions} />], ["Outstanding", <Money key="o" value={ctx.obligations.outstanding} />]]} />
-        </>}
-        {showPay && ctx.loans.length > 0 && (
+        {ctx.loans.length > 0 && (
           <Table caption="Active loans" className="mt-4">
             <thead><tr><Th>Account</Th><Th right>Instalment</Th><Th right>Outstanding</Th><Th>Status</Th></tr></thead>
             <tbody>{ctx.loans.map((l) => <tr key={l.id}><Td>{l.accountNumber}</Td><Td right><Money value={l.monthlyInstalment} /></Td><Td right><Money value={dec(l.principalOutstanding).plus(l.interestOutstanding).toFixed(2)} /></Td><Td><StatusBadge status={l.status} /></Td></tr>)}</tbody>
           </Table>
         )}
       </Card>
+      )}
 
       {ctx.guarantors.map((g) => {
         const gp = g.rec.profile;

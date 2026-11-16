@@ -129,8 +129,8 @@ export default async function Products({ searchParams }: { searchParams: Promise
         return (
           <Card title={<span className="text-base">{p.name}</span>} description={p.description ?? undefined}
             actions={<>
-              <Link href={`/eligibility?productId=${p.id}`} className="btn-secondary h-9">{isAdvance ? "Preview advance" : "Check eligibility"}</Link>
-              <Link href={`/applications/new?productId=${p.id}`} className="btn-primary h-9">Apply</Link>
+              <Link href={`/eligibility?productId=${p.id}`} className="btn-secondary">{isAdvance ? "Preview advance" : "Check eligibility"}</Link>
+              <Link href={`/applications/new?productId=${p.id}`} className="btn-primary">Apply</Link>
             </>}>
             <div className="-mx-5 -mt-5 mb-5 grid grid-cols-1 divide-y divide-line border-b border-line bg-brand-50/60 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
               {headline.map(([k, v, note]) => (

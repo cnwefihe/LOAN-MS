@@ -51,19 +51,22 @@ export default async function AdminUsers({ searchParams }: { searchParams: Promi
                 const approves = headed.filter((d) => d.userId === u.id);
                 const top = topRole(u.roles);
                 const roleName = (r: string) => w.role[r as RoleCode]?.name ?? r;
-                const approverName = approves.length ? `${APPROVER_TITLES[approves[0].title as ApproverTitle] ?? "HOD"}, ${approves.map((d) => d.name).join(", ")}` : null;
+                const approverTitle = approves.length ? APPROVER_TITLES[approves[0].title as ApproverTitle] ?? "HOD" : null;
+                // One department by name; several as a count, listed in full on hover.
+                const approverName = approverTitle ? (approves.length === 1 ? `${approverTitle}, ${approves[0].name}` : `${approverTitle}, ${approves.length} departments`) : null;
+                const approverFull = approverTitle ? `${approverTitle}: ${approves.map((d) => d.name).join(", ")}` : null;
                 // A staff role outranks HOD and Line Manager; HOD and Line Manager outrank Guarantor and Applicant.
                 const shown = top && (STAFF_RANK.includes(top) || !ROLE_CODES.includes(top as RoleCode)) ? { label: roleName(top), tone: top === "SUPER_ADMIN" ? "brand" as const : "info" as const }
                   : approverName ? { label: approverName, tone: "success" as const }
                   : { label: roleName(top ?? "APPLICANT"), tone: "info" as const };
-                const all = [...(approverName ? [approverName] : []), ...u.roles.filter((r) => r !== "APPLICANT").map(roleName)];
+                const all = [...(approverFull && approves.length > 1 ? [approverFull] : []), ...u.roles.filter((r) => r !== "APPLICANT").map(roleName)];
                 return (
                   <tr key={u.id}>
                     <Td className="font-medium">{u.displayName}</Td>
                     <Td className="text-muted">{u.email}</Td>
                     <Td>{u.staff?.staffNumber ?? "-"}</Td>
                     <Td>{u.staff?.department ?? "-"}</Td>
-                    <Td><span title={all.length > 1 ? `Also: ${all.filter((a) => a !== shown.label).join("; ")}` : undefined}><Badge tone={shown.tone}>{shown.label}</Badge></span></Td>
+                    <Td><span title={all.filter((a) => a !== shown.label).length ? all.filter((a) => a !== shown.label).join("; ") : undefined}><Badge tone={shown.tone}>{shown.label}</Badge></span></Td>
                     <Td>{u.isActive ? <Badge tone="success">Active</Badge> : <Badge tone="danger">Inactive</Badge>}</Td>
                     <Td>{u.lastLoginAt ? <DateText value={u.lastLoginAt} withTime /> : "Never"}</Td>
                     <Td right className="sticky right-0 bg-white"><RowMenu label={u.displayName} items={[{ label: "Manage", href: `/admin/users/${u.id}` }, ...(u.staff && can(actor, "hr.staff.view") ? [{ label: "Staff record", href: `/hr/staff/${u.id}` }] : [])]} /></Td>

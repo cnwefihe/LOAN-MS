@@ -15,17 +15,17 @@ export function SearchFilter({ action, q, placeholder, filter, hidden }: {
       <div className="relative">
         <label htmlFor="q" className="sr-only">Search</label>
         <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-        <input id="q" name="q" defaultValue={q} placeholder={placeholder} className="input h-9 pl-9" />
+        <input id="q" name="q" defaultValue={q} placeholder={placeholder} className="input h-8 pl-9" />
       </div>
       {filter && (
         <div className="flex items-center gap-2">
           <label htmlFor={filter.name} className="text-sm font-medium text-slate-700">Filter</label>
-          <select id={filter.name} name={filter.name} defaultValue={filter.value ?? ""} className="input h-9 min-w-0 flex-1 py-0">
+          <select id={filter.name} name={filter.name} defaultValue={filter.value ?? ""} className="input h-8 min-w-0 flex-1 py-0">
             {filter.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
       )}
-      <button className="btn-primary h-9 px-4">Apply</button>
+      <button className="btn-primary">Apply</button>
     </form>
   );
 }

@@ -34,7 +34,7 @@ export function MonthToolbar({ month, max, children }: { month: string; max?: st
       <form method="get" className="flex flex-wrap items-center gap-2.5">
         <label htmlFor="month" className="text-sm font-medium text-slate-700">Month</label>
         <input id="month" name="month" type="month" max={max} defaultValue={month} className="input h-9 w-auto" />
-        <button className="btn-primary h-9 px-4">Apply</button>
+        <button className="btn-primary">Apply</button>
         <span className="ml-auto flex flex-wrap items-center gap-x-5 gap-y-2">{children}</span>
       </form>
     </Card>
