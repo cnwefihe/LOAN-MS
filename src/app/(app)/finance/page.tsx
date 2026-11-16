@@ -59,7 +59,7 @@ export default async function Finance() {
 
       {can(actor, "fund.manage") && (
         <div id="pool" className="grid gap-6 lg:grid-cols-2">
-          <Card title="Set the fund pool" description="The money set aside for staff loans in the year. Loans paid out that year reduce it; repayments do not add back to it.">
+          <Card title="Set the fund pool" description="Set aside for staff loans each year. Payouts reduce it; repayments do not add back.">
             <ActionForm action={setFundPoolAction} submitLabel="Save">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div><label htmlFor="year" className="label">Year</label><input id="year" name="year" type="number" min={2000} max={2100} required defaultValue={year} className="input" /></div>

@@ -35,7 +35,7 @@ export default async function Guarantors({ searchParams }: { searchParams: Promi
   return (
     <>
       <PageHeader title="Guarantors" crumbs={[{ label: "Administration", href: "/admin" }, { label: "Guarantors" }]}
-        description="Staff who may stand as guarantors (the managerial cadre). Applicants choose from these names; emails are not shown to them, and are used only to send the guarantor the request."
+        description="Managerial staff who may stand as guarantors. Applicants see names only."
         actions={<RowMenu label="Add guarantors" items={[{ label: "Add a guarantor", href: "/admin/guarantors/new" }, { label: "Add many at once", href: "/admin/guarantors/new?tab=many" }]} />} />
       <StatGrid>
         <Stat label="On the list" value={all.length} />

@@ -105,7 +105,7 @@ export default async function AccountsLoan({ params, searchParams }: { params: P
               </Card>
             )}
             {can(actor, "transaction.adjust") && loan.status === "defaulted" && (
-              <Card title="Default management" description={`${loan.daysPastDue} days past due. Call on guarantors, record recoveries or write off with authority.`} className="border-red-200 lg:col-span-2">
+              <Card title="Default management" description={`${loan.daysPastDue} days past due. Call on guarantors, record recoveries or write off.`} className="border-red-200 lg:col-span-2">
                 <div className="grid gap-6 lg:grid-cols-2">
                   <ActionForm action={callGuarantorsAction.bind(null, id)} submitLabel="Call on guarantors" variant="secondary" confirm="Formally notify all guarantors of their obligation?">
                     <p className="text-sm">{guarantors.length ? `Notifies ${guarantors.map((g) => g.name).join(", ")} of their pro-rata share of the outstanding balance.` : "This loan has no accepted guarantors."}</p>

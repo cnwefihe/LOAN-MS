@@ -34,7 +34,7 @@ export default async function Activity({ searchParams }: { searchParams: Promise
   const placeholder = { events: "Search action or reference", sessions: "Search name or email", documents: "Search person or document" }[tab];
   return (
     <>
-      <PageHeader title="Activity" crumbs={[{ label: "Administration", href: "/admin" }, { label: "Activity" }]} description="What people have done, who is signed in, and who opened which documents. Records cannot be altered."
+      <PageHeader title="Activity" crumbs={[{ label: "Administration", href: "/admin" }, { label: "Activity" }]} description="Actions, sign-ins and document access. Records cannot be altered."
         actions={tab === "events" ? <ReportDownloads title="Activity" href={(f) => `/api/reports/export?report=audit&format=${f}`} /> : undefined} />
       <Tabs base="/admin/audit" active={tab} tabs={[{ key: "events", label: "Activity" }, ...(showSessions ? [{ key: "sessions", label: "Sessions" }] : []), { key: "documents", label: "Documents" }]} />
       <Card bodyClassName="p-5">

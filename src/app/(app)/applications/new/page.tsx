@@ -1,4 +1,5 @@
 import { getDb } from "@/db";
+import { designationOf } from "@/lib/designation";
 import { requireActor } from "@/lib/auth/session";
 import { getLoanPolicy, listOpenProducts } from "@/server/services/policies";
 import { LoanPolicyPanel } from "@/components/loan-policy";
@@ -36,7 +37,7 @@ export default async function NewApplication({ searchParams }: { searchParams: P
       </Card>
       <Card>
         {products.length ? (
-          <ApplicationForm guarantorOptions={guarantorOptions} departments={departments} departmentId={rec.profile?.departmentId ?? null} applicant={{ name: rec.user.displayName, email: rec.user.email, staffNumber: rec.profile?.staffNumber, payGrade: rec.profile?.payGrade, school: rec.school?.name, department: rec.department?.name, designation: rec.profile?.designation, employmentStatus: rec.profile?.employmentStatus, serviceMonths: rec.serviceMonths, bank: rec.profile?.bankAccountLast4 ? `${rec.profile.bankName} ••••${rec.profile.bankAccountLast4}` : null, phone: rec.profile?.phone, residentialAddress: rec.profile?.residentialAddress }} applicationId={null} products={products}
+          <ApplicationForm guarantorOptions={guarantorOptions} departments={departments} departmentId={rec.profile?.departmentId ?? null} applicant={{ name: rec.user.displayName, email: rec.user.email, staffNumber: rec.profile?.staffNumber, payGrade: rec.profile?.payGrade, school: rec.school?.name, department: rec.department?.name, designation: designationOf(rec.profile), employmentStatus: rec.profile?.employmentStatus, serviceMonths: rec.serviceMonths, bank: rec.profile?.bankAccountLast4 ? `${rec.profile.bankName} ••••${rec.profile.bankAccountLast4}` : null, phone: rec.profile?.phone, residentialAddress: rec.profile?.residentialAddress }} applicationId={null} products={products}
             initial={{ productId: sp.productId, advanceType: sp.advanceType, requestedAmount: sp.amount, tenorMonths: sp.tenor ? Number(sp.tenor) : undefined }} />
         ) : <Alert tone="warning" title="No loan products are open for applications">Please check back later.</Alert>}
       </Card>

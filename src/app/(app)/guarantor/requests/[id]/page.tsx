@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { designationOf } from "@/lib/designation";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
@@ -60,7 +61,7 @@ export default async function GuaranteeRequest({ params }: { params: Promise<{ i
             <KeyValues columns={3} items={[
               ["Full name", d.applicant.user.displayName], ["Loan amount applied for", <Money key="a" value={d.app.requestedAmount} />], ["Department", d.applicant.department?.name],
               ["Phone number", p?.phone ?? "Not given"], ["Email address", d.applicant.user.email], ["Residential address", p?.residentialAddress ?? "Not given"],
-              ["Designation", p?.designation], ["Length of service", `${monthsText(d.applicant.serviceMonths)}`], ["Purpose", d.app.purpose],
+              ["Designation", designationOf(p)], ["Length of service", `${monthsText(d.applicant.serviceMonths)}`], ["Purpose", d.app.purpose],
             ]} />
           </Card>
           <Card title="Supporting documents"><DocumentList docs={docs} /></Card>

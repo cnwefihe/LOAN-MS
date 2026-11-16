@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { designationOf } from "@/lib/designation";
 import { and, eq, inArray } from "drizzle-orm";
 import type { Executor } from "@/db";
 import { loanAccounts } from "@/db/schema";
@@ -62,8 +63,8 @@ export function ApplicantRecord({ d, ctx, assessments, showPay = true }: { d: De
         <KeyValues columns={3} items={[
           ["Employment status", p?.employmentStatus ? <StatusBadge key="s" status={p.employmentStatus === "confirmed" ? "confirmed" : "pending"} /> : <Badge tone="warning">Not recorded</Badge>],
           ["Employment date", <DateText key="e" value={p?.employmentDate} />], ["Service", `${monthsText(d.applicant.serviceMonths)} (policy minimum ${pp.minServiceMonths})`],
-          ["School", d.applicant.school?.name], ["Department", d.applicant.department?.name], ["Designation", p?.designation],
-          ["Email", d.applicant.user.email], ["Directory job title", p?.entraJobTitle], ["Directory department", p?.entraDepartment],
+          ["School", d.applicant.school?.name], ["Department", d.applicant.department?.name], ["Designation", designationOf(p)],
+          ["Email", d.applicant.user.email],
         ]} />
       </Card>
 

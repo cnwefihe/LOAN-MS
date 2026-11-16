@@ -16,7 +16,7 @@ export default async function EarlyRepayments({ searchParams }: { searchParams: 
   return (
     <>
       <PageHeader title="Early repayments" crumbs={[{ label: "Payroll", href: "/payroll" }, { label: "Early repayments" }]}
-        description="Borrowers who paid off the whole balance by transfer. Check each payment, then mark the loan repaid." />
+        description="Loans repaid in full by transfer. Check each payment, then close the loan." />
       <Card bodyClassName="p-5">
         {pg.items.length === 0 ? <EmptyState title="No early repayments yet" /> : (
           <Table caption="Early repayments">

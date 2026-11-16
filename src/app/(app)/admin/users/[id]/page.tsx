@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { designationOf } from "@/lib/designation";
 import { notFound } from "next/navigation";
 import { getDb } from "@/db";
 import { requireActor } from "@/lib/auth/session";
@@ -36,7 +37,7 @@ export default async function ManageUser({ params }: { params: Promise<{ id: str
             <KeyValues items={[
               ["Email", u.email],
               ["Staff no.", u.staff?.staffNumber ?? "-"],
-              ["Designation", u.staff?.designation ?? "-"],
+              ["Designation", designationOf(u.staff) ?? "-"],
               ["Department", u.staff?.department ?? "-"],
               ["Status", <span key="status" className="flex gap-1">{u.isActive ? <Badge tone="success">Active</Badge> : <Badge tone="danger">Inactive</Badge>}{u.isDevFixture && <Badge tone="warning">Dev fixture</Badge>}</span>],
               ["Two-step verification", u.mfaEnabledAt ? "On" : "Off"],
@@ -44,7 +45,7 @@ export default async function ManageUser({ params }: { params: Promise<{ id: str
               ...(can(actor, "hr.staff.view") ? [["Staff record", u.staff ? <Link key="staff" className="link" href={`/hr/staff/${u.id}`}>View</Link> : "-"] as [string, React.ReactNode]] : []),
             ]} />
           </Card>
-          <Card title="Display name" description="Shown everywhere: the sidebar, activity, records and emails. Microsoft no longer changes it at sign-in.">
+          <Card title="Display name" description="Used across the system, records and emails.">
             <ActionForm action={setDisplayNameAction.bind(null, u.id)} submitLabel="Save name" listChanges confirm={`Change the display name of ${u.displayName}?`}>
               <label htmlFor="displayName" className="sr-only">Display name</label>
               <input id="displayName" name="displayName" defaultValue={u.displayName} maxLength={200} className="input" />

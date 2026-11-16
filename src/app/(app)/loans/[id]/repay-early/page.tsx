@@ -65,7 +65,7 @@ export default async function RepayEarly({ params }: { params: Promise<{ id: str
         </Card>
       </div>
       {account.ready && (
-        <Card title="2. Send your receipt" className="mt-6" description="The Payroll Officer checks the payment, then marks your loan repaid in full. No further deductions are made after that.">
+        <Card title="2. Send your receipt" className="mt-6" description="Payroll checks the payment and closes the loan. Deductions then stop.">
           <ActionForm action={requestEarlyRepaymentAction.bind(null, id)} submitLabel="Send for confirmation" encType="multipart/form-data"
             confirm={"Send your receipt for the early repayment? Make sure you paid the full amount shown."}>
             <div className="grid gap-4 sm:grid-cols-2">

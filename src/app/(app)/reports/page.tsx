@@ -138,7 +138,7 @@ export default async function Reports({ searchParams }: { searchParams: Promise<
         <div><label htmlFor="month" className="label">Payroll month</label><input id="month" name="month" type="month" defaultValue={p.month} className="input h-9 py-0" /></div>
         <button className="btn-primary">Apply</button>
       </form>
-      <Card title="Report library" description="Downloads are recorded under Activity." bodyClassName="p-5 py-0">
+      <Card title="Report library" description="Downloads are recorded under Activity." bodyClassName="px-5 pt-0 pb-5">
         <Table caption="All reports">
           <thead><tr><Th>Report</Th><Th>What it shows</Th><Th>Covers</Th><Th><span className="sr-only">Download</span></Th></tr></thead>
           <tbody>

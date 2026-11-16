@@ -31,7 +31,7 @@ export default async function Disbursements({ searchParams }: { searchParams: Pr
   return (
     <>
       <PageHeader title="Disbursements" crumbs={[{ label: "Bursary", href: "/accounts" }, { label: "Disbursements" }]}
-        description="Pay out approved loans. The loan starts when it is paid, and repayments begin the following month." />
+        description="Pay out approved loans. Repayments start the following month." />
       <FundPoolCard pos={await fundPosition(db)} />
 
       <Card title={`Approved loans awaiting payment (${awaiting.length})`} className="mb-6">

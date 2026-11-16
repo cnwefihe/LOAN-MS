@@ -98,12 +98,13 @@ export async function salaryFromPayrollAction(userId: string, _: Prev) {
 export async function staffRecordAction(userId: string, _: Prev, fd: FormData) {
   return runAction(async (actor) => {
     // Kept for the record only; eligibility is worked out from the payslip.
-    const basic = str(fd, "monthlyBasic") !== "" ? money(fd, "monthlyBasic", "basic salary") : null;
+    // An emptied box clears the figure; a figure is checked as money.
+    const basic = str(fd, "monthlyBasic") !== "" ? money(fd, "monthlyBasic", "basic salary") : "";
     await hrUpdateStaffRecord(await getDb(), actor, userId, {
       staffNumber: str(fd, "staffNumber") || null, departmentId: str(fd, "departmentId") || null, schoolId: str(fd, "schoolId") || null,
-      categoryId: str(fd, "categoryId") || null, designation: str(fd, "designation") || null, payGrade: str(fd, "payGrade") || null, payslipName: str(fd, "payslipName") || null, employmentStatus: employmentStatus(fd),
+      categoryId: str(fd, "categoryId") || null, ...(fd.has("designation") ? { designation: str(fd, "designation") || null } : {}), payGrade: str(fd, "payGrade") || null, payslipName: str(fd, "payslipName") || null, employmentStatus: employmentStatus(fd),
       employmentDate: str(fd, "employmentDate") ? dateStr(fd, "employmentDate", "employment date") : null,
-      ...(basic ? { monthlyBasic: basic } : {}),
+      ...(fd.has("monthlyBasic") ? { monthlyBasic: basic } : {}),
     }, str(fd, "note") || "Record updated by Human Resources");
     return "Staff record updated.";
   }, { revalidate: ["/hr/staff"] });

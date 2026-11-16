@@ -12,7 +12,7 @@ export default async function AddGuarantors({ searchParams }: { searchParams: Pr
   return (
     <>
       <PageHeader title="Add guarantors" crumbs={[{ label: "Administration", href: "/admin" }, { label: "Guarantors", href: "/admin/guarantors" }, { label: "Add guarantors" }]}
-        description="Staff who may stand as guarantors. Applicants see their names only; the email is used to send them the request." />
+        description="Applicants see names only. The email receives the request." />
       <Tabs base="/admin/guarantors/new" active={tab} tabs={[{ key: "one", label: "One at a time" }, { key: "many", label: "Many at once" }]} />
       {tab === "one" ? (
         <Card title="Add a guarantor" className="max-w-2xl">

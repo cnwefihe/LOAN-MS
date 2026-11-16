@@ -66,7 +66,7 @@ export default async function Roles({ searchParams }: { searchParams: Promise<{ 
           </Card>
         </>
       ) : (
-        <Card bodyClassName="p-5 py-0">
+        <Card bodyClassName="px-5 pt-0 pb-5">
           <Table caption="Roles">
             <thead><tr><Th>Role</Th><Th>Description</Th><Th right>Users</Th><Th right>Permissions</Th><Th>Type</Th><Th><span className="sr-only">Action</span></Th></tr></thead>
             <tbody>

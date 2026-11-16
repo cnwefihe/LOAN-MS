@@ -40,7 +40,7 @@ export default async function EditTerms({ params, searchParams }: { params: Prom
             <label htmlFor="body" className="label mt-3">Text</label><textarea id="body" name="body" rows={18} defaultValue={body} required className="input text-sm" />
           </ActionForm>
         </Card>
-        <Card title="Version history" bodyClassName="px-5 py-0">
+        <Card title="Version history" bodyClassName="px-5 pt-0 pb-5">
           <Table caption="Version history">
             <thead><tr><Th>Version</Th><Th>Published</Th><Th>Status</Th></tr></thead>
             <tbody>

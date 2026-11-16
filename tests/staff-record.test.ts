@@ -35,4 +35,12 @@ describe("staff record", () => {
     expect(payslipDetailsConfirmed(after)).toBe(true);
     expect(after.payslipDetailsConfirmedBy).toBe(ids.hradmin);
   });
+
+  it("an emptied basic salary is cleared, not kept", async () => {
+    const hr = (await loadActor(db, ids.hradmin))!;
+    await hrUpdateStaffRecord(db, hr, ids.applicant, { monthlyBasic: "6840000.00" }, "Entered");
+    expect((await db.select().from(s.staffProfiles).where(eq(s.staffProfiles.userId, ids.applicant)))[0].monthlyBasic).toBe("6840000.00");
+    await hrUpdateStaffRecord(db, hr, ids.applicant, { monthlyBasic: "" }, "Cleared");
+    expect((await db.select().from(s.staffProfiles).where(eq(s.staffProfiles.userId, ids.applicant)))[0].monthlyBasic).toBeNull();
+  });
 });

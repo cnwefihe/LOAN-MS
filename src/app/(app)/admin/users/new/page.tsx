@@ -21,7 +21,7 @@ export default async function AddUsers({ searchParams }: { searchParams: Promise
   return (
     <>
       <PageHeader title="Add users" crumbs={[{ label: "Administration", href: "/admin" }, { label: "Users", href: "/admin/users" }, { label: "Add users" }]}
-        description="Set staff up before they first sign in. Their account is linked by email when they sign in with their university account." />
+        description="Set up staff before their first sign-in. Accounts link by email." />
       <Tabs base="/admin/users/new" active={tab} tabs={[{ key: "one", label: "One at a time" }, { key: "many", label: "Many at once" }]} />
       {tab === "one" ? (
         <Card title="Add a user" className="max-w-2xl">

@@ -33,7 +33,7 @@ export default async function PayrollOverview({ searchParams }: { searchParams: 
       </StatGrid>
       {pool && <FundPoolCard pos={pool} />}
 
-      <Card title={`Deductions for ${monthLabel}`} className="mb-6" description="Loans on automatic deduction are recorded on their due dates. The others wait for the borrower to report the first deduction and the Payroll Officer to confirm it." bodyClassName="p-5 pt-0">
+      <Card title={`Deductions for ${monthLabel}`} className="mb-6" description="Automatic loans are recorded on their due dates; others wait for the first deduction to be confirmed." bodyClassName="p-5 pt-0">
         {o.due.length === 0 ? <EmptyState title="Nothing due this month" /> : (
           <Table caption={`Deductions for ${monthLabel}`}>
             <thead><tr><Th>Loan</Th><Th>Name</Th><Th>Due</Th><Th right>Instalment</Th><Th right>Still to receive</Th><Th>Deduction</Th><Th>Status</Th></tr></thead>
@@ -55,7 +55,7 @@ export default async function PayrollOverview({ searchParams }: { searchParams: 
         <Pagination data={duePage} base="/payroll" params={{ waiting: sp.waiting, waitingSize: sp.waitingSize }} label="deductions" />
       </Card>
 
-      <Card title={`Loans waiting for their first deduction to be confirmed (${o.awaitingFirst.length})`} description="Once the Payroll Officer confirms a loan's first salary deduction, the rest are recorded automatically." bodyClassName="p-5 pt-0">
+      <Card title={`Loans waiting for their first deduction to be confirmed (${o.awaitingFirst.length})`} description="After the first deduction is confirmed, the rest are recorded automatically." bodyClassName="p-5 pt-0">
         {o.awaitingFirst.length === 0 ? <EmptyState title="Every loan deducts automatically" /> : (
           <Table caption="Loans waiting for their first deduction">
             <thead><tr><Th>Loan</Th><Th>Name</Th><Th>Staff no.</Th><Th right>Instalment</Th><Th>First due</Th><Th>Status</Th></tr></thead>

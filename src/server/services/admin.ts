@@ -23,7 +23,7 @@ export async function searchUsers(db: Executor, actor: Actor, q?: string) {
   const where = q?.trim() ? or(ilike(users.displayName, `%${q.trim()}%`), ilike(users.email, `%${q.trim()}%`)) : sql`true`;
   const list = await db.select().from(users).where(where).orderBy(users.displayName);
   const ur = list.length ? await db.select({ userId: userRoles.userId, code: roles.code }).from(userRoles).innerJoin(roles, eq(roles.id, userRoles.roleId)).where(inArray(userRoles.userId, list.map((u) => u.id))) : [];
-  const staff = list.length ? await db.select({ userId: staffProfiles.userId, staffNumber: staffProfiles.staffNumber, designation: staffProfiles.designation, departmentId: staffProfiles.departmentId, department: departments.name })
+  const staff = list.length ? await db.select({ userId: staffProfiles.userId, staffNumber: staffProfiles.staffNumber, designation: staffProfiles.designation, entraJobTitle: staffProfiles.entraJobTitle, departmentId: staffProfiles.departmentId, department: departments.name })
     .from(staffProfiles).leftJoin(departments, eq(departments.id, staffProfiles.departmentId)).where(inArray(staffProfiles.userId, list.map((u) => u.id))) : [];
   return list.map((u) => ({ ...u, staff: staff.find((x) => x.userId === u.id) ?? null, roles: ur.filter((r) => r.userId === u.id).map((r) => r.code as RoleCode) }));
 }

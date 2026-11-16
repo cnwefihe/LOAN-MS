@@ -3,6 +3,7 @@
  * Every section is filled from the system: entries, verifications, reviews and electronic signatures.
  */
 import { desc, eq } from "drizzle-orm";
+import { designationOf } from "@/lib/designation";
 import type { Executor } from "@/db";
 import { bursaryReviews, hrVerifications, users } from "@/db/schema";
 import type { EligibilityResult } from "@/lib/finance/calculator";
@@ -59,7 +60,7 @@ export async function applicationFormPdf(db: Executor, actor: Actor, application
   pdf.heading("Applicant information");
   pdf.keyValues([
     ["Name", applicant.user.displayName], ["Staff number", p?.staffNumber ?? "Not recorded"], ["Department", applicant.department?.name ?? "Not recorded"],
-    ["Designation", p?.designation ?? "Not recorded"], ["Phone number", p?.phone ?? "Not given"], ["Email address", applicant.user.email],
+    ["Designation", designationOf(p) ?? "Not recorded"], ["Phone number", p?.phone ?? "Not given"], ["Email address", applicant.user.email],
     ["Residential address", p?.residentialAddress ?? "Not given"], ["Purpose", app.purpose],
   ]);
 

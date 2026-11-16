@@ -59,7 +59,7 @@ export default async function EarlyRepayment({ params }: { params: Promise<{ id:
       {changed && <div className="mt-6"><Alert tone="warning" title="The balance has changed">The amount due is now <Money value={now!.settlementAmount} />, not the <Money value={r.amount} /> quoted. Decline this request and ask the borrower to start again.</Alert></div>}
       {canConfirm && (
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
-          <Card title="Mark the loan repaid" description="Check that the full amount has arrived in the account. The loan closes at once and no further deductions are made.">
+          <Card title="Mark the loan repaid" description="Check the full amount has arrived. The loan then closes and deductions stop.">
             <ActionForm action={confirmEarlyRepaymentAction.bind(null, id)} submitLabel="Mark repaid in full" confirm={"Mark this loan repaid in full? This cannot be undone."}>
               <label htmlFor="code" className="label">Two-step verification code</label>
               <input id="code" name="code" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} required placeholder="123456" className="input max-w-48 text-center tracking-[0.3em]" />

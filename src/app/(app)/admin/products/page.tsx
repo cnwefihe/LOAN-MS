@@ -35,7 +35,7 @@ export default async function Products({ searchParams }: { searchParams: Promise
         <Stat label="Closed" value={products.length - open} />
         <Stat label="Applications in progress" value={Number(inProgress.n)} hint="Across all products" tone="brand" />
       </StatGrid>
-      <Card bodyClassName="p-5 py-0">
+      <Card bodyClassName="px-5 pt-0 pb-5">
         {products.length === 0 ? <div className="py-5"><EmptyState title="No products yet" /></div> : (
           <Table caption="Loan products">
             <thead><tr><Th>Product</Th><Th>Code</Th><Th>Status</Th><Th>Interest</Th><Th>Tenor</Th><Th>Last updated</Th><Th><span className="sr-only">Action</span></Th></tr></thead>

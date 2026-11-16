@@ -67,7 +67,7 @@ export default async function HrReview({ params }: { params: Promise<{ id: strin
           <ApplicantRecord d={d} ctx={ctx} assessments={d.assessments} />
 
           {canDecide && (
-            <Card title="Record due diligence" description="Your verification updates the Human Resources record and is logged.">
+            <Card title="Record due diligence" description="Updates the Human Resources record and is logged.">
               <ActionForm action={hrDecisionAction.bind(null, id, guaranteeIds)} submitLabel="Record decision" confirm="Record this Human Resources decision?">
                 <fieldset className="rounded-md border border-line p-4">
                   <legend className="px-1 text-sm font-semibold text-navy">Applicant: {d.applicant.user.displayName}</legend>

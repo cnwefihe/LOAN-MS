@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { designationOf } from "@/lib/designation";
 import { notFound } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
@@ -37,8 +38,8 @@ export default async function StaffRecord({ params }: { params: Promise<{ id: st
   const slip = await latestPayslip(db, id);
   const slipFigures = slip ? assessPayslip(slip.data, DEFAULT_PAYSLIP_RULES) : null;
   const slipBasic = slipFigures?.basic ?? null;
-  const basicPrefill = p?.monthlyBasic ?? slipBasic ?? "";
-  const designationPrefill = p?.designation ?? p?.entraJobTitle ?? "";
+  const neverSaved = !p?.employmentVerifiedAt;
+  const basicPrefill = p?.monthlyBasic ?? (neverSaved ? slipBasic : null) ?? "";
   const statusBadge = p?.employmentStatus === "confirmed" ? <Badge tone="success">Confirmed</Badge> : p?.employmentStatus ? <Badge tone="danger">Not confirmed</Badge> : <Badge tone="warning">Status not recorded</Badge>;
   const [sch, dep, cat] = editable ? await Promise.all([db.select().from(schools), db.select().from(departments), db.select().from(staffCategories)]) : [[], [], []];
 
@@ -49,7 +50,7 @@ export default async function StaffRecord({ params }: { params: Promise<{ id: st
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
           <Card title="Staff record" actions={<span className="flex flex-wrap gap-1.5">{statusBadge}{payslipDetailsBadge(p)}</span>}
-            description={editable ? "Check each detail against the personnel record and the payslip, correct anything that is wrong, then save. Saving confirms the payslip details." : "Kept by Human Resources."}>
+            description={editable ? "Check against the personnel record; saving confirms the payslip details." : "Kept by Human Resources."}>
             {editable ? (
               <ActionForm key={String(p?.updatedAt ?? "new")} action={staffRecordAction.bind(null, id)} submitLabel="Save and confirm" confirm={`Save ${rec.user.displayName}'s record and confirm their payslip details?`}>
                 <h3 className="mb-3 text-sm font-semibold text-navy">As on the payslip</h3>
@@ -57,16 +58,16 @@ export default async function StaffRecord({ params }: { params: Promise<{ id: st
                   <div><label htmlFor="payslipName" className="label">Name on payslip</label><input id="payslipName" name="payslipName" defaultValue={p?.payslipName ?? rec.user.displayName} className="input" /></div>
                   <div><label htmlFor="staffNumber" className="label">Employee code</label><input id="staffNumber" name="staffNumber" defaultValue={p?.staffNumber ?? ""} className="input" /></div>
                   <div><label htmlFor="payGrade" className="label">Pay grade</label><input id="payGrade" name="payGrade" defaultValue={p?.payGrade ?? ""} className="input" /></div>
-                  <div><label htmlFor="monthlyBasic" className="label">Monthly basic salary (₦)</label><input id="monthlyBasic" name="monthlyBasic" inputMode="decimal" defaultValue={basicPrefill} className="input" />{!p?.monthlyBasic && slipBasic && <p className="hint">From the {slip?.period ? `${payslipMonth(slip.period)} ` : "latest "}payslip.</p>}</div>
+                  <div><label htmlFor="monthlyBasic" className="label">Monthly basic salary (₦)</label><input id="monthlyBasic" name="monthlyBasic" inputMode="decimal" defaultValue={basicPrefill} className="input" />{!p?.monthlyBasic && neverSaved && slipBasic && <p className="hint">From the {slip?.period ? `${payslipMonth(slip.period)} ` : "latest "}payslip.</p>}</div>
                   {slipFigures && <div><p className="label">Medical allowance</p><p className="py-2 text-sm"><Money value={slipFigures.medical} /></p></div>}
                   {slipFigures && <div><p className="label">Net pay</p><p className="py-2 text-sm"><Money value={slipFigures.netPay} /></p></div>}
                 </div>
-                {p?.payslipDetailsUpdatedAt && <p className="hint mt-2">Name, employee code and pay grade last changed by the staff member <DateText value={p.payslipDetailsUpdatedAt} withTime />.</p>}
+                {p?.payslipDetailsUpdatedAt && <p className="hint mt-2">Last changed by the staff member <DateText value={p.payslipDetailsUpdatedAt} />.</p>}
                 <h3 className="mb-3 mt-6 text-sm font-semibold text-navy">Employment</h3>
                 <div className="grid gap-4 sm:grid-cols-3">
-                  <div><label htmlFor="employmentStatus" className="label">Employment status</label><select id="employmentStatus" name="employmentStatus" defaultValue={p?.employmentStatus ?? ""} className="input"><option value="">Not set</option>{EMPLOYMENT_STATUSES.map((s) => <option key={s} value={s}>{s.replace("_", " ")}</option>)}</select><p className="hint">Only confirmed staff can borrow or guarantee.</p></div>
+                  <div><label htmlFor="employmentStatus" className="label">Employment status</label><select id="employmentStatus" name="employmentStatus" defaultValue={p?.employmentStatus ?? ""} className="input"><option value="">Not set</option>{EMPLOYMENT_STATUSES.map((s) => <option key={s} value={s}>{s.replace("_", " ")}</option>)}</select><p className="hint">Confirmed staff only may borrow.</p></div>
                   <div><label htmlFor="employmentDate" className="label">Employment date</label><input id="employmentDate" name="employmentDate" type="date" defaultValue={p?.employmentDate ?? ""} className="input" /><p className="hint">Service: {monthsText(rec.serviceMonths)}.</p></div>
-                  <div><label htmlFor="designation" className="label">Designation</label><input id="designation" name="designation" defaultValue={designationPrefill} className="input" />{!p?.designation && p?.entraJobTitle && <p className="hint">From the directory.</p>}</div>
+                  <div><label htmlFor="designation" className="label">Designation</label><input id="designation" name="designation" defaultValue={designationOf(p) ?? ""} className="input" /></div>
                   <div><label htmlFor="schoolId" className="label">School</label><select id="schoolId" name="schoolId" defaultValue={p?.schoolId ?? ""} className="input"><option value="">Not set</option>{sch.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
                   <div><label htmlFor="departmentId" className="label">Department</label><select id="departmentId" name="departmentId" defaultValue={p?.departmentId ?? ""} className="input"><option value="">Not set</option>{dep.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
                   <div><label htmlFor="categoryId" className="label">Staff category</label><select id="categoryId" name="categoryId" defaultValue={p?.categoryId ?? ""} className="input"><option value="">Not set</option>{cat.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
@@ -79,12 +80,12 @@ export default async function StaffRecord({ params }: { params: Promise<{ id: st
                 ["Monthly basic", <Money key="b" value={p?.monthlyBasic ?? slipFigures?.basic} />],
                 ...(slipFigures ? [["Medical allowance", <Money key="m" value={slipFigures.medical} />], ["Net pay", <Money key="n" value={slipFigures.netPay} />]] as [string, React.ReactNode][] : []),
                 ["Employment status", p?.employmentStatus?.replace("_", " ")], ["Employment date", <DateText key="e" value={p?.employmentDate} />], ["Service", monthsText(rec.serviceMonths)],
-                ["Designation", p?.designation], ["School", rec.school?.name], ["Department", rec.department?.name], ["Category", rec.category?.name],
+                ["Designation", designationOf(p)], ["School", rec.school?.name], ["Department", rec.department?.name], ["Category", rec.category?.name],
               ]} />
             )}
             <div className="mt-6 border-t border-line pt-4">
               <KeyValues columns={3} items={[
-                ["Paid into", p?.bankName ? `${p.bankName} ••••${p.bankAccountLast4 ?? ""}` : "Salary account"], ["Directory job title", p?.entraJobTitle], ["Last sign-in", <DateText key="l" value={rec.user.lastLoginAt} withTime />],
+                ["Paid into", p?.bankName ? `${p.bankName} ••••${p.bankAccountLast4 ?? ""}` : "Salary account"], ["Last sign-in", <DateText key="l" value={rec.user.lastLoginAt} withTime />],
               ]} />
             </div>
             {editable && payrollProvider() && p?.staffNumber && <div className="mt-4"><ActionForm inline action={salaryFromPayrollAction.bind(null, id)} submitLabel="Fetch salary from payroll" submitClassName="btn-secondary h-8 text-xs" /></div>}

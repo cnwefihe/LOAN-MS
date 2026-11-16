@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { designationOf } from "@/lib/designation";
 import { getDb } from "@/db";
 import { users } from "@/db/schema";
 import { requireActor } from "@/lib/auth/session";
@@ -44,14 +45,14 @@ export default async function Profile() {
                 <div><label htmlFor="staffNumber" className="label">Employee code</label><input id="staffNumber" name="staffNumber" required maxLength={40} defaultValue={p?.staffNumber ?? ""} className="input" /></div>
                 <div><label htmlFor="payGrade" className="label">Pay grade</label><input id="payGrade" name="payGrade" required maxLength={120} defaultValue={p?.payGrade ?? ""} className="input" /></div>
               </div>
-              <p className="hint mt-2">You can upload your payslip as soon as these are saved. Human Resources then confirms them against your personnel record.</p>
+              <p className="hint mt-2">Once saved, you can upload your payslip. Human Resources confirms these details.</p>
             </ActionForm>
             <div className="mt-6 border-t border-line pt-5">
               <p className="mb-3 text-xs text-muted">From your Human Resources record. Contact Human Resources if any of these are wrong.</p>
               {!p?.employmentStatus && <div className="mb-4"><Alert tone="info">Human Resources has not yet completed your employment record; it will be checked when you apply.</Alert></div>}
               <KeyValues columns={3} items={[
                 ["Department", rec.department?.name], ["School / faculty", rec.school?.name],
-                ["Designation", p?.designation], ["Staff category", rec.category?.name], ["Employment status", p?.employmentStatus ? p.employmentStatus.charAt(0).toUpperCase() + p.employmentStatus.slice(1).replace("_", " ") : undefined],
+                ["Designation", designationOf(p)], ["Staff category", rec.category?.name], ["Employment status", p?.employmentStatus ? p.employmentStatus.charAt(0).toUpperCase() + p.employmentStatus.slice(1).replace("_", " ") : undefined],
                 ["Employment date", <DateText key="e" value={p?.employmentDate} />], ["Length of service", `${monthsText(rec.serviceMonths)}`],
                 ["Latest payslip", slip ? <a key="s" href="/eligibility" className="link">{payslipMonth(slip.period)}</a> : <a key="s" href="/eligibility" className="link">Upload</a>],
                 ["Roles", <span key="r" className="flex flex-wrap gap-1">{actor.roles.map((r) => <Badge key={r}>{w.role[r as RoleCode]?.name ?? r}</Badge>)}</span>],
@@ -86,14 +87,14 @@ export default async function Profile() {
               ["Monthly instalments", <Money key="d" value={ob.monthlyDeductions} />], ["Outstanding balance", <Money key="o" value={ob.outstanding} />],
               ["Loans you guarantee", exp.liveCount], ["Amount you guarantee", <Money key="t" value={exp.total} />],
             ]} />
-            <p className="hint mt-3">Amount you guarantee: your share of colleagues' loans that you could be asked to repay if they do not.</p>
+            <p className="hint mt-3">Your share of colleagues' loans you could be asked to repay.</p>
           </Card>
           <Card title="Two-step verification" description={mfa.enabledAt ? "On" : "Off"}>
             {mfa.enabledAt
               ? <p className="text-sm">Set up on <DateText value={mfa.enabledAt} />. You enter a code from your authenticator app when you sign in. {mfa.codesLeft} recovery codes left.</p>
               : <><p className="text-sm">For additional security, confirm each sign-in with a code from an authenticator app on your phone.</p><a href="/mfa?setup=1" className="btn-secondary mt-3">Set up</a></>}
           </Card>
-          <Card className="flex-1" title="Privacy and help" description="Your details are used only for your loans and advances, and seen only by staff whose role requires it." bodyClassName="p-0!">
+          <Card className="flex-1" title="Privacy and help" description="Used only for your loans, and seen only by staff who need it." bodyClassName="p-0!">
             <ul className="divide-y divide-line">
               {[
                 { href: "/privacy", icon: ShieldCheck, title: "Privacy notice", text: "How your data is used, and your rights under the Nigeria Data Protection Act 2023." },

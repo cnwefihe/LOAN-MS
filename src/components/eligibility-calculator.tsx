@@ -135,7 +135,7 @@ export function EligibilityCalculator({ products, ctx, standing, payslipOnFile, 
         <div className="flex flex-col gap-6 lg:col-span-3">
           {!breakdown && answer}
           {result?.payslip && !isAdvance && (
-            <Card className="flex-1" title="How this is calculated" description={`Your total monthly deductions, including this loan, are subject to a maximum of ${p.maxDeductionPercent}% of net pay.`}>
+            <Card className="flex-1" title="How this is calculated" description={`All deductions, including this loan, within ${p.maxDeductionPercent}% of net pay.`}>
               <PayslipBreakdown a={result.payslip} period={ctx.payslip?.period} guarantees={result.guaranteeCommitment} instalment={result.shortfall ? null : result.instalmentMonthly} />
               <MaxLoan r={result} p={p} months={months} />
             </Card>

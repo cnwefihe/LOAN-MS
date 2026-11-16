@@ -63,7 +63,7 @@ export default async function Content({ searchParams }: { searchParams: Promise<
       <Tabs base="/admin/content" active={tab} tabs={[{ key: "terms", label: "Terms & agreements", count: KINDS.length }, { key: "documents", label: "Document requirements", count: reqs.length }, { key: "templates", label: "Notification templates", count: templates.length }]} />
 
       {tab === "terms" && (
-        <Card bodyClassName="p-5 py-0">
+        <Card bodyClassName="px-5 pt-0 pb-5">
           <Table caption="Terms and agreements">
             <thead><tr><Th>Document</Th><Th>Title</Th><Th>Version</Th><Th>Published</Th><Th>Status</Th><Th><span className="sr-only">Action</span></Th></tr></thead>
             <tbody>
@@ -86,7 +86,7 @@ export default async function Content({ searchParams }: { searchParams: Promise<
       )}
 
       {tab === "documents" && (
-        <Card bodyClassName="p-5 py-0">
+        <Card bodyClassName="px-5 pt-0 pb-5">
           {reqs.length === 0 ? <div className="py-5"><EmptyState title="No document requirements" /></div> : (
             <Table caption="Document requirements">
               <thead><tr><Th>Document</Th><Th>Code</Th><Th>Product</Th><Th>Applies to</Th><Th>Required</Th><Th>Status</Th><Th><span className="sr-only">Action</span></Th></tr></thead>
