@@ -29,6 +29,7 @@ export default async function AddUsers({ searchParams }: { searchParams: Promise
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Full name" htmlFor="name"><input id="name" name="name" required maxLength={200} className="input" /></Field>
               <Field label="Work email" htmlFor="email"><input id="email" name="email" type="email" required className="input" /></Field>
+              <Field label="Employee code (optional)" htmlFor="staffNumber" hint="Filled from Microsoft at first sign-in if left empty."><input id="staffNumber" name="staffNumber" maxLength={50} className="input" /></Field>
               <Field label="Department" htmlFor="departmentName" hint="Choose one, or type a new name to create it.">
                 <input id="departmentName" name="departmentName" list="department-list" maxLength={200} autoComplete="off" className="input" />
                 <datalist id="department-list">{depts.map((d) => <option key={d.id} value={d.name} />)}</datalist>

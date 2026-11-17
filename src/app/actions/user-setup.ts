@@ -12,7 +12,7 @@ const role = (s: string): ApproverRole | null => (s === "hod" || s === "line_man
 export async function addUserAction(_: Prev, fd: FormData) {
   return runAction(async (actor) => {
     const r = await addUser(await getDb(), actor, {
-      name: str(fd, "name", true), email: str(fd, "email", true), departmentName: str(fd, "departmentName") || null, schoolName: str(fd, "schoolName") || null, approver: role(str(fd, "approver")),
+      name: str(fd, "name", true), email: str(fd, "email", true), staffNumber: str(fd, "staffNumber") || null, departmentName: str(fd, "departmentName") || null, schoolName: str(fd, "schoolName") || null, approver: role(str(fd, "approver")),
     });
     return r.created ? "User added. They can sign in with their university account." : "This person was already known; their details have been updated.";
   }, { revalidate: PATHS });

@@ -81,6 +81,18 @@ describe("adding users", () => {
     await setUserDepartment(db, admin, id, depts[1].id);
     expect((await profile(id)).departmentId).toBe(depts[1].id);
   });
+
+  it("gives an approver added before signing in their employee code from Microsoft, without replacing one already entered", async () => {
+    await addUser(db, admin, { name: "Gbenga Ola", email: "gbenga.ola@example.edu.ng", departmentName: depts[0].name, approver: "line_manager" });
+    const id = (await byEmail("gbenga.ola@example.edu.ng")).id;
+    expect((await profile(id)).staffNumber).toBeNull();
+    await provisionEntraUser({ oid: "oid-gbenga", tenantId: "t", email: "gbenga.ola@example.edu.ng", displayName: "Gbenga Ola", employeeId: "PAU/2015/044", mobilePhone: "08030000001" });
+    expect((await profile(id)).staffNumber).toBe("PAU/2015/044");
+    expect((await profile(id)).phone).toBe("08030000001");
+    // A later sign-in with a different directory value keeps what is on record.
+    await provisionEntraUser({ oid: "oid-gbenga", tenantId: "t", email: "gbenga.ola@example.edu.ng", displayName: "Gbenga Ola", employeeId: "OTHER-1" });
+    expect((await profile(id)).staffNumber).toBe("PAU/2015/044");
+  });
 });
 
 describe("adding one user with a new department", () => {

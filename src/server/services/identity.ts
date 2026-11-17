@@ -109,7 +109,13 @@ export async function provisionEntraUser(identity: EntraIdentity): Promise<strin
       phone: identity.mobilePhone ?? null, staffNumber: identity.employeeId || null,
     }).onConflictDoUpdate({
       target: staffProfiles.userId,
-      set: { entraJobTitle: identity.jobTitle ?? null, entraDepartment: identity.department ?? null, updatedAt: new Date() },
+      // Staff added before their first sign-in already have a record: fill the employee code and phone from
+      // Microsoft where they are still empty, never replacing what Human Resources or the person entered.
+      set: {
+        entraJobTitle: identity.jobTitle ?? null, entraDepartment: identity.department ?? null, updatedAt: new Date(),
+        staffNumber: sql`coalesce(${staffProfiles.staffNumber}, ${identity.employeeId || null})`,
+        phone: sql`coalesce(${staffProfiles.phone}, ${identity.mobilePhone ?? null})`,
+      },
     });
 
     await grantRole(tx, user.id, "APPLICANT", null);

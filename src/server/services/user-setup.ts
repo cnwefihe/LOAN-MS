@@ -17,6 +17,8 @@ export interface NewUser {
   name: string; email: string; approver?: ApproverRole | null;
   /** An existing department by id, or one by name: found by name or code, or created (with `schoolName`). */
   departmentId?: string | null; departmentName?: string | null; schoolName?: string | null;
+  /** The employee code, when known; otherwise it comes from Microsoft at first sign-in. */
+  staffNumber?: string | null;
 }
 
 const clean = (s: string) => s.replace(/\s+/g, " ").trim();
@@ -81,8 +83,9 @@ async function setUp(tx: Executor, actor: Actor, input: NewUser, dept: Dept | nu
     // Not signed in yet, so the name given here is the best one there is.
     await tx.update(users).set({ displayName: name, updatedAt: new Date() }).where(eq(users.id, user.id));
   }
-  await tx.insert(staffProfiles).values({ userId: user.id, departmentId: dept?.id ?? null, schoolId: dept?.schoolId ?? null })
-    .onConflictDoUpdate({ target: staffProfiles.userId, set: dept ? { departmentId: dept.id, schoolId: dept.schoolId, updatedAt: new Date() } : { updatedAt: new Date() } });
+  const code = input.staffNumber?.trim() || null;
+  await tx.insert(staffProfiles).values({ userId: user.id, departmentId: dept?.id ?? null, schoolId: dept?.schoolId ?? null, staffNumber: code })
+    .onConflictDoUpdate({ target: staffProfiles.userId, set: { ...(dept ? { departmentId: dept.id, schoolId: dept.schoolId } : {}), ...(code ? { staffNumber: code } : {}), updatedAt: new Date() } });
   if (input.approver && dept) {
     assertCan(actor, "admin.org.manage");
     await tx.update(departments).set({ headUserId: user.id, approverTitle: input.approver }).where(eq(departments.id, dept.id));
