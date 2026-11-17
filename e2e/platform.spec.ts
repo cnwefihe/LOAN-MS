@@ -99,7 +99,7 @@ test.describe.serial("application lifecycle through the UI", () => {
       await page.getByLabel("Relationship with the applicant").selectOption("Colleague");
       await page.getByLabel("Your telephone number(s)").fill("08031234567, 08097654321");
       await page.getByLabel(/Type your full name to sign/).fill(name);
-      await page.getByRole("button", { name: "Accept and sign electronically" }).click();
+      await page.getByRole("button", { name: "Accept", exact: true }).click();
       await expect(page).toHaveURL(/\/guarantor$/);
     });
   }
@@ -144,7 +144,7 @@ test.describe.serial("application lifecycle through the UI", () => {
       await page.getByRole("link", { name: /LMS-\d{6}-\d{3}/ }).first().click();
       await expect(page.getByRole("heading", { name: /Your decision/ })).toBeVisible();
       await page.locator('input[name="decision"][value="approved"]').check();
-      await page.getByLabel("Basis for decision").fill("Supported; within policy.");
+      await page.getByLabel("Comments", { exact: true }).fill("Supported; within policy.");
       await page.getByRole("button", { name: "Record decision" }).click();
       await expect(page.getByText(name === "Halima Musa" ? "Now at: Bursar's final approval" : "Now at: HR Director approval")).toBeVisible();
     });
@@ -155,7 +155,7 @@ test.describe.serial("application lifecycle through the UI", () => {
     await signIn(page, "Bisi Lawal");
     await page.goto(`/approvals${appPath.replace("/applications", "")}`);
     await page.locator('input[name="decision"][value="approved"]').check();
-    await page.getByLabel("Basis for decision").fill("Within policy; HR verification satisfactory.");
+    await page.getByLabel("Comments", { exact: true }).fill("Within policy; HR verification satisfactory.");
     await page.getByRole("button", { name: "Record decision" }).click();
     const opened = page.getByText(/Loan account LMS-\d{6}-\d{3} opened/);
     await expect(opened).toBeVisible();

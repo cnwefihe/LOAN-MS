@@ -18,10 +18,10 @@ export default async function HrDashboard() {
     returned: sql<number>`count(*) filter (where ${loanApplications.status} = 'returned')`,
     forwarded: sql<number>`count(*) filter (where ${loanApplications.status} = 'pending_bursary')`,
   }).from(loanApplications);
-  const queue = await applicationQueue(db, actor, { statuses: ["pending_hr"], limit: 10 });
+  const queue = await applicationQueue(db, actor, { statuses: ["pending_hr"], limit: 5 });
   const recent = await db.select({ v: hrVerifications, officer: users.displayName, ref: loanApplications.reference, appId: loanApplications.id })
     .from(hrVerifications).innerJoin(users, eq(users.id, hrVerifications.officerId)).innerJoin(loanApplications, eq(loanApplications.id, hrVerifications.applicationId))
-    .orderBy(sql`${hrVerifications.createdAt} desc`).limit(8);
+    .orderBy(sql`${hrVerifications.createdAt} desc`).limit(5);
   return (
     <>
       <PageHeader title="Overview" description="Employment, salary and guarantor checks." actions={<Link href="/hr/applications" className="btn-primary">Open verification queue</Link>} />

@@ -56,7 +56,7 @@ export function GuarantorAccept({ action, policy, cover, payslipOnFile, applican
       {check?.ok && (
         <div className="rounded-md border border-green-200 p-4">
           <h4 className="text-sm font-semibold text-success">Step 2: accept and sign</h4>
-          <ActionForm action={action} submitLabel="Accept and sign electronically" variant="success" confirm="Accept this guarantee? This is a binding commitment.">
+          <ActionForm action={action} submitLabel="Accept" confirm="Accept this guarantee? This is a binding commitment.">
             <input type="hidden" name="decision" value="accept" />
             <fieldset className="mt-2 space-y-2 text-sm">
               <legend className="sr-only">Confirmations</legend>

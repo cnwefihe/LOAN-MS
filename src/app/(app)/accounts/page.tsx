@@ -27,7 +27,7 @@ export default async function AccountsDashboard() {
   const summary = can(actor, "reports.view") ? await portfolioSummary(db, actor) : null;
   const recent = await db.select({ t: financialTransactions, acct: loanAccounts.accountNumber, borrower: users.displayName }).from(financialTransactions)
     .innerJoin(loanAccounts, eq(loanAccounts.id, financialTransactions.loanAccountId)).innerJoin(users, eq(users.id, loanAccounts.borrowerId))
-    .where(sql`${financialTransactions.type} <> 'interest_recognition'`).orderBy(sql`${financialTransactions.createdAt} desc`).limit(10);
+    .where(sql`${financialTransactions.type} <> 'interest_recognition'`).orderBy(sql`${financialTransactions.createdAt} desc`).limit(5);
 
   const pool = can(actor, "fund.view") ? await fundPosition(db) : null;
   const cards = (

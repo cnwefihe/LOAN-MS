@@ -1,4 +1,5 @@
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { listOpenProducts } from "@/server/services/policies";
 import type { Executor } from "@/db";
 import { departments, loanApplications, applicationGuarantors, loanAccounts, repaymentClaims, financialTransactions, notifications, earlyRepayments } from "@/db/schema";
 import { can, canAny, type Actor } from "@/server/actor";
@@ -65,7 +66,9 @@ export async function buildNav(db: Executor, actor: Actor): Promise<{ sections: 
     }
     if (can(actor, "disbursement.record")) items.push({ href: "/accounts/disbursements", label: "Disbursements", icon: "banknote", badge: awaiting });
     if (can(actor, "transaction.approve")) items.push({ href: "/accounts/approvals", label: "Pending authorisations", icon: "check", badge: checker });
-    items.push({ href: "/accounts/advances", label: "Advances", icon: "wallet", badge: await advancesToRecover(db) });
+    // Advances only while an advance product is open or advances are still being recovered.
+    const advancesOpen = await advancesToRecover(db);
+    if (advancesOpen > 0 || (await listOpenProducts(db)).some((p) => p.params.productType === "advance")) items.push({ href: "/accounts/advances", label: "Advances", icon: "wallet", badge: advancesOpen });
     items.push({ href: "/accounts/reconciliation", label: "Reconciliation", icon: "scale" }, { href: "/accounts/loans", label: "Loan accounts", icon: "landmark" });
     // The automatic check runs by itself, as often as set in Settings, so it has no menu entry (the Control centre shows whether it is running).
     sections.push({ title: w.section.bursary, items });
@@ -111,7 +114,7 @@ export async function buildNav(db: Executor, actor: Actor): Promise<{ sections: 
   if (actor.roles.includes("SUPER_ADMIN")) {
     const work = sections.filter((s) => s.title !== "Administration" && s.title !== "Insight");
     const menu = [
-      { title: "Administration", items: [...admin, self.find((i) => i.href === "/eligibility")!] },
+      { title: "Administration", items: admin },
       ...work,
       ...(insight.length ? [{ title: "Insight", items: insight }] : []),
     ];

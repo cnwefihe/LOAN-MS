@@ -66,7 +66,7 @@ export default async function ApprovalReview({ params }: { params: Promise<{ id:
                     <div><label htmlFor="approvedTenorMonths" className="label">Approved tenor (months)</label><input id="approvedTenorMonths" name="approvedTenorMonths" type="number" min={p.minTenorMonths} max={p.maxTenorMonths} defaultValue={d.app.tenorMonths} className="input" /></div>
                   </div>
                 )}
-                <div><label htmlFor="comments" className="label">Basis for decision</label><textarea id="comments" name="comments" rows={3} required minLength={5} className="input" /></div>
+                <div><label htmlFor="comments" className="label">Comments</label><textarea id="comments" name="comments" rows={3} required minLength={5} className="input" /></div>
                 <fieldset className="mt-4">
                   <legend className="label">Decision</legend>
                   <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">

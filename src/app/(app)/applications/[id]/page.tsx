@@ -71,7 +71,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
           <Card title="Loan request">
             <KeyValues columns={3} items={[
               ["Product", d.app.advanceType ? `${d.product.name} (against ${ADVANCE_TYPES[d.app.advanceType].toLowerCase()})` : d.product.name], ["Amount requested", <Money key="a" value={app.requestedAmount} />], ["Tenor", `${monthsText(app.tenorMonths)}`],
-              ...(d.access.isStaff ? [["Policy version", `v${d.policy.version}`] as [string, React.ReactNode]] : []), ["Salary basis used", (app.salarySnapshot as { source?: string }).source?.replace("_", " ")], ["Approval stage", app.status === "pending_approval" ? approvalStageName(w, app.currentApprovalLevel || 1, (await departmentHeadOf(db, app.applicantId))?.approverTitle) : "N/A"],
+              ...(d.access.isStaff ? [["Policy version", `v${d.policy.version}`] as [string, React.ReactNode]] : []), ["Salary basis used", (app.salarySnapshot as { source?: string }).source?.replace("_", " ")], ...(app.status === "pending_approval" ? [["Approval stage", approvalStageName(w, app.currentApprovalLevel || 1, (await departmentHeadOf(db, app.applicantId))?.approverTitle)] as [string, React.ReactNode]] : []),
               ...(d.access.isApplicant || canSeePay(actor) ? [["Cooperative loan", app.cooperativeMonthlyDeduction ? <span key="c"><Money value={app.cooperativeMonthlyDeduction} /> a month{app.cooperativeBalance && <>, <Money value={app.cooperativeBalance} /> outstanding</>}</span> : "None declared"] as [string, React.ReactNode]] : []),
             ]} />
             <p className="mt-4 text-xs text-muted">Purpose</p>

@@ -578,7 +578,7 @@ export async function confirmEarlyRepayment(db: Executor, actor: Actor, requestI
     await afterRepaymentPosted(tx, actor, txn);
     await tx.update(earlyRepayments).set({ status: "confirmed", reviewedBy: actor.userId, reviewedAt: new Date(), transactionId: txn.id }).where(eq(earlyRepayments.id, r.id));
     await audit(tx, actor, { action: "repayment.early_confirmed", entityType: "early_repayment", entityId: r.id, summary: `${loan.accountNumber}: repaid in full early (${naira(r.amount)}); confirmed with a two-step verification code` });
-    await notify(tx, { template: "repayment.early_confirmed", userIds: [loan.borrowerId, ...(await loanGuarantorIds(tx, loan.applicationId))], link: `/loans/${loan.id}`, vars: { amount: naira(r.amount), accountNumber: loan.accountNumber } });
+    await notify(tx, { template: "repayment.early_confirmed", userIds: [loan.borrowerId], link: `/loans/${loan.id}`, vars: { amount: naira(r.amount), accountNumber: loan.accountNumber } });
     return txn;
   });
 }
@@ -855,7 +855,7 @@ export async function decideRestructure(db: Executor, actor: Actor, requestId: s
     await tx.update(restructureRequests).set({ status: "approved", reviewedBy: actor.userId, reviewedAt: new Date(), reviewComment: comment, newScheduleId: ns.id }).where(eq(restructureRequests.id, r.id));
     await recomputeLoan(tx, actor, loan.id);
     await audit(tx, actor, { action: "restructure.approved", entityType: "loan_account", entityId: loan.id, summary: `${loan.accountNumber}: schedule v${ns.version}, ${monthsText(r.proposedTenorMonths)} from ${first}, base ${m(base)}` });
-    await notify(tx, { template: "restructure.decided", userIds: [loan.borrowerId, ...(await loanGuarantorIds(tx, loan.applicationId))], link: `/loans/${loan.id}`, vars: { accountNumber: loan.accountNumber, decision: "approved", comment: `New monthly instalment ${naira(lines[0].totalDue)} from ${formatDate(first)} for ${monthsText(r.proposedTenorMonths)}. ${comment}` } });
+    await notify(tx, { template: "restructure.decided", userIds: [loan.borrowerId], link: `/loans/${loan.id}`, vars: { accountNumber: loan.accountNumber, decision: "approved", comment: `New monthly instalment ${naira(lines[0].totalDue)} from ${formatDate(first)} for ${monthsText(r.proposedTenorMonths)}. ${comment}` } });
     return ns;
   });
 }
@@ -863,6 +863,10 @@ export async function decideRestructure(db: Executor, actor: Actor, requestId: s
 /* ───────────────────────── Servicing job ───────────────────────── */
 
 /** Daily: refresh statuses/DPD, send due-date reminders, flag overdue and defaulted loans. */
+/*
+ * Guarantors are told about a loan only at payout, if it goes into default (after the days set for the
+ * product), and when it is closed. Repayments, early repayment and restructuring go to the borrower only.
+ */
 export async function runServicing(db: Executor, actor: Actor | null, asOf = todayLagos()) {
   const live = await db.select().from(loanAccounts).where(inArray(loanAccounts.status, [...SERVICEABLE]));
   let reminders = 0, deductions = 0;
