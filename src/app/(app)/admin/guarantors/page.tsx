@@ -32,7 +32,7 @@ export default async function Guarantors({ searchParams }: { searchParams: Promi
   return (
     <>
       <PageHeader title="Guarantors" crumbs={[{ label: "Administration", href: "/admin" }, { label: "Guarantors" }]}
-        description="Everyone chosen as a guarantor, who for, and whether they accepted or declined. Any staff member may be chosen, provided they meet the loan policy." />
+        description="Staff chosen as guarantors and their responses. Any staff member who meets the loan policy may be chosen." />
       <StatGrid>
         <Stat label="People chosen" value={people} />
         <Stat label="Guaranteeing a loan now" value={new Set(pick("active").map((r) => r.guarantorId)).size} tone="brand" />
@@ -43,8 +43,8 @@ export default async function Guarantors({ searchParams }: { searchParams: Promi
       <Card bodyClassName="p-5" className="min-w-0">
         <SearchFilter q={sp.q} placeholder="Search guarantor, applicant or reference" hidden={{ tab }} />
         {pg.items.length === 0 ? <EmptyState title={all.length ? "Nothing found" : "No one has been chosen as a guarantor yet"} description={all.length ? "Try a different search or tab." : "People appear here once an applicant chooses them."} /> : (
-          <Table caption="Guarantors">
-            <thead><tr><Th>Guarantor</Th><Th>Guaranteeing</Th><Th right>Amount</Th><Th>Reply</Th><Th>Active</Th><Th>Asked on</Th><Th>Replied on</Th></tr></thead>
+          <Table caption="Guarantee requests">
+            <thead><tr><Th>Guarantor</Th><Th>Applicant</Th><Th right>Amount guaranteed</Th><Th>Response</Th><Th>Guarantee status</Th><Th>Requested</Th><Th>Responded</Th></tr></thead>
             <tbody>
               {pg.items.map((r) => {
                 const reply = REPLY[r.status] ?? { label: r.status, tone: "neutral" as const };
