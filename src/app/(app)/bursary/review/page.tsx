@@ -21,7 +21,7 @@ export default async function BursaryQueue({ searchParams }: { searchParams: Pro
   const STATUSES = [{ value: "pending_bursary", label: "Awaiting your review" }, { value: "pending_approval", label: "Sent for approval" }, { value: "", label: "All submitted" }];
   return (
     <>
-      <PageHeader title="Reviews" description="Check pay, loans and funds, then send to the Line Manager." />
+      <PageHeader title="Reviews" description="Check pay, loans and funds, then send for approval." />
       <StatGrid>
         <Stat label="Awaiting review" value={pending.length} tone={pending.length ? "warning" : "default"} />
         <Stat label="Value awaiting review" value={<Money value={sum(pending.map((r) => r.app.requestedAmount)).toFixed(2)} />} />

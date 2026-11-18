@@ -19,6 +19,7 @@ import { DocumentList, GuarantorTable, MessageThread, QuoteSummary, WorkflowHist
 import { bursaryDecisionAction } from "@/app/actions/staff-ops";
 import { postMessageAction } from "@/app/actions/applicant";
 import { monthsText } from "@/lib/finance/dates";
+import { departmentHeadOf } from "@/server/services/staff";
 
 export const metadata = { title: "Bursary review" };
 
@@ -36,6 +37,7 @@ export default async function BursaryReview({ params }: { params: Promise<{ id: 
   const canDecide = can(actor, "bursary.review") && d.app.status === "pending_bursary" && !conflicted;
   const t = w.deductions;
   const words = await getWording(db);
+  const approver = (await departmentHeadOf(db, d.app.applicantId))?.approverTitle === "line_manager" ? "Line Manager" : "Head of Department";
 
   return (
     <>
@@ -97,7 +99,7 @@ export default async function BursaryReview({ params }: { params: Promise<{ id: 
           <Card title="Guarantors"><GuarantorTable guarantors={d.guarantors.filter((g) => g.g.status === "accepted")} assessments={d.assessments} /></Card>
 
           {canDecide && (
-            <Card title={`${words.role.ACCOUNTS_ADMIN.name}'s decision`}>
+            <Card title="Your decision">
               <ActionForm action={bursaryDecisionAction.bind(null, id)} submitLabel="Record decision" confirm="Record this decision? It cannot be edited afterwards.">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div><label htmlFor="lastLoanDate" className="label">Date last loan taken</label><input id="lastLoanDate" name="lastLoanDate" type="date" defaultValue={w.lastLoan?.takenOn ?? ""} className="input" /><p className="hint">Change only for a loan taken before this system.</p></div>
@@ -108,7 +110,7 @@ export default async function BursaryReview({ params }: { params: Promise<{ id: 
                 <fieldset className="mt-4">
                   <legend className="label">Decision</legend>
                   <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
-                    <label className="flex items-center gap-2"><input type="radio" name="decision" value="cleared" required disabled={!t.passed} /> Affirm and send to the Line Manager</label>
+                    <label className="flex items-center gap-2"><input type="radio" name="decision" value="cleared" required disabled={!t.passed} /> Affirm and send to the {approver}</label>
                     <label className="flex items-center gap-2"><input type="radio" name="decision" value="returned" /> Return to applicant</label>
                     <label className="flex items-center gap-2"><input type="radio" name="decision" value="refer_hr" /> Refer back to Human Resources</label>
                     <label className="flex items-center gap-2"><input type="radio" name="decision" value="declined" /> Decline</label>

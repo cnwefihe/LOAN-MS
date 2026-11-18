@@ -57,6 +57,9 @@ export function ChangeList({ changes }: { changes: Change[] }) {
   );
 }
 
+/** Written out in full so the stylesheet includes each one (a class name built at run time is left out). */
+const BUTTON = { primary: "btn-primary", secondary: "btn-secondary", danger: "btn-danger", success: "btn-success" } as const;
+
 /**
  * Generic progressive-enhancement form for server actions: shows pending state, errors under the form,
  * a short success notice that clears itself, asks for confirmation in a dialog when `confirm` is set,
@@ -150,7 +153,7 @@ export function ActionForm({
       )}
       {!hideSubmit && (
         <div className={inline ? "inline-flex" : `mt-4 flex items-center gap-3 ${footerClassName ?? ""}`}>
-          <button type="submit" disabled={pending} className={submitClassName ?? `btn-${variant}`}>
+          <button type="submit" disabled={pending} className={submitClassName ?? BUTTON[variant]}>
             {pending ? "Working…" : submitLabel}
           </button>
         </div>
