@@ -29,7 +29,8 @@ import { recordHrDecision } from "@/server/services/hr";
 import { decideApplication } from "@/server/services/approvals";
 import { reviewByBursary } from "@/server/services/bursary";
 import { storeDocument } from "@/server/services/documents";
-import { removeTestApplication } from "@/server/services/cleanup";
+import { clearAllTestData, removeTestApplication } from "@/server/services/cleanup";
+import { nextReference } from "@/server/references";
 import { myDataPdf } from "@/server/services/privacy";
 import {
   recordDisbursement, submitRepaymentClaim, confirmRepaymentClaim, recordRepayment, approvePendingTransaction,
@@ -335,5 +336,17 @@ describe("full loan lifecycle", () => {
     expect(await check()).toMatch(/does not show you as confirmed/);
     await setStaffConfirmation(db, A.hradmin, A.guarantor2.userId, true);
     expect(await check()).not.toMatch(/confirmed/);
+  });
+
+  // Last: it clears every application and loan.
+  it("all test data can be cleared, keeping users and settings, and references start again from 001", async () => {
+    const usersBefore = (await db.select().from(s.users)).length;
+    await clearAllTestData(db, { confirm: false });
+    expect((await db.select().from(s.loanApplications)).length).toBeGreaterThan(0);
+    await clearAllTestData(db, { confirm: true });
+    for (const t of [s.loanApplications, s.applicationGuarantors, s.approvals, s.loanAccounts, s.disbursements, s.financialTransactions, s.staffPayslips, s.documents, s.notifications, s.fundPools])
+      expect(await db.select().from(t)).toHaveLength(0);
+    expect((await db.select().from(s.users)).length).toBe(usersBefore);
+    expect(await nextReference(db)).toMatch(/-001$/);
   });
 });

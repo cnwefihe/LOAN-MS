@@ -62,3 +62,57 @@ export async function removeTestApplication(db: Executor, reference: string, opt
   } catch (e) { if (!(e instanceof DryRun)) throw e; }
   return counts;
 }
+
+/**
+ * Clears every application, loan and payment entered while testing, before the system goes into use:
+ * applications with their guarantees, checks, approvals, history and messages; loans with their
+ * agreements, payouts, schedules, transactions and repayments; the documents and uploaded payslips;
+ * notifications, sent emails and access records; the fund pool; and the running reference number, so
+ * the first real application is LMS-YYMMDD-001. Audit entries about what is removed go with it.
+ * Users, roles, departments, products, terms, settings, branding and the guarantor list are kept.
+ * Without `confirm` nothing is changed; the counts show what would go. Stored files with no document left
+ * are removed by the next automatic check. Run from the server with scripts/clear-test-data.ts.
+ */
+export async function clearAllTestData(db: Executor, opts: { confirm: boolean }) {
+  const counts: [string, number][] = [];
+  try {
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`set local session_replication_role = replica`);
+      const steps: [string, ReturnType<typeof sql>][] = [
+        ["guarantor assessments", sql`delete from guarantor_assessments`],
+        ["HR verifications", sql`delete from hr_verifications`],
+        ["Bursary reviews", sql`delete from bursary_reviews`],
+        ["approvals", sql`delete from approvals`],
+        ["workflow steps", sql`delete from workflow_transitions`],
+        ["messages", sql`delete from application_messages`],
+        ["loan agreements", sql`delete from loan_agreements`],
+        ["repayment instalments", sql`delete from schedule_instalments`],
+        ["repayment schedules", sql`delete from repayment_schedules`],
+        ["ledger entries", sql`delete from ledger_entries`],
+        ["repayment claims", sql`delete from repayment_claims`],
+        ["early repayments", sql`delete from early_repayments`],
+        ["restructure requests", sql`delete from restructure_requests`],
+        ["financial transactions", sql`delete from financial_transactions`],
+        ["payouts", sql`delete from disbursements`],
+        ["loans", sql`delete from loan_accounts`],
+        ["guarantor requests", sql`delete from application_guarantors`],
+        ["applications", sql`delete from loan_applications`],
+        ["uploaded payslips", sql`delete from staff_payslips`],
+        ["document access records", sql`delete from document_access_logs`],
+        ["documents", sql`delete from documents`],
+        ["issued documents", sql`delete from issued_documents`],
+        ["emails", sql`delete from email_outbox`],
+        ["notifications", sql`delete from notifications`],
+        ["fund pools", sql`delete from fund_pools`],
+        ["reference numbers", sql`delete from reference_counters where prefix = 'LMS' or prefix like 'LMS-%'`],
+        ["audit entries", sql`delete from audit_logs where entity_type in ('loan_application', 'application_guarantor', 'loan_account', 'disbursement', 'financial_transaction', 'repayment_claim', 'early_repayment', 'restructure_request', 'document', 'staff_payslip', 'fund_pool', 'guarantor_assessment', 'issued_document', 'email_outbox')`],
+      ];
+      for (const [label, q] of steps) {
+        const r = await tx.execute(q) as { affectedRows?: number; rowCount?: number };
+        counts.push([label, r.affectedRows ?? r.rowCount ?? 0]);
+      }
+      if (!opts.confirm) throw new DryRun();
+    });
+  } catch (e) { if (!(e instanceof DryRun)) throw e; }
+  return counts;
+}
