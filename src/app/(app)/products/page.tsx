@@ -66,7 +66,7 @@ function loanFacts(x: PolicyParameters, docs: string[]) {
     ["Who may apply", `${staffLabel(x.eligibleEmploymentStatuses)}, subject to verification by Human Resources.`],
     ["Purpose", "Stated clearly on the application form."],
     ["Guarantors", x.requiredGuarantors
-      ? `${x.requiredGuarantors === 2 ? "Two" : "One"} from the managerial cadre list: confirmed, with ${months(x.guarantorMinServiceMonths)}' service and deductions within ${x.guarantorMaxDeductionPercent}% of net pay.`
+      ? `${x.requiredGuarantors === 2 ? "Two" : "One"} colleague: confirmed, with ${months(x.guarantorMinServiceMonths)}' service and deductions within ${x.guarantorMaxDeductionPercent}% of net pay.`
       : "Not required."],
     ["Documents", <DocList key="d" docs={docs} />],
   ];

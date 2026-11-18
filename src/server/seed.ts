@@ -3,7 +3,7 @@ import type { Executor } from "@/db";
 import {
   roles, permissions, rolePermissions, notificationTemplates, systemSettings, termsDocuments, users, userRoles, staffProfiles,
   schools, departments, staffCategories, loanProducts, policyVersions, documentRequirements,
-  fundPools, guarantorPool,
+  fundPools,
 } from "@/db/schema";
 import { PERMISSIONS, ROLE_DEFINITIONS, RETIRED_ROLE_CODES, type RoleCode } from "@/lib/auth/permissions";
 import { DEFAULT_POLICY } from "@/lib/finance/defaults";
@@ -247,9 +247,5 @@ export async function seedFixtures(db: Executor) {
   const year = Number(todayLagos().slice(0, 4));
   for (const sc of await db.select({ id: schools.id }).from(schools))
     for (const y of [year - 1, year, year + 1]) await db.insert(fundPools).values({ year: y, schoolId: sc.id, amount: "500000000.00", note: "Development fixture", setBy: ids.headofaccount }).onConflictDoNothing();
-  // Fixture staff who may be chosen as guarantors (the managerial cadre list).
-  for (const f of FIXTURE_USERS) {
-    await db.insert(guarantorPool).values({ name: f.name, email: f.email, createdBy: ids.admin }).onConflictDoNothing();
-  }
   return { ids, productId: product.id };
 }

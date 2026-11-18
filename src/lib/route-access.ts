@@ -27,7 +27,6 @@ const PAGES: [pattern: string, anyOf: Permission[]][] = [
   ["/admin/content", ["admin.content.manage"]],
   ["/admin/content/*/*", ["admin.content.manage"]],
   ["/admin/guarantors", ["admin.policy.manage"]],
-  ["/admin/guarantors/new", ["admin.policy.manage"]],
   ["/admin/organisation", ["admin.org.manage"]],
   ["/admin/organisation/*/*", ["admin.org.manage"]],
   ["/admin/organisation/import", ["admin.org.manage"]],

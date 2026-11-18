@@ -1,7 +1,6 @@
 /**
- * Guarantors chosen from the list of the managerial cadre kept by an administrator: applicants see names
- * only, the email is used to send the request, and anyone not on the list is refused. The Bereavement Loan
- * needs no guarantors.
+ * Any active user may be chosen as a guarantor: applicants see names only, the email is used to send the
+ * request, and the loan policy decides whether they qualify. The Bereavement Loan needs no guarantors.
  */
 import { beforeAll, describe, expect, it } from "vitest";
 import os from "node:os";
@@ -19,7 +18,7 @@ import { loadActor } from "@/server/services/identity";
 import type { Actor } from "@/server/actor";
 import { saveDraft, submitApplication } from "@/server/services/applications";
 import { storeDocument } from "@/server/services/documents";
-import { guarantorChoices, importGuarantors, saveGuarantorEntry } from "@/server/services/guarantor-pool";
+import { guarantorChoices, guaranteeRequests } from "@/server/services/guarantor-pool";
 import { getActivePolicy, getLoanPolicy } from "@/server/services/policies";
 
 let db: Database;
@@ -38,36 +37,23 @@ beforeAll(async () => {
   });
 });
 
-describe("list of eligible guarantors", () => {
-  it("an administrator adds people one at a time or many at once; other staff cannot", async () => {
-    const admin = await actor("admin");
-    await saveGuarantorEntry(db, admin, { name: "Grace  Okon", email: "Grace.Okon@example.edu.ng" });
-    await expect(saveGuarantorEntry(db, admin, { name: "Grace Okon", email: "grace.okon@example.edu.ng" })).rejects.toThrow(/already on the list/);
-    await expect(saveGuarantorEntry(db, admin, { name: "Someone Else", email: "someone@gmail.com" })).rejects.toThrow(/not a work email/);
-    await expect(saveGuarantorEntry(db, await actor("applicant"), { name: "Ada Obi", email: "ada.obi@example.edu.ng" })).rejects.toThrow();
-
-    const r = await importGuarantors(db, admin, "Name, Email\nAda Obi, ada.obi@example.edu.ng\nGrace Okon-Bassey\tgrace.okon@example.edu.ng\nno email here");
-    expect(r).toMatchObject({ added: 1, updated: 1 });
-    expect(r.skipped).toEqual(["no email here"]);
-    const [grace] = await db.select().from(s.guarantorPool).where(eq(s.guarantorPool.email, "grace.okon@example.edu.ng"));
-    expect(grace).toMatchObject({ name: "Grace Okon-Bassey", cadre: "Managerial", isActive: true });
-  });
-
-  it("applicants see names only, never their own, and not those marked unavailable", async () => {
-    const admin = await actor("admin");
-    const [ada] = await db.select().from(s.guarantorPool).where(eq(s.guarantorPool.email, "ada.obi@example.edu.ng"));
-    await saveGuarantorEntry(db, admin, { id: ada.id, name: ada.name, email: ada.email, isActive: false });
+describe("guarantors", () => {
+  it("any active user may be chosen; applicants see names only, never their own, and not deactivated users", async () => {
     const me = await actor("applicant");
     const choices = await guarantorChoices(db, me.email);
+    const active = await db.select().from(s.users).where(eq(s.users.isActive, true));
+    expect(choices).toHaveLength(active.length - 1);
     expect(choices.every((c) => Object.keys(c).sort().join() === "id,name")).toBe(true);
-    expect(choices.some((c) => c.name === "Adaeze Okafor")).toBe(false);
-    expect(choices.some((c) => c.name === "Ada Obi")).toBe(false);
-    expect(choices.some((c) => c.name === "Tunde Bello")).toBe(true);
+    expect(choices.some((c) => c.id === me.userId)).toBe(false);
+    const [ngozi] = await db.select().from(s.users).where(eq(s.users.email, "ngozi.eze.dev@example.edu.ng"));
+    await db.update(s.users).set({ isActive: false }).where(eq(s.users.id, ngozi.id));
+    expect((await guarantorChoices(db, me.email)).some((c) => c.id === ngozi.id)).toBe(false);
+    await db.update(s.users).set({ isActive: true }).where(eq(s.users.id, ngozi.id));
   });
 
-  it("the names chosen are turned into the guarantors' emails; the same person twice or someone off the list is refused", async () => {
+  it("the names chosen are turned into the guarantors' emails; the same person twice or a deactivated user is refused", async () => {
     const a = await actor("applicant");
-    const pick = async (email: string) => (await db.select().from(s.guarantorPool).where(eq(s.guarantorPool.email, email)))[0].id;
+    const pick = async (email: string) => (await db.select().from(s.users).where(eq(s.users.email, email)))[0].id;
     const tunde = await pick("tunde.bello.dev@example.edu.ng");
     const ngozi = await pick("ngozi.eze.dev@example.edu.ng");
     const base = { productId, requestedAmount: "300000", tenorMonths: 12, purpose: "School fees for my children", guarantorEmails: [] };
@@ -77,10 +63,16 @@ describe("list of eligible guarantors", () => {
     const [app] = await db.select().from(s.loanApplications).where(eq(s.loanApplications.id, d.id));
     expect(app.nominatedGuarantors).toEqual(["tunde.bello.dev@example.edu.ng", "ngozi.eze.dev@example.edu.ng"]);
 
-    // Someone typed in directly, not on the list, is refused at submission.
-    const off = await saveDraft(db, a, { ...base, applicationId: d.id, guarantorEmails: ["tunde.bello.dev@example.edu.ng", "stranger.dev@example.edu.ng"] });
-    await storeDocument(db, a, { buffer: PDF, fileName: "p.pdf", mimeType: "application/pdf", category: "applicant_supporting", title: "Payslip", ownerUserId: a.userId, applicationId: off.id, requirementCode: "PAYSLIP" });
-    await expect(submitApplication(db, a, off.id, { termsAccepted: true })).rejects.toThrow(/chosen from the list/);
+    // A guarantor deactivated after being chosen is refused at submission.
+    await storeDocument(db, a, { buffer: PDF, fileName: "p.pdf", mimeType: "application/pdf", category: "applicant_supporting", title: "Payslip", ownerUserId: a.userId, applicationId: d.id, requirementCode: "PAYSLIP" });
+    await db.update(s.users).set({ isActive: false }).where(eq(s.users.id, ngozi));
+    await expect(submitApplication(db, a, d.id, { termsAccepted: true })).rejects.toThrow(/can no longer be chosen/);
+    await db.update(s.users).set({ isActive: true }).where(eq(s.users.id, ngozi));
+  });
+
+  it("only an administrator sees who has been chosen as a guarantor", async () => {
+    expect(Array.isArray(await guaranteeRequests(db, await actor("admin")))).toBe(true);
+    await expect(guaranteeRequests(db, await actor("applicant"))).rejects.toThrow();
   });
 
   it("the Bereavement Loan is interest-free and needs no guarantors", async () => {
@@ -93,7 +85,7 @@ describe("list of eligible guarantors", () => {
     const p = (await getActivePolicy(db, productId))!.params;
     expect(p).toMatchObject({ guarantorMaxDeductionPercent: 30, maxGuaranteesPerGuarantor: 2, guarantorMinServiceMonths: 12 });
     const policy = await getLoanPolicy(db);
-    expect(policy.body).toMatch(/managerial cadre/);
+    expect(policy.body).toMatch(/Any staff member may be chosen as a guarantor/);
     expect(policy.body).toMatch(/30% of their net monthly salary/);
   });
 });

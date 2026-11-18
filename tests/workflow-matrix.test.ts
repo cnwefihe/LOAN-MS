@@ -93,8 +93,6 @@ async function createBorrower(c: Case, i: number) {
   for (const n of [1, 2]) {
     const gEmail = `${c.key}.guarantor${n}.matrix@example.edu.ng`;
     await createStaff(gEmail, `Guarantor ${n} for ${c.name}`, `MXG-${i}${n}`, ["800000", "800000", "700000"]);
-    // On the list of eligible guarantors, as an administrator would add them.
-    await db.insert(s.guarantorPool).values({ name: `Guarantor ${n} for ${c.name}`, email: gEmail }).onConflictDoNothing();
     guarantors.push(gEmail);
   }
   const email = `${c.name.toLowerCase().replace(" ", ".")}.matrix@example.edu.ng`;

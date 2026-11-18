@@ -17,7 +17,7 @@ export const DEFAULT_LOAN_POLICY_BODY = `## Eligibility
 - Approval is subject to the availability of funds.
 
 ## Eligibility and capacity of guarantors
-- Guarantors are chosen from the managerial cadre, from the list kept by the University.
+- Any staff member may be chosen as a guarantor, provided they meet the conditions below.
 - A guarantor must be a confirmed employee on the University payroll, with at least twelve months of continuous service and an employment period that runs beyond the final repayment date of the loan.
 - A guarantor is not accepted where, if the borrower defaulted, their share of the monthly repayment would take their total monthly deductions and debt obligations above 30% of their net monthly salary.
 - An employee may guarantee no more than two active loans, and only within the same 30% limit.
