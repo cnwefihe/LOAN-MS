@@ -2,7 +2,7 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Executor } from "@/db";
 import {
   loanAccounts, loanApplications, loanAgreements, disbursements, repaymentSchedules, scheduleInstalments, repaymentClaims,
-  financialTransactions, ledgerEntries, restructureRequests, users, staffProfiles, applicationGuarantors, loanProducts, documents,
+  financialTransactions, ledgerEntries, restructureRequests, users, staffProfiles, departments, schools, applicationGuarantors, loanProducts, documents,
   notifications, emailOutbox, sessions, rateLimits, earlyRepayments, auditLogs,
 } from "@/db/schema";
 import { buildSchedule, quoteLoan, instalmentLabel, rescheduleRemaining, PERIOD_MONTHS, type EligibilityResult } from "@/lib/finance/calculator";
@@ -22,6 +22,7 @@ import { getPolicyVersion, getActiveTerms } from "./policies";
 import { storeDocument } from "./documents";
 import { assertFundsFor, schoolForApplication } from "./funds";
 import { confirmWithCode } from "./mfa";
+import { matchesFilter, periodRange, type DeductionFilter } from "./deduction-filter";
 import { remindWaitingWork } from "./reminders";
 import { storage } from "../storage";
 import {
@@ -1067,10 +1068,10 @@ export async function listMyLoans(db: Executor, actor: Actor) {
 }
 
 /** Monthly reconciliation: expected instalments vs confirmed receipts vs pending staff reports. */
-export async function reconciliation(db: Executor, actor: Actor, month: string) {
+/** What was due and what was received in a month ("2026-05") or a whole year ("2026"), optionally for one person, school or department. */
+export async function reconciliation(db: Executor, actor: Actor, period: string, filter: DeductionFilter = {}) {
   assertCan(actor, "accounts.view");
-  const start = `${month}-01`;
-  const end = addMonths(start, 1);
+  const { start, end } = periodRange(period);
   const expected = await db.select({ loanId: scheduleInstalments.loanAccountId, due: sql<string>`sum(${scheduleInstalments.totalDue})` }).from(scheduleInstalments)
     .innerJoin(repaymentSchedules, eq(repaymentSchedules.id, scheduleInstalments.scheduleId))
     .where(and(sql`${scheduleInstalments.dueDate} >= ${start} and ${scheduleInstalments.dueDate} < ${end}`, eq(repaymentSchedules.isCurrent, true)))
@@ -1080,18 +1081,20 @@ export async function reconciliation(db: Executor, actor: Actor, month: string) 
       sql`not exists (select 1 from financial_transactions r where r.reverses_transaction_id = ${financialTransactions.id} and r.status = 'posted')`))
     .groupBy(financialTransactions.loanAccountId);
   const claims = await db.select({ loanId: repaymentClaims.loanAccountId, amt: sql<string>`sum(${repaymentClaims.amount})`, n: sql<number>`count(*)` }).from(repaymentClaims)
-    .where(and(eq(repaymentClaims.deductionMonth, start), eq(repaymentClaims.status, "pending"))).groupBy(repaymentClaims.loanAccountId);
+    .where(and(sql`${repaymentClaims.deductionMonth} >= ${start} and ${repaymentClaims.deductionMonth} < ${end}`, eq(repaymentClaims.status, "pending"))).groupBy(repaymentClaims.loanAccountId);
   const ids = [...new Set([...expected, ...received, ...claims].map((r) => r.loanId))];
   if (!ids.length) return [];
-  const loans = await db.select({ loan: loanAccounts, borrower: users.displayName, staffNumber: staffProfiles.staffNumber }).from(loanAccounts)
-    .innerJoin(users, eq(users.id, loanAccounts.borrowerId)).leftJoin(staffProfiles, eq(staffProfiles.userId, loanAccounts.borrowerId)).where(inArray(loanAccounts.id, ids));
-  return loans.map(({ loan, borrower, staffNumber }) => {
+  const loans = await db.select({ loan: loanAccounts, borrower: users.displayName, staffNumber: staffProfiles.staffNumber, departmentId: departments.id, department: departments.name, schoolId: schools.id, school: schools.name }).from(loanAccounts)
+    .innerJoin(users, eq(users.id, loanAccounts.borrowerId)).leftJoin(staffProfiles, eq(staffProfiles.userId, loanAccounts.borrowerId))
+    .leftJoin(departments, eq(departments.id, staffProfiles.departmentId)).leftJoin(schools, eq(schools.id, departments.schoolId))
+    .where(inArray(loanAccounts.id, ids));
+  return loans.filter((r) => matchesFilter({ ...r, borrowerId: r.loan.borrowerId }, filter)).map(({ loan, borrower, staffNumber, department, school }) => {
     const e = dec(expected.find((x) => x.loanId === loan.id)?.due ?? 0);
     const r = dec(received.find((x) => x.loanId === loan.id)?.amt ?? 0);
     const c = claims.find((x) => x.loanId === loan.id);
     const variance = r.minus(e);
     return {
-      loanId: loan.id, accountNumber: loan.accountNumber, borrower, staffNumber, status: loan.status,
+      loanId: loan.id, accountNumber: loan.accountNumber, borrowerId: loan.borrowerId, borrower, staffNumber, department, school, status: loan.status,
       expected: m(e), received: m(r), pendingClaims: m(c?.amt ?? 0), pendingClaimCount: Number(c?.n ?? 0), variance: m(variance),
       state: variance.isZero() ? "matched" : variance.greaterThan(0) ? "over" : r.isZero() ? (c ? "claimed" : "missing") : "short",
     };

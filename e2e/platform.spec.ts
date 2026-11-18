@@ -342,7 +342,16 @@ test.describe.serial("application lifecycle through the UI", () => {
     await page.goto("/accounts/reconciliation");
     const csv = await page.request.get((await page.getByRole("link", { name: "CSV" }).getAttribute("href"))!);
     expect(csv.status()).toBe(200);
-    expect(await csv.text()).toContain("Staff no.,Staff name,Department,Loan account,Due date,Instalment due,Arrears brought forward,Total to deduct");
+    expect(await csv.text()).toContain("Staff no.,Staff name,Department,School,Loan account,Due date,Instalment due,Arrears brought forward,Total to deduct");
+    // Filter to a whole year and one school; the download follows the filter.
+    await page.getByLabel("Month").selectOption({ label: "Whole year" });
+    await page.getByLabel("School").selectOption({ index: 1 });
+    await page.getByRole("button", { name: "Apply" }).click();
+    await page.waitForURL(/school=/);
+    const yearHref = (await page.getByRole("link", { name: "CSV" }).getAttribute("href"))!;
+    expect(yearHref).toMatch(/year=\d{4}/);
+    expect(yearHref).toContain("school=");
+    expect((await page.request.get(yearHref)).status()).toBe(200);
     expect((await page.request.get("/api/reports/export?report=loan_book&format=pdf")).status()).toBe(403);
   });
 

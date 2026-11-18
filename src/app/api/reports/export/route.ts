@@ -27,8 +27,8 @@ export async function GET(req: NextRequest) {
 
   const db = await getDb();
   const brand = await getBranding(db);
-  const params = reportParams({ from: q.get("from"), to: q.get("to"), month: q.get("month") });
-  const suffix = (key === "portfolio" || (isReportKey(key) && REPORTS[key].basis === "period")) ? `${params.from}-to-${params.to}` : isReportKey(key) && REPORTS[key].basis === "month" ? params.month : todayLagos();
+  const params = reportParams({ from: q.get("from"), to: q.get("to"), month: q.get("month"), year: q.get("year"), staff: q.get("staff"), school: q.get("school"), department: q.get("department") });
+  const suffix = (key === "portfolio" || (isReportKey(key) && REPORTS[key].basis === "period")) ? `${params.from}-to-${params.to}` : isReportKey(key) && REPORTS[key].basis === "month" ? (key === "payroll_deductions" && params.year ? params.year : params.month) : todayLagos();
   const base = `${brand.shortName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-loans-${key.replace(/_/g, "-")}-${suffix}`;
   const headers = (ext: keyof typeof FORMATS) => ({ "Cache-Control": "private, no-store", "Content-Type": FORMATS[ext], "Content-Disposition": `attachment; filename="${base}.${ext}"` });
   const f = format as keyof typeof FORMATS;

@@ -1,12 +1,14 @@
 import { and, eq, inArray, sql, desc } from "drizzle-orm";
 import type { Executor } from "@/db";
-import { loanApplications, loanAccounts, disbursements, users, staffProfiles, departments, applicationGuarantors, scheduleInstalments, repaymentSchedules, financialTransactions, loanProducts, auditLogs, repaymentClaims } from "@/db/schema";
+import { loanApplications, loanAccounts, disbursements, users, staffProfiles, departments, schools, applicationGuarantors, scheduleInstalments, repaymentSchedules, financialTransactions, loanProducts, auditLogs, repaymentClaims } from "@/db/schema";
 import { alias } from "drizzle-orm/pg-core";
 import { dec, m, sum, formatNaira, type MoneyInput } from "@/lib/finance/money";
 import { addMonths, todayLagos, firstOfMonth, formatDate } from "@/lib/finance/dates";
 import { assertCan, canAny, type Actor } from "../actor";
 import { ForbiddenError } from "../errors";
 import { guarantorExposure } from "./guarantors";
+import { deductionFilter, matchesFilter, periodRange, type DeductionFilter } from "./deduction-filter";
+export { deductionFilter, matchesFilter, periodRange, type DeductionFilter };
 
 const LIVE = ["active", "overdue", "defaulted"] as const;
 
@@ -164,24 +166,36 @@ export const REPORTS = {
 export type ReportKey = keyof typeof REPORTS;
 export const isReportKey = (k: string): k is ReportKey => k in REPORTS;
 
-export interface ReportParams { from: string; to: string; month: string }
+export interface ReportParams { from: string; to: string; month: string; year?: string; filter?: DeductionFilter }
+
+export const periodName = (period: string) => (/^\d{4}$/.test(period) ? `the year ${period}` : monthName(period));
+export const deductionPeriod = (p: ReportParams) => p.year ?? p.month;
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 /** Validated report parameters: the period defaults to the last 12 months and the month to the current one. */
-export function reportParams(input: { from?: string | null; to?: string | null; month?: string | null }): ReportParams {
+export function reportParams(input: { from?: string | null; to?: string | null; month?: string | null; year?: string | null; staff?: string | null; school?: string | null; department?: string | null }): ReportParams {
   const today = todayLagos();
   let to = input.to && ISO_DAY.test(input.to) ? input.to : today;
   let from = input.from && ISO_DAY.test(input.from) ? input.from : addMonths(firstOfMonth(today), -11);
   if (from > to) [from, to] = [to, from];
   const month = input.month && /^\d{4}-\d{2}$/.test(input.month) ? input.month : today.slice(0, 7);
-  return { from, to, month };
+  const year = input.year && /^\d{4}$/.test(input.year) ? input.year : undefined;
+  return { from, to, month, year, filter: deductionFilter(input) };
 }
 
 export function basisText(key: ReportKey, p: ReportParams): string {
   const basis = REPORTS[key].basis;
   if (basis === "period") return `${formatDate(p.from)} to ${formatDate(p.to)}`;
-  if (basis === "month") return `Deduction month ${monthName(p.month)}`;
+  if (basis === "month") return key === "payroll_deductions" && p.year ? `Deduction year ${p.year}` : `Deduction month ${monthName(p.month)}`;
   return `As at ${formatDate(todayLagos())}`;
+}
+
+/** ", for Ada Obi" or ", School of X" etc., naming what the schedule was narrowed to. */
+function filterText(f: DeductionFilter = {}, rows: { borrower: string; school: string | null; department: string | null }[]) {
+  const parts = [f.borrowerId && rows[0] ? `for ${rows[0].borrower}` : f.borrowerId ? "for the staff member chosen" : "",
+    f.departmentId ? (rows[0]?.department ? `in ${rows[0].department}` : "in the department chosen") : "",
+    f.schoolId && !f.departmentId ? (rows[0]?.school ? `in ${rows[0].school}` : "in the school chosen") : ""].filter(Boolean);
+  return parts.length ? `, ${parts.join(" ")}` : "";
 }
 
 export function monthName(month: string): string {
@@ -245,14 +259,14 @@ export async function collectionsRegister(db: Executor, actor: Actor, p: ReportP
  * What payroll should deduct from each borrower in a month: the instalment falling due in that month
  * plus any instalments from earlier months that are already past due and unpaid, from the current schedule.
  */
-export async function payrollDeductionSchedule(db: Executor, actor: Actor, month: string) {
+export async function payrollDeductionSchedule(db: Executor, actor: Actor, period: string, filter: DeductionFilter = {}) {
   if (!canAny(actor, "reports.view", "accounts.view", "repayment.confirm")) throw new ForbiddenError();
-  const start = `${month}-01`;
-  const end = addMonths(start, 1);
+  const { start, end } = periodRange(period);
   const today = todayLagos();
   const unpaid = sql<string>`${scheduleInstalments.totalDue} - ${scheduleInstalments.principalPaid} - ${scheduleInstalments.interestPaid}`;
   const rows = await db.select({
-    loanId: loanAccounts.id, accountNumber: loanAccounts.accountNumber, borrower: users.displayName, staffNumber: staffProfiles.staffNumber, department: departments.name,
+    loanId: loanAccounts.id, accountNumber: loanAccounts.accountNumber, borrowerId: loanAccounts.borrowerId, borrower: users.displayName, staffNumber: staffProfiles.staffNumber,
+    departmentId: departments.id, department: departments.name, schoolId: schools.id, school: schools.name,
     dueDate: sql<string | null>`max(${scheduleInstalments.dueDate}) filter (where ${scheduleInstalments.dueDate} >= ${start} and ${scheduleInstalments.dueDate} < ${end})`,
     scheduled: sql<string>`coalesce(sum(${unpaid}) filter (where ${scheduleInstalments.dueDate} >= ${start} and ${scheduleInstalments.dueDate} < ${end}), 0)`,
     // Arrears are instalments already past due today and before the month; later ones are deducted in their own month.
@@ -263,9 +277,11 @@ export async function payrollDeductionSchedule(db: Executor, actor: Actor, month
     .innerJoin(users, eq(users.id, loanAccounts.borrowerId))
     .leftJoin(staffProfiles, eq(staffProfiles.userId, loanAccounts.borrowerId))
     .leftJoin(departments, eq(departments.id, staffProfiles.departmentId))
+    .leftJoin(schools, eq(schools.id, departments.schoolId))
     .where(and(eq(repaymentSchedules.isCurrent, true), inArray(loanAccounts.status, [...LIVE]), sql`${scheduleInstalments.status} <> 'superseded'`, sql`${scheduleInstalments.dueDate} < ${end}`))
-    .groupBy(loanAccounts.id, loanAccounts.accountNumber, users.displayName, staffProfiles.staffNumber, departments.name);
+    .groupBy(loanAccounts.id, loanAccounts.accountNumber, loanAccounts.borrowerId, users.displayName, staffProfiles.staffNumber, departments.id, departments.name, schools.id, schools.name);
   return rows
+    .filter((r) => matchesFilter(r, filter))
     .map((r) => ({ ...r, scheduled: m(r.scheduled), arrears: m(r.arrears), total: m(dec(r.scheduled).plus(r.arrears)) }))
     .filter((r) => dec(r.total).greaterThan(0))
     .sort((a, b) => String(a.staffNumber ?? "").localeCompare(String(b.staffNumber ?? "")) || a.accountNumber.localeCompare(b.accountNumber));
@@ -355,15 +371,16 @@ export async function buildDataset(db: Executor, actor: Actor, key: ReportKey, p
       };
     }
     case "payroll_deductions": {
-      const rows = await payrollDeductionSchedule(db, actor, p.month);
+      const period = deductionPeriod(p);
+      const rows = await payrollDeductionSchedule(db, actor, period, p.filter);
       const total = sum(rows.map((r) => r.total));
       const arrears = rows.filter((r) => dec(r.arrears).greaterThan(0));
       return {
         title, basis,
-        columns: [{ key: "staffNumber", label: "Staff no." }, { key: "borrower", label: "Staff name" }, { key: "department", label: "Department" }, { key: "accountNumber", label: "Loan account" },
-          { key: "dueDate", label: "Due date", type: "date" }, money("scheduled", "Instalment due"), money("arrears", "Arrears brought forward"), money("total", "Total to deduct")],
+        columns: [{ key: "staffNumber", label: "Staff no." }, { key: "borrower", label: "Staff name" }, { key: "department", label: "Department" }, { key: "school", label: "School" }, { key: "accountNumber", label: "Loan account" },
+          { key: "dueDate", label: p.year ? "Last due date" : "Due date", type: "date" }, money("scheduled", p.year ? "Instalments due" : "Instalment due"), money("arrears", "Arrears brought forward"), money("total", "Total to deduct")],
         rows,
-        points: [`${plural(rows.length, "deduction")} totalling ${naira(m(total))} for ${monthName(p.month)}.`, arrears.length ? `${plural(arrears.length, "borrower")} also ${arrears.length === 1 ? "has" : "have"} arrears brought forward from earlier months.` : "No borrower has arrears brought forward."],
+        points: [`${plural(rows.length, "deduction")} totalling ${naira(m(total))} for ${periodName(period)}${filterText(p.filter, rows)}.`, arrears.length ? `${plural(arrears.length, "borrower")} also ${arrears.length === 1 ? "has" : "have"} arrears brought forward from earlier months.` : "No borrower has arrears brought forward."],
         notes: ["Amounts come from the current repayment schedule, net of confirmed payments.", "Send this schedule to payroll before the payroll cut-off. After payroll runs, import the actual deductions under Accounts > Repayments so that receipts are issued.", "Where a deduction would breach the salary deduction cap, agree the treatment of arrears with the borrower and the Bursary."],
       };
     }

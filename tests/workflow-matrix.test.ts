@@ -31,7 +31,7 @@ import { reviewByBursary } from "@/server/services/bursary";
 import { storeDocument, readDocument } from "@/server/services/documents";
 import {
   recordDisbursement, submitRepaymentClaim, confirmRepaymentClaim, receiptPdf, statementPdf, clearancePdf,
-  proposeEarlySettlement, approvePendingTransaction, getLoanDetail,
+  proposeEarlySettlement, approvePendingTransaction, getLoanDetail, reconciliation,
 } from "@/server/services/loans";
 import { postPayrollDeductions } from "@/server/services/payroll";
 import { settlementQuote } from "@/server/services/ledger";
@@ -291,6 +291,26 @@ describe("repayments, receipts and closure for every approved loan", () => {
     const large = sched.rows.find((r) => r.loanId === state.large.loanId)!;
     expect(large).toMatchObject({ scheduled: m(state.large.instalment!), arrears: "0.00", total: m(state.large.instalment!) });
     expect(sched.rows.every((r) => dec(r.total as string).equals(dec(r.scheduled as string).plus(r.arrears as string)))).toBe(true);
+
+    // Filters: one person, a school or department, and a whole year.
+    const one = await buildDataset(db, accounts, "payroll_deductions", reportParams({ month: fourth.dueDate.slice(0, 7), staff: large.borrowerId as string }));
+    expect(one.rows.length).toBeGreaterThan(0);
+    expect(one.rows.every((r) => r.borrowerId === large.borrowerId)).toBe(true);
+    expect(one.points[0]).toContain(`for ${large.borrower}`);
+    if (large.schoolId) {
+      const bySchool = await buildDataset(db, accounts, "payroll_deductions", reportParams({ month: fourth.dueDate.slice(0, 7), school: large.schoolId as string }));
+      expect(bySchool.rows.every((r) => r.schoolId === large.schoolId)).toBe(true);
+    }
+    const otherDept = await buildDataset(db, accounts, "payroll_deductions", reportParams({ month: fourth.dueDate.slice(0, 7), department: "00000000-0000-4000-8000-000000000000" }));
+    expect(otherDept.rows).toHaveLength(0);
+    const year = fourth.dueDate.slice(0, 4);
+    const wholeYear = await buildDataset(db, accounts, "payroll_deductions", reportParams({ year, staff: large.borrowerId as string }));
+    expect(wholeYear.basis).toBe(`Deduction year ${year}`);
+    expect(dec(wholeYear.rows.find((r) => r.loanId === state.large.loanId)!.scheduled as string).greaterThanOrEqualTo(dec(large.scheduled as string))).toBe(true);
+    const recMonth = await reconciliation(db, accounts, fourth.dueDate.slice(0, 7), { borrowerId: large.borrowerId as string });
+    expect(recMonth.every((r) => r.borrowerId === large.borrowerId)).toBe(true);
+    const recYear = await reconciliation(db, accounts, year);
+    expect(recYear.length).toBeGreaterThanOrEqual((await reconciliation(db, accounts, fourth.dueDate.slice(0, 7))).length);
     await expect(buildDataset(db, accounts, "audit", p)).rejects.toThrow(/not authorised|permission/i);
     expect((await buildDataset(db, admin, "audit", p)).rows.length).toBeGreaterThan(20);
 
