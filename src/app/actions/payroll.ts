@@ -6,6 +6,8 @@ import type { ActionResult } from "@/server/action-result";
 import { validateUpload } from "@/server/services/documents";
 import { confirmEarlyRepayment, declineEarlyRepayment, requestEarlyRepayment } from "@/server/services/loans";
 import { setFundPool } from "@/server/services/funds";
+import { schools } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 type Prev = ActionResult | null;
 
@@ -35,11 +37,13 @@ export async function declineEarlyRepaymentAction(id: string, _: Prev, fd: FormD
   }, { revalidate: ["/payroll"] });
 }
 
-/** Head of Account: the fund pool for a year. */
+/** Head of Account or Payroll Manager: a school's fund pool for a year. */
 export async function setFundPoolAction(_: Prev, fd: FormData) {
   return runAction(async (actor) => {
     const year = int(fd, "year", "Year");
-    await setFundPool(await getDb(), actor, { year, amount: money(fd, "amount", "the pool amount"), note: str(fd, "note") });
-    return `The fund pool for ${year} is saved. Bursary staff can see it now.`;
-  }, { revalidate: ["/finance", "/dashboard", "/accounts"] });
+    const db = await getDb();
+    const row = await setFundPool(db, actor, { year, schoolId: str(fd, "schoolId", true), amount: money(fd, "amount", "the pool amount"), note: str(fd, "note") });
+    const [school] = await db.select({ name: schools.name }).from(schools).where(eq(schools.id, row.schoolId!));
+    return `The ${year} fund pool for ${school?.name ?? "the school"} is saved.`;
+  }, { revalidate: ["/finance", "/dashboard", "/accounts", "/payroll", "/accounts/disbursements"] });
 }

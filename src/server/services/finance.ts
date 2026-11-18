@@ -2,20 +2,20 @@
  * The Head of Account's view: the fund pool, lending and repayments this year, and the work waiting at
  * each stage with the people responsible, so they can follow up with them.
  */
-import { and, desc, eq, inArray, isNull, min, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, min, sql } from "drizzle-orm";
 import type { Executor } from "@/db";
-import { earlyRepayments, financialTransactions, fundPools, loanAccounts, loanApplications, repaymentClaims, roles, userRoles, users } from "@/db/schema";
+import { earlyRepayments, financialTransactions, loanAccounts, loanApplications, repaymentClaims, roles, userRoles, users } from "@/db/schema";
 import type { RoleCode } from "@/lib/auth/permissions";
 import { m } from "@/lib/finance/money";
 import { assertCan, type Actor } from "../actor";
 import { getWording } from "../wording";
-import { currentYear, fundPosition } from "./funds";
+import { currentYear, fundPositions, poolHistory } from "./funds";
 
 export async function financeOverview(db: Executor, actor: Actor) {
   assertCan(actor, "finance.overview");
   const year = currentYear();
-  const pool = await fundPosition(db, year);
-  const pools = await db.select().from(fundPools).orderBy(desc(fundPools.year)).limit(6);
+  const pools = await fundPositions(db, year);
+  const history = await poolHistory(db);
   const inYear = (col: unknown) => sql`extract(year from ${col}) = ${year}`;
   const [repaid] = await db.select({ total: sql<string>`coalesce(sum(${financialTransactions.amount}), 0)`, n: sql<number>`count(*)` }).from(financialTransactions)
     .where(and(inArray(financialTransactions.type, ["repayment", "early_settlement"]), eq(financialTransactions.status, "posted"), inYear(financialTransactions.valueDate)));
@@ -52,7 +52,7 @@ export async function financeOverview(db: Executor, actor: Actor) {
     { stage: "Transactions awaiting authorisation", ...row(checker), people: people(["ACCOUNTS_ADMIN"]), roles: w.role.ACCOUNTS_ADMIN.name },
   ];
   return {
-    year, pool, pools,
+    year, pools, history,
     repaid: { total: m(repaid.total), count: Number(repaid.n) },
     book: { live: Number(book.live), outstanding: m(book.outstanding), overdue: Number(book.overdue), defaulted: Number(book.defaulted), automatic: Number(book.automatic), closedThisYear: Number(book.closedThisYear) },
     stages,

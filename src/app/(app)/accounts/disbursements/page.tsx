@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
-import { loanAccounts, disbursements, users, staffProfiles } from "@/db/schema";
+import { loanAccounts, loanApplications, disbursements, schools, users, staffProfiles } from "@/db/schema";
 import { requireActor } from "@/lib/auth/session";
 import { can } from "@/server/actor";
 import { todayLagos } from "@/lib/finance/dates";
 import { randomToken } from "@/lib/security/crypto";
 import { ActionForm } from "@/components/action-form";
-import { FundPoolCard } from "@/components/fund-pool";
-import { fundPosition } from "@/server/services/funds";
+import { FundPoolsCard } from "@/components/fund-pool";
+import { fundPositions } from "@/server/services/funds";
 import { Alert, Card, PageHeader, Money, DateText, StatusBadge, EmptyState, Table, Th, Td, Badge } from "@/components/ui";
 import { paginate, Pagination } from "@/components/pagination";
 import { recordDisbursementAction } from "@/app/actions/accounts";
@@ -19,8 +19,9 @@ export default async function Disbursements({ searchParams }: { searchParams: Pr
   const sp = await searchParams;
   const actor = await requireActor("accounts.view", "disbursement.record");
   const db = await getDb();
-  const awaiting = await db.select({ loan: loanAccounts, borrower: users.displayName, profile: staffProfiles }).from(loanAccounts)
+  const awaiting = await db.select({ loan: loanAccounts, borrower: users.displayName, profile: staffProfiles, school: schools.name }).from(loanAccounts)
     .innerJoin(users, eq(users.id, loanAccounts.borrowerId)).leftJoin(staffProfiles, eq(staffProfiles.userId, loanAccounts.borrowerId))
+    .innerJoin(loanApplications, eq(loanApplications.id, loanAccounts.applicationId)).leftJoin(schools, eq(schools.id, loanApplications.schoolId))
     .where(eq(loanAccounts.status, "pending_disbursement")).orderBy(loanAccounts.approvedAt);
   const all = await db.select({ d: disbursements, acct: loanAccounts.accountNumber, loanId: loanAccounts.id, maker: users.displayName }).from(disbursements)
     .innerJoin(loanAccounts, eq(loanAccounts.id, disbursements.loanAccountId)).innerJoin(users, eq(users.id, disbursements.recordedBy))
@@ -32,18 +33,18 @@ export default async function Disbursements({ searchParams }: { searchParams: Pr
     <>
       <PageHeader title="Disbursements" crumbs={[{ label: "Bursary", href: "/accounts" }, { label: "Disbursements" }]}
         description="Pay out approved loans. Repayments start the following month." />
-      <FundPoolCard pos={await fundPosition(db)} />
+      <FundPoolsCard pools={await fundPositions(db)} />
 
       <Card title={`Approved loans awaiting payment (${awaiting.length})`} className="mb-6">
         {awaiting.length === 0 ? <EmptyState title="No approved loans awaiting payment" /> : (
           <ul className="space-y-4">
-            {waiting.items.map(({ loan, borrower, profile }) => {
+            {waiting.items.map(({ loan, borrower, profile, school }) => {
               return (
                 <li key={loan.id} className="rounded-md border border-line p-4">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <p className="text-sm font-medium"><Link className="link" href={`/accounts/loans/${loan.id}`}>{loan.accountNumber}</Link> · {borrower}</p>
-                      <p className="text-xs text-muted">Approved <DateText value={loan.approvedAt} /> · amount to pay <Money value={loan.principal} className="font-semibold text-ink" /></p>
+                      <p className="text-xs text-muted">{school ? `${school} pool` : "No school"} · approved <DateText value={loan.approvedAt} /> · amount to pay <Money value={loan.principal} className="font-semibold text-ink" /></p>
                     </div>
                     {profile?.bankAccountLast4 ? <Badge>{profile.bankName} ••••{profile.bankAccountLast4}</Badge> : <Badge>Salary account</Badge>}
                   </div>

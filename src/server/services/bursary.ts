@@ -14,7 +14,7 @@ import { transition } from "../workflow";
 import { DomainError, NotFoundError } from "../errors";
 import { getPolicyVersion } from "./policies";
 import { computeEligibilityFor, assessedWith } from "./applications";
-import { assertFundsFor, fundPosition } from "./funds";
+import { assertFundsFor, fundPosition, schoolForApplication } from "./funds";
 import { getPayslip } from "./payslips";
 import { LIVE_GUARANTEE_STATUSES } from "./guarantors";
 import { departmentHeadOf } from "./staff";
@@ -51,6 +51,8 @@ export async function bursaryWorksheet(db: Executor, applicationId: string) {
     .where(eq(hrVerifications.applicationId, app.id)).orderBy(desc(hrVerifications.createdAt)).limit(1);
   const reviews = await db.select({ r: bursaryReviews, reviewer: users.displayName }).from(bursaryReviews).innerJoin(users, eq(users.id, bursaryReviews.reviewerId))
     .where(eq(bursaryReviews.applicationId, app.id)).orderBy(desc(bursaryReviews.createdAt));
+  // The pool of the school the applicant's department belongs to; none when the department is not in a school.
+  const schoolId = await schoolForApplication(db, app);
   return {
     app, policy: p, elig, hr: hr ?? null, reviews,
     lastLoan: last ? { accountNumber: last.accountNumber, takenOn: (last.disbursedAt ?? last.approvedAt).toISOString().slice(0, 10), repaidOn: last.closedAt ? last.closedAt.toISOString().slice(0, 10) : null, status: last.status, principal: last.principal } : null,
@@ -59,7 +61,7 @@ export async function bursaryWorksheet(db: Executor, applicationId: string) {
       committed: m(committed), deduction: m(instalment), after: m(totalAfter),
       percent: net.greaterThan(0) ? totalAfter.div(net).times(100).toFixed(1) : "0.0", passed: deductionPassed,
     },
-    fund: await fundPosition(db, undefined, { excludeApplicationId: app.id }),
+    fund: schoolId ? await fundPosition(db, schoolId, undefined, { excludeApplicationId: app.id }) : null,
     funding: { awaitingPayout: m(sum(awaiting.map((a) => a.principal))), awaitingCount: awaiting.length, paidThisMonth: m(sum(paidThisMonth.map((a) => a.principal))) },
   };
 }
@@ -79,8 +81,9 @@ export async function reviewByBursary(db: Executor, actor: Actor, applicationId:
       if (!input.fundsAvailable) throw new DomainError("Confirm that funds are available before clearing the application.");
       if (!head?.headUserId) throw new DomainError(head ? `${head.department} has no Line Manager. Ask the administrator to set one under Administration > Organisation.` : "The applicant has no department on their staff record. Ask Human Resources to set it.");
       if (!w.deductions.passed) throw new DomainError(`Deductions after this loan would be ${w.deductions.percent}% of net pay, above the ${w.deductions.capPercent}% limit. Return or decline the application.`);
-      // Even an eligible loan is not cleared when the year's fund pool cannot cover it.
-      await assertFundsFor(tx, { amount: app.requestedAmount, isAdvance: !!app.advanceType, stage: "clear", applicationId: app.id });
+      // Even an eligible loan is not cleared when its school's fund pool for the year cannot cover it.
+      const schoolId = await schoolForApplication(tx, app, { save: true });
+      await assertFundsFor(tx, { amount: app.requestedAmount, isAdvance: !!app.advanceType, stage: "clear", schoolId, applicationId: app.id });
     }
     const lastLoanDate = input.lastLoanDate || w.lastLoan?.takenOn || null;
     const lastLoanRepaidDate = input.lastLoanRepaidDate || w.lastLoan?.repaidOn || null;

@@ -23,6 +23,7 @@ export interface NewUser {
 
 const clean = (s: string) => s.replace(/\s+/g, " ").trim();
 type Dept = typeof departments.$inferSelect;
+type School = typeof schools.$inferSelect;
 
 /** A short unused code made from a name: "Human Resources" gives "HR", then "HR2" if that is taken. */
 function codeFor(name: string, taken: Set<string>): string {
@@ -34,6 +35,19 @@ function codeFor(name: string, taken: Set<string>): string {
   return code;
 }
 
+/** The school named, found by name or code (any case), or created when there is none. */
+export async function findOrCreateSchool(tx: Executor, actor: Actor, schoolName: string): Promise<School & { created?: boolean }> {
+  const name = clean(schoolName);
+  const key = name.toLowerCase();
+  const allSchools = await tx.select().from(schools);
+  const found = allSchools.find((s) => s.name.toLowerCase() === key || s.code.toLowerCase() === key);
+  if (found) return found;
+  assertCan(actor, "admin.org.manage");
+  const [school] = await tx.insert(schools).values({ code: codeFor(name, new Set(allSchools.map((s) => s.code))), name }).returning();
+  await audit(tx, actor, { action: "org.school_created", entityType: "school", entityId: school.id, summary: `Created ${school.name}`, after: school });
+  return { ...school, created: true };
+}
+
 /**
  * The department named, found by name or code (any case), or created when there is none, so people can be
  * added before the organisation structure is set up. A new department is put in the school named, which is
@@ -43,17 +57,7 @@ export async function findOrCreateDepartment(tx: Executor, actor: Actor, departm
   const name = clean(departmentName);
   if (name.length < 2) throw new DomainError("Enter the department's name.");
   const key = name.toLowerCase();
-  let school: typeof schools.$inferSelect | null = null;
-  if (schoolName?.trim()) {
-    const sKey = clean(schoolName).toLowerCase();
-    const allSchools = await tx.select().from(schools);
-    school = allSchools.find((s) => s.name.toLowerCase() === sKey || s.code.toLowerCase() === sKey) ?? null;
-    if (!school) {
-      assertCan(actor, "admin.org.manage");
-      [school] = await tx.insert(schools).values({ code: codeFor(clean(schoolName), new Set(allSchools.map((s) => s.code))), name: clean(schoolName) }).returning();
-      await audit(tx, actor, { action: "org.school_created", entityType: "school", entityId: school.id, summary: `Created ${school.name} while adding staff`, after: school });
-    }
-  }
+  const school = schoolName?.trim() ? await findOrCreateSchool(tx, actor, schoolName) : null;
   const all = await tx.select().from(departments);
   const found = all.find((d) => d.name.toLowerCase() === key || d.code.toLowerCase() === key);
   if (found) {
@@ -176,4 +180,51 @@ export async function importUsers(db: Executor, actor: Actor, text: string) {
     await audit(tx, actor, { action: "user.imported", entityType: "user", summary: `${added} added, ${updated} updated, ${approvers} approvers set, ${departmentsAdded} departments created, ${skipped.length} not read` });
   });
   return { added, updated, approvers, departmentsAdded, skipped };
+}
+
+/**
+ * Adds many departments at once, one per line: department, school, then HOD or Line Manager for who approves
+ * (optional; HOD if left out). Fields are separated by commas, tabs or semicolons, so rows pasted from a
+ * spreadsheet work. Schools not set up yet are created. A department already known is moved to the school named.
+ */
+export async function importOrganisation(db: Executor, actor: Actor, text: string) {
+  assertCan(actor, "admin.org.manage");
+  const lines = text.replace(/\r/g, "").split("\n").map((l) => l.trim()).filter(Boolean);
+  if (!lines.length) throw new DomainError("Paste at least one line: department, then school.");
+  if (lines.length > 1000) throw new DomainError("Add at most 1,000 departments at a time.");
+  let departmentsAdded = 0, departmentsUpdated = 0, schoolsAdded = 0;
+  const skipped: string[] = [];
+  await db.transaction(async (tx) => {
+    for (const line of lines) {
+      if (/^department\b/i.test(line) && /school|faculty/i.test(line)) continue; // a header row
+      const sep = line.includes("\t") ? "\t" : line.includes(";") ? ";" : ",";
+      const parts = line.split(sep).map(clean).filter(Boolean);
+      let title: ApproverRole | undefined;
+      if (parts.length > 2) {
+        const r = readRole(parts.at(-1)!);
+        if (r) { title = r; parts.pop(); }
+      }
+      const [deptName, ...schoolParts] = parts;
+      if (!deptName || deptName.length < 2 || !schoolParts.length) { skipped.push(line); continue; }
+      const school = await findOrCreateSchool(tx, actor, schoolParts.join(", "));
+      if (school.created) schoolsAdded++;
+      const key = deptName.toLowerCase();
+      const all = await tx.select().from(departments);
+      const found = all.find((d) => d.name.toLowerCase() === key || d.code.toLowerCase() === key);
+      if (found) {
+        const set = { ...(found.schoolId !== school.id ? { schoolId: school.id } : {}), ...(title && title !== found.approverTitle ? { approverTitle: title } : {}) };
+        if (Object.keys(set).length) {
+          await tx.update(departments).set(set).where(eq(departments.id, found.id));
+          await audit(tx, actor, { action: "org.department_updated", entityType: "department", entityId: found.id, summary: `${found.name} put in ${school.name}`, before: { schoolId: found.schoolId, approverTitle: found.approverTitle }, after: set });
+          departmentsUpdated++;
+        }
+        continue;
+      }
+      const [dept] = await tx.insert(departments).values({ code: codeFor(deptName, new Set(all.map((d) => d.code))), name: deptName, schoolId: school.id, approverTitle: title ?? "hod" }).returning();
+      await audit(tx, actor, { action: "org.department_created", entityType: "department", entityId: dept.id, summary: `Created ${dept.name} in ${school.name}`, after: dept });
+      departmentsAdded++;
+    }
+    await audit(tx, actor, { action: "org.imported", entityType: "department", summary: `${departmentsAdded} departments added, ${departmentsUpdated} updated, ${schoolsAdded} schools added, ${skipped.length} not read` });
+  });
+  return { departmentsAdded, departmentsUpdated, schoolsAdded, skipped };
 }

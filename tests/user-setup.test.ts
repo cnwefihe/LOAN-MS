@@ -13,7 +13,7 @@ import * as s from "@/db/schema";
 import { seedBase, seedFixtures } from "@/server/seed";
 import { loadActor, provisionEntraUser } from "@/server/services/identity";
 import type { Actor } from "@/server/actor";
-import { addUser, importUsers, setUserDepartment } from "@/server/services/user-setup";
+import { addUser, importOrganisation, importUsers, setUserDepartment } from "@/server/services/user-setup";
 
 let db: Database;
 const ids: Record<string, string> = {};
@@ -105,5 +105,33 @@ describe("adding one user with a new department", () => {
     expect(dept.schoolId).toBe(school.id);
     await addUser(db, admin, { name: "Bayo Kalu", email: "bayo.kalu@example.edu.ng", departmentName: "SPORTS CENTRE" });
     expect(await db.select().from(s.departments).where(eq(s.departments.name, "Sports Centre"))).toHaveLength(1);
+  });
+});
+
+describe("adding departments and schools many at once", () => {
+  it("creates departments in their schools, creating schools as needed, and moves a known department", async () => {
+    const r = await importOrganisation(db, admin, [
+      "Department, School, Approver",
+      "Accounting, School of Management and Social Sciences",
+      "Marine Biology\tSchool of Ocean Studies",
+      "Estates; Central Administration; Line Manager",
+      "Computer Science, School of Ocean Studies",
+      "Lonely line",
+    ].join("\n"));
+    expect(r).toMatchObject({ departmentsAdded: 3, departmentsUpdated: 1, schoolsAdded: 1, skipped: ["Lonely line"] });
+    const school = async (name: string) => (await db.select().from(s.schools).where(eq(s.schools.name, name)))[0];
+    const dept = async (name: string) => (await db.select().from(s.departments).where(eq(s.departments.name, name)))[0];
+    const ocean = await school("School of Ocean Studies");
+    expect((await dept("Marine Biology")).schoolId).toBe(ocean.id);
+    expect((await dept("Computer Science")).schoolId).toBe(ocean.id);
+    expect((await dept("Accounting")).schoolId).toBe((await school("School of Management and Social Sciences")).id);
+    expect(await dept("Estates")).toMatchObject({ schoolId: (await school("Central Administration")).id, approverTitle: "line_manager" });
+    // Running it again changes nothing.
+    expect(await importOrganisation(db, admin, "Accounting, School of Management and Social Sciences")).toMatchObject({ departmentsAdded: 0, departmentsUpdated: 0, schoolsAdded: 0 });
+  });
+
+  it("is for administrators who manage the organisation", async () => {
+    const staff = (await loadActor(db, ids.applicant))!;
+    await expect(importOrganisation(db, staff, "Physics, School of Science and Technology")).rejects.toThrow(/not authorised/);
   });
 });

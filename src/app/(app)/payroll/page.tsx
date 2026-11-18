@@ -4,8 +4,8 @@ import { getDb } from "@/db";
 import { requireActor } from "@/lib/auth/session";
 import { can } from "@/server/actor";
 import { payrollOverview } from "@/server/services/payroll";
-import { fundPosition } from "@/server/services/funds";
-import { FundPoolCard } from "@/components/fund-pool";
+import { fundPositions } from "@/server/services/funds";
+import { FundPoolsCard } from "@/components/fund-pool";
 import { Card, DateText, EmptyState, Money, PageHeader, Stat, StatGrid, StatusBadge, Table, Td, Th, Badge } from "@/components/ui";
 
 export const metadata = { title: "Payroll" };
@@ -16,7 +16,7 @@ export default async function PayrollOverview({ searchParams }: { searchParams: 
   const actor = await requireActor("payroll.view");
   const db = await getDb();
   const o = await payrollOverview(db, actor);
-  const pool = can(actor, "fund.view") ? await fundPosition(db) : null;
+  const pool = can(actor, "fund.view") ? await fundPositions(db) : null;
   const monthLabel = new Date(`${o.month}-01T12:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   const loanHref = (id: string) => (can(actor, "accounts.view") ? `/accounts/loans/${id}` : undefined);
 
@@ -31,7 +31,7 @@ export default async function PayrollOverview({ searchParams }: { searchParams: 
         <Stat label="First deductions to confirm" value={o.claimsToConfirm} hint={`${o.awaitingFirst.length} loans not yet automatic`} tone={o.claimsToConfirm ? "warning" : "default"} href={can(actor, "repayment.confirm") ? "/accounts/repayments" : undefined} />
         <Stat label="Early repayments to confirm" value={o.earlyPending.count} hint={<Money value={o.earlyPending.total} />} tone={o.earlyPending.count ? "warning" : "default"} href="/payroll/early-repayments" />
       </StatGrid>
-      {pool && <FundPoolCard pos={pool} />}
+      {pool && <FundPoolsCard pools={pool} manage={can(actor, "fund.manage")} />}
 
       <Card title={`Deductions for ${monthLabel}`} className="mb-6" description="Automatic loans are recorded on their due dates; others wait for the first deduction to be confirmed." bodyClassName="p-5 pt-0">
         {o.due.length === 0 ? <EmptyState title="Nothing due this month" /> : (

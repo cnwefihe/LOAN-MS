@@ -3,7 +3,7 @@
 import { getDb } from "@/db";
 import { runAction, str } from "@/server/action";
 import type { ActionResult } from "@/server/action-result";
-import { addUser, importUsers, setUserDepartment, type ApproverRole } from "@/server/services/user-setup";
+import { addUser, importOrganisation, importUsers, setUserDepartment, type ApproverRole } from "@/server/services/user-setup";
 
 type Prev = ActionResult | null;
 const PATHS = ["/admin/users", "/admin/organisation"];
@@ -31,4 +31,12 @@ export async function setUserDepartmentAction(userId: string, _: Prev, fd: FormD
     await setUserDepartment(await getDb(), actor, userId, str(fd, "departmentId") || null);
     return "Department saved.";
   }, { revalidate: [...PATHS, `/admin/users/${userId}`] });
+}
+
+export async function importOrganisationAction(_: Prev, fd: FormData) {
+  return runAction(async (actor) => {
+    const r = await importOrganisation(await getDb(), actor, str(fd, "lines", true));
+    const skipped = r.skipped.length ? ` These lines could not be read: ${r.skipped.slice(0, 5).join("; ")}${r.skipped.length > 5 ? ` and ${r.skipped.length - 5} more` : ""}.` : "";
+    return `${r.departmentsAdded} ${r.departmentsAdded === 1 ? "department" : "departments"} added, ${r.departmentsUpdated} updated, ${r.schoolsAdded} new ${r.schoolsAdded === 1 ? "school" : "schools"} created.${skipped}`;
+  }, { revalidate: ["/admin/organisation", "/finance"] });
 }

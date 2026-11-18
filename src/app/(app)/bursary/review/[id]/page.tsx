@@ -80,8 +80,8 @@ export default async function BursaryReview({ params }: { params: Promise<{ id: 
             </Card>
           ) : (
             <>
-              <FundPoolCard pos={w.fund} className="" />
-              {w.fund.set && (Number(d.app.requestedAmount) > Number(w.fund.free)
+              {w.fund ? <FundPoolCard pos={w.fund} className="" /> : <Alert tone="danger" title="No fund pool">{d.applicant.department?.name ?? "The applicant's department"} is not in a school, so there is no fund pool to draw from. An administrator can put the department in a school under Organisation.</Alert>}
+              {w.fund?.set && (Number(d.app.requestedAmount) > Number(w.fund.free)
                 ? <Alert tone="danger" title="Not enough left in the fund pool">This request of <Money value={d.app.requestedAmount} /> is more than the <Money value={w.fund.free} /> free to lend, so it cannot be cleared even though the applicant is eligible.</Alert>
                 : <Alert tone="success" title="Funds available">This request of <Money value={d.app.requestedAmount} /> fits within the <Money value={w.fund.free} /> free to lend.</Alert>)}
             </>

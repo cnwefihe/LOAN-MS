@@ -88,7 +88,9 @@ export async function buildNav(db: Executor, actor: Actor): Promise<{ sections: 
     }
     sections.push({ title: "Payroll", items });
   }
+  // The overview holds the fund pools; anyone who may only set the pools (such as the Payroll Manager) finds them here too.
   if (can(actor, "finance.overview")) sections.push({ title: "Finance", items: [{ href: "/finance", label: "Overview", icon: "chart" }] });
+  else if (can(actor, "fund.manage")) sections.push({ title: "Finance", items: [{ href: "/finance", label: "Fund pools", icon: "wallet" }] });
 
   const insight: NavItem[] = [];
   if (can(actor, "reports.view")) insight.push({ href: "/reports", label: "Reports", icon: "chart" });

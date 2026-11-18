@@ -2,12 +2,12 @@ import { getDb } from "@/db";
 import { requireActor } from "@/lib/auth/session";
 import { can } from "@/server/actor";
 import { financeOverview } from "@/server/services/finance";
-import { currentYear, fundPosition } from "@/server/services/funds";
-import { fundPools } from "@/db/schema";
-import { desc } from "drizzle-orm";
+import { currentYear, fundPositions, poolHistory } from "@/server/services/funds";
+import { schools } from "@/db/schema";
+import { asc, eq } from "drizzle-orm";
 import { setFundPoolAction } from "@/app/actions/payroll";
 import { ActionForm } from "@/components/action-form";
-import { FundPoolCard } from "@/components/fund-pool";
+import { FundPoolsCard } from "@/components/fund-pool";
 import { Card, DateText, Money, PageHeader, Stat, StatGrid, Table, Td, Th } from "@/components/ui";
 
 export const metadata = { title: "Finance overview" };
@@ -22,12 +22,13 @@ export default async function Finance() {
   const overview = can(actor, "finance.overview");
   const f = overview ? await financeOverview(db, actor) : null;
   const year = f?.year ?? currentYear();
-  const pool = f?.pool ?? await fundPosition(db, year);
-  const pools = f?.pools ?? await db.select().from(fundPools).orderBy(desc(fundPools.year)).limit(6);
+  const pools = f?.pools ?? await fundPositions(db, year);
+  const history = f?.history ?? await poolHistory(db);
+  const schoolList = await db.select({ id: schools.id, name: schools.name }).from(schools).where(eq(schools.isActive, true)).orderBy(asc(schools.name));
   return (
     <>
-      <PageHeader title={overview ? "Finance overview" : "Fund pool"} description={overview ? "The fund pool, lending and repayments, and the work waiting at each stage." : "The money set aside for staff loans each year."} />
-      <FundPoolCard pos={pool} />
+      <PageHeader title={overview ? "Finance overview" : "Fund pools"} description={overview ? "Each school's fund pool, lending and repayments, and the work waiting at each stage." : "The money set aside for staff loans each year, one pool per school."} />
+      <FundPoolsCard pools={pools} />
       {f && <>
       <StatGrid>
         <Stat label="Loans being repaid" value={f.book.live} hint={<><Money value={f.book.outstanding} /> outstanding</>} tone="brand" />
@@ -59,21 +60,29 @@ export default async function Finance() {
 
       {can(actor, "fund.manage") && (
         <div id="pool" className="grid gap-6 lg:grid-cols-2">
-          <Card title="Set the fund pool" description="Set aside for staff loans each year. Payouts reduce it; repayments do not add back.">
-            <ActionForm action={setFundPoolAction} submitLabel="Save">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div><label htmlFor="year" className="label">Year</label><input id="year" name="year" type="number" min={2000} max={2100} required defaultValue={year} className="input" /></div>
-                <div><label htmlFor="amount" className="label">Amount (₦)</label><input id="amount" name="amount" inputMode="decimal" required defaultValue={pool.set ? pool.amount : ""} className="input" /></div>
-                <div className="sm:col-span-2"><label htmlFor="note" className="label">Note (optional)</label><input id="note" name="note" maxLength={300} defaultValue={pool.note ?? ""} className="input" /></div>
-              </div>
-            </ActionForm>
+          <Card title="Set a school's fund pool" description="For each school, for the year. Payouts reduce it; repayments do not add back. Setting it again replaces the amount.">
+            {schoolList.length === 0 ? <p className="text-sm text-muted">No schools yet. An administrator adds them under Organisation.</p> : (
+              <ActionForm action={setFundPoolAction} submitLabel="Save" confirm="Save this fund pool?">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2"><label htmlFor="schoolId" className="label">School</label>
+                    <select id="schoolId" name="schoolId" required defaultValue="" className="input">
+                      <option value="" disabled>Choose a school</option>
+                      {schoolList.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                    </select>
+                  </div>
+                  <div><label htmlFor="year" className="label">Year</label><input id="year" name="year" type="number" min={2000} max={2100} required defaultValue={year} className="input" /></div>
+                  <div><label htmlFor="amount" className="label">Amount (₦)</label><input id="amount" name="amount" inputMode="decimal" required className="input" /></div>
+                  <div className="sm:col-span-2"><label htmlFor="note" className="label">Note (optional)</label><input id="note" name="note" maxLength={300} className="input" /></div>
+                </div>
+              </ActionForm>
+            )}
           </Card>
-          <Card title="Pools by year" bodyClassName="p-5 pt-0">
-            <Table caption="Pools by year">
-              <thead><tr><Th>Year</Th><Th right>Pool</Th><Th>Last changed</Th></tr></thead>
+          <Card title="Pools set" bodyClassName="p-5 pt-0">
+            <Table caption="Pools set">
+              <thead><tr><Th>Year</Th><Th>School</Th><Th right>Pool</Th><Th>Last changed</Th></tr></thead>
               <tbody>
-                {pools.map((p) => <tr key={p.id}><Td>{p.year}</Td><Td right><Money value={p.amount} /></Td><Td><DateText value={p.updatedAt} /></Td></tr>)}
-                {!pools.length && <tr><Td colSpan={3} className="text-muted">No pool set yet.</Td></tr>}
+                {history.map((p) => <tr key={p.id}><Td>{p.year}</Td><Td>{p.school}</Td><Td right><Money value={p.amount} /></Td><Td><DateText value={p.updatedAt} />{p.setBy && <span className="block text-xs text-muted">{p.setBy}</span>}</Td></tr>)}
+                {!history.length && <tr><Td colSpan={4} className="text-muted">No pool set yet.</Td></tr>}
               </tbody>
             </Table>
           </Card>

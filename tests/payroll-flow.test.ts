@@ -7,7 +7,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import os from "node:os";
 import path from "node:path";
 import fs from "node:fs";
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 
 process.env.PGLITE_DIR = "memory://";
 process.env.STORAGE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "pau-loans-payroll-"));
@@ -24,7 +24,7 @@ import { reviewByBursary } from "@/server/services/bursary";
 import {
   recordDisbursement, submitRepaymentClaim, confirmRepaymentClaim, runServicing, requestEarlyRepayment, confirmEarlyRepayment, earlyRepaymentQuote,
 } from "@/server/services/loans";
-import { fundPosition, setFundPool } from "@/server/services/funds";
+import { applicantSchool, assertFundsFor, fundPosition, fundPositions, setFundPool } from "@/server/services/funds";
 import { currentSchedule } from "@/server/services/ledger";
 import { addDays, addMonths, daysBetween, firstOfMonth, todayLagos } from "@/lib/finance/dates";
 import { dec } from "@/lib/finance/money";
@@ -34,6 +34,8 @@ import { generateSecret, totp } from "@/lib/security/totp";
 let db: Database;
 let productId = "";
 const ids: Record<string, string> = {};
+let schoolId = "";
+let otherSchool = "";
 const actor = async (k: string) => (await loadActor(db, ids[k], { ip: "127.0.0.1", userAgent: "vitest" }))!;
 const year = Number(todayLagos().slice(0, 4));
 const expectErr = async (p: Promise<unknown>, re: RegExp) => { await expect(p).rejects.toThrow(re); };
@@ -60,35 +62,51 @@ beforeAll(async () => {
     productId = r.productId;
     Object.assign(ids, r.ids);
   });
-  // This test sets its own pool.
+  // This test sets its own pools.
   await db.delete(s.fundPools);
+  schoolId = (await applicantSchool(db, ids.applicant))!;
+  [otherSchool] = (await db.select({ id: s.schools.id }).from(s.schools).where(ne(s.schools.id, schoolId))).map((r) => r.id);
 });
 
 describe("the fund pool", () => {
   let appId = "";
   let loanId = "";
 
-  it("an eligible loan is not cleared until the Head of Account sets the pool, nor when the pool cannot cover it", async () => {
+  it("an eligible loan is cleared only from its own school's pool, set by the Head of Account or Payroll Manager", async () => {
     appId = await toBursary("400000");
+    const [app] = await db.select().from(s.loanApplications).where(eq(s.loanApplications.id, appId));
+    expect(app.schoolId).toBe(schoolId);
     const clear = async () => reviewByBursary(db, await actor("bursary"), appId, { decision: "cleared", fundsAvailable: true, comments: "Funds checked." });
-    await expectErr(clear(), /has not set the fund pool/);
-    await expectErr(setFundPool(db, await actor("bursary"), { year, amount: "1000000" }), /not authorised/);
-    await setFundPool(db, await actor("headofaccount"), { year, amount: "300000" });
-    await expectErr(clear(), /Only .* of the \d{4} fund pool is left/);
-    await setFundPool(db, await actor("headofaccount"), { year, amount: "1000000" });
+    await expectErr(clear(), /fund pool for .* has not been set/);
+    await expectErr(setFundPool(db, await actor("bursary"), { year, schoolId, amount: "1000000" }), /not authorised/);
+    // Another school's pool does not pay for it.
+    await setFundPool(db, await actor("headofaccount"), { year, schoolId: otherSchool, amount: "5000000" });
+    await expectErr(clear(), /fund pool for .* has not been set/);
+    await setFundPool(db, await actor("payrollmanager"), { year, schoolId, amount: "300000" });
+    await expectErr(clear(), /Only .* of the \d{4} fund pool for .* is left/);
+    await setFundPool(db, await actor("headofaccount"), { year, schoolId, amount: "1000000" });
     await clear();
-    expect((await fundPosition(db)).withApproversCount).toBe(1);
+    expect((await fundPosition(db, schoolId)).withApproversCount).toBe(1);
+    expect((await fundPosition(db, otherSchool)).withApproversCount).toBe(0);
+    const all = await fundPositions(db);
+    expect(all.total.amount).toBe("6000000.00");
   });
 
-  it("paying out reduces what is left, and repayments start the following month", async () => {
+  it("a loan from a department with no school has no pool to draw from", async () => {
+    await expectErr(assertFundsFor(db, { amount: "1000", isAdvance: false, stage: "clear", schoolId: null }), /not in a school/);
+    await assertFundsFor(db, { amount: "1000", isAdvance: true, stage: "clear", schoolId: null }); // advances do not use a pool
+  });
+
+  it("paying out reduces what is left of the school's pool, and repayments start the following month", async () => {
     await decideApplication(db, await actor("hod"), appId, { decision: "approved", comments: "Supported." });
     await decideApplication(db, await actor("hrdirector"), appId, { decision: "approved", comments: "Approved." });
     const { loan } = await decideApplication(db, await actor("accadmin"), appId, { decision: "approved", comments: "Approved." });
     loanId = loan!.id;
     await recordDisbursement(db, await actor("accounts"), loanId, { paymentDate: todayLagos(), paymentMethod: "bank_transfer", transactionReference: "PAY-FT-1", amountDisbursed: loan!.principal, idempotencyKey: "pay-1" });
-    const pos = await fundPosition(db);
+    const pos = await fundPosition(db, schoolId);
     expect(pos).toMatchObject({ paidOut: "400000.00", available: "600000.00", paidOutCount: 1 });
-    await expectErr(setFundPool(db, await actor("headofaccount"), { year, amount: "100000" }), /already been paid out/);
+    expect((await fundPosition(db, otherSchool)).paidOut).toBe("0.00");
+    await expectErr(setFundPool(db, await actor("headofaccount"), { year, schoolId, amount: "100000" }), /already been paid out/);
     const [l] = await db.select().from(s.loanAccounts).where(eq(s.loanAccounts.id, loanId));
     expect(firstOfMonth(l.firstDueDate!)).toBe(firstOfMonth(addMonths(todayLagos(), 1)));
   });

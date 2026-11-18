@@ -403,6 +403,18 @@ test.describe("security in the browser", () => {
     await expect(page.locator("aside nav a").nth(1)).toContainText("Approvals");
   });
 
+  test("the Payroll Manager sets a school's fund pool for a year", async ({ page }) => {
+    await signIn(page, "Folake Ojo");
+    await page.getByRole("link", { name: "Fund pools" }).click();
+    await expect(page).toHaveURL(/\/finance$/);
+    await page.getByLabel("School").selectOption({ label: "Central Administration" });
+    await page.getByLabel("Year").fill("2099");
+    await page.getByLabel("Amount (₦)").fill("2500000");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("The 2099 fund pool for Central Administration is saved.")).toBeVisible();
+    await expect(page.getByRole("row", { name: /2099\s+Central Administration\s+₦2,500,000\.00/ })).toBeVisible();
+  });
+
   test("role-restricted pages redirect to access denied", async ({ page }) => {
     await signIn(page, "Adaeze Okafor");
     for (const path of ["/hr", "/accounts", "/admin", "/approvals"]) {
@@ -423,7 +435,7 @@ const A11Y: [string, string[]][] = [
   ["Bisi Lawal", ["/accounts", "/approvals", "/accounts/loans", "/accounts/reconciliation", "/verify"]],
   ["Chidi Obi", ["/accounts/disbursements"]],
   ["Amaka Eze", ["/payroll", "/accounts/repayments"]],
-  ["Folake Ojo", ["/payroll", "/payroll/early-repayments"]],
+  ["Folake Ojo", ["/payroll", "/payroll/early-repayments", "/finance"]],
   ["Ibrahim Sani", ["/finance", "/dashboard"]],
   ["Emeka Nwosu", ["/admin", "/admin/users", "/admin/users/new?tab=many", "/admin/guarantors", "/admin/guarantors/new?tab=many", "/admin/products", "/admin/branding", "/admin/settings", "/admin/outbox", "/admin/audit", "/reports"]],
 ];

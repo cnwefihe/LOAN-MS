@@ -49,6 +49,7 @@ export default async function OrgRecord({ params }: { params: Promise<{ kind: st
             <>
               <label htmlFor="schoolId" className="label mt-3">School</label>
               <select id="schoolId" name="schoolId" defaultValue={dept?.schoolId ?? ""} className="input"><option value="">Not set</option>{schoolList.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+              <p className="hint">The school's fund pool pays for loans to staff in this department. Without a school, their loans cannot be cleared.</p>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div>
                   <label htmlFor="approverTitle" className="label">Approved by</label>

@@ -245,7 +245,8 @@ export async function seedFixtures(db: Executor) {
   }
   // A fund pool for the years tests and walkthroughs pay loans in (fixture figures only).
   const year = Number(todayLagos().slice(0, 4));
-  for (const y of [year - 1, year, year + 1]) await db.insert(fundPools).values({ year: y, amount: "500000000.00", note: "Development fixture", setBy: ids.headofaccount }).onConflictDoNothing();
+  for (const sc of await db.select({ id: schools.id }).from(schools))
+    for (const y of [year - 1, year, year + 1]) await db.insert(fundPools).values({ year: y, schoolId: sc.id, amount: "500000000.00", note: "Development fixture", setBy: ids.headofaccount }).onConflictDoNothing();
   // Fixture staff who may be chosen as guarantors (the managerial cadre list).
   for (const f of FIXTURE_USERS) {
     await db.insert(guarantorPool).values({ name: f.name, email: f.email, createdBy: ids.admin }).onConflictDoNothing();

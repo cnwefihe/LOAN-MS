@@ -39,7 +39,9 @@ export default async function Organisation({ searchParams }: { searchParams: Pro
     <>
       <PageHeader title="Organisation structure" crumbs={[{ label: "Administration", href: "/admin" }, { label: "Organisation" }]}
         description="Departments with their approver, schools and staff categories."
-        actions={<Link href={`/admin/organisation/${TAB[tab].kind}/new`} className="btn-primary h-8 px-3 text-xs"><Plus aria-hidden className="h-3.5 w-3.5" />{TAB[tab].add}</Link>} />
+        actions={tab === "categories"
+          ? <Link href={`/admin/organisation/${TAB[tab].kind}/new`} className="btn-primary h-8 px-3 text-xs"><Plus aria-hidden className="h-3.5 w-3.5" />{TAB[tab].add}</Link>
+          : <RowMenu label="Add departments and schools" items={[{ label: TAB[tab].add, href: `/admin/organisation/${TAB[tab].kind}/new` }, { label: "Add many at once", href: "/admin/organisation/import" }]} />} />
       <Tabs base="/admin/organisation" active={tab} tabs={[{ key: "departments", label: "Departments", count: d.length }, { key: "schools", label: "Schools and faculties", count: s.length }, { key: "categories", label: "Staff categories", count: c.length }]} />
       <Card bodyClassName="p-5">
         <SearchFilter q={sp.q} placeholder={TAB[tab].search} hidden={{ tab }} />
@@ -51,7 +53,7 @@ export default async function Organisation({ searchParams }: { searchParams: Pro
                 <tr key={r.id}>
                   <Td className="font-medium">{r.name}</Td>
                   <Td className="font-mono text-xs text-muted">{r.code}</Td>
-                  <Td>{s.find((x) => x.id === r.schoolId)?.name ?? "-"}</Td>
+                  <Td>{s.find((x) => x.id === r.schoolId)?.name ?? <span className="text-warning-ink">Not set: no fund pool</span>}</Td>
                   <Td>{r.approverTitle === "line_manager" ? "Line Manager" : "HOD"}</Td>
                   <Td>{r.headUserId ? people.find((p) => p.id === r.headUserId)?.name ?? "Inactive user" : <Badge tone="warning">Not set</Badge>}</Td>
                   <Td><Status on={r.isActive} /></Td>

@@ -33,8 +33,8 @@ export const PERMISSIONS = {
   "repayment.confirm": { category: "Payroll", description: "Confirm the first salary deduction on each loan and record repayments" },
   "payroll.view": { category: "Payroll", description: "See salary deductions, repayments and early repayment requests" },
   "settlement.confirm": { category: "Payroll", description: "Close a loan repaid in full early (needs a two-step verification code)" },
-  "fund.view": { category: "Finance", description: "See the fund pool for staff loans and what is left of it" },
-  "fund.manage": { category: "Finance", description: "Set the fund pool for staff loans each year" },
+  "fund.view": { category: "Finance", description: "See each school's fund pool for staff loans and what is left of it" },
+  "fund.manage": { category: "Finance", description: "Set each school's fund pool for staff loans each year" },
   "finance.overview": { category: "Finance", description: "See the overview of lending, repayments and the fund pool" },
   "transaction.adjust": { category: "Bursary", description: "Propose adjustments and refunds" },
   "transaction.approve": { category: "Bursary", description: "Approve or reject pending financial transactions (checker)" },
@@ -141,10 +141,10 @@ export const ROLE_DEFINITIONS: Record<RoleCode, { name: string; description: str
   },
   PAYROLL_MANAGER: {
     name: "Payroll Manager", description: "Oversees the Payroll Officer's work on repayments and deductions, and the Bursary.",
-    permissions: ["accounts.view", "payroll.view", "fund.view", "documents.view_all", "reports.view", "reports.export"],
+    permissions: ["accounts.view", "payroll.view", "fund.view", "fund.manage", "documents.view_all", "reports.view", "reports.export"],
   },
   HEAD_OF_ACCOUNT: {
-    name: "Head of Account", description: "Sets the fund pool for staff loans each year and oversees lending and repayments.",
+    name: "Head of Account", description: "Sets each school's fund pool for staff loans each year and oversees lending and repayments.",
     permissions: ["accounts.view", "finance.overview", "fund.view", "fund.manage", "payroll.view", "reports.view", "reports.export"],
   },
   // Financial maker and checker rights are assigned to named staff, never to this role (segregation of duties).

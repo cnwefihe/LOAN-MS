@@ -14,6 +14,7 @@ import { audit } from "../audit";
 import { notify } from "../notifications";
 import { nextReference } from "../references";
 import { transition } from "../workflow";
+import { applicantSchool } from "./funds";
 import { DomainError, ForbiddenError, NotFoundError } from "../errors";
 import { getActivePolicy, getActiveTerms, getPolicyVersion } from "./policies";
 import { getStaffRecord, getObligations, departmentHeadOf } from "./staff";
@@ -123,6 +124,8 @@ export async function saveDraft(db: Executor, actor: Actor, input: DraftInput) {
       if (phone && !/^[+\d][\d\s-]{6,20}$/.test(phone)) throw new DomainError("Enter a valid phone number.");
       await tx.update(staffProfiles).set({ phone: phone || null, residentialAddress: input.contact.residentialAddress.trim() || null, updatedAt: new Date() }).where(eq(staffProfiles.userId, actor.userId));
     }
+    // The school of the department chosen: its fund pool pays for the loan.
+    Object.assign(values, { schoolId: await applicantSchool(tx, actor.userId) });
     if (input.applicationId) {
       const [app] = await tx.select().from(loanApplications).where(eq(loanApplications.id, input.applicationId)).for("update");
       if (!app || app.applicantId !== actor.userId) throw new NotFoundError("Application");

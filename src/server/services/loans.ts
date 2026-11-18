@@ -20,7 +20,7 @@ import { getBranding } from "../branding";
 import { DomainError, ForbiddenError, NotFoundError } from "../errors";
 import { getPolicyVersion, getActiveTerms } from "./policies";
 import { storeDocument } from "./documents";
-import { assertFundsFor } from "./funds";
+import { assertFundsFor, schoolForApplication } from "./funds";
 import { confirmWithCode } from "./mfa";
 import { remindWaitingWork } from "./reminders";
 import { storage } from "../storage";
@@ -155,8 +155,10 @@ export async function recordDisbursement(db: Executor, actor: Actor, loanId: str
     if (!dec(input.amountDisbursed).equals(dec(loan.principal))) {
       throw new DomainError(`The amount disbursed must equal the approved amount of ${naira(loan.principal)}.`);
     }
-    const [app] = await tx.select({ advanceType: loanApplications.advanceType }).from(loanApplications).where(eq(loanApplications.id, loan.applicationId));
-    await assertFundsFor(tx, { amount: loan.principal, isAdvance: !!app?.advanceType, stage: "payout", year: Number(input.paymentDate.slice(0, 4)) });
+    const [app] = await tx.select({ id: loanApplications.id, applicantId: loanApplications.applicantId, schoolId: loanApplications.schoolId, advanceType: loanApplications.advanceType }).from(loanApplications).where(eq(loanApplications.id, loan.applicationId));
+    // Paid from the pool of the school it was cleared against.
+    const schoolId = app.schoolId ?? await schoolForApplication(tx, app, { save: true });
+    await assertFundsFor(tx, { amount: loan.principal, isAdvance: !!app.advanceType, stage: "payout", schoolId, year: Number(input.paymentDate.slice(0, 4)) });
     const [profile] = await tx.select().from(staffProfiles).where(eq(staffProfiles.userId, loan.borrowerId));
     const [borrower] = await tx.select().from(users).where(eq(users.id, loan.borrowerId));
     // With no other account on the profile, the loan is paid into the staff member's salary account.

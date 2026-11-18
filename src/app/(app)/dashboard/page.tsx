@@ -10,8 +10,8 @@ import { Card, PageHeader, Stat, StatGrid, Money, DateText, StatusBadge, EmptySt
 import { LifecycleTracker } from "@/components/lifecycle";
 import { monthsText } from "@/lib/finance/dates";
 import { ApprovalOverview, OverviewHeading } from "@/components/approval-overview";
-import { FundPoolCard } from "@/components/fund-pool";
-import { fundPosition } from "@/server/services/funds";
+import { FundPoolsCard } from "@/components/fund-pool";
+import { fundPositions } from "@/server/services/funds";
 
 export const metadata = { title: "Dashboard" };
 
@@ -45,7 +45,7 @@ export default async function Dashboard() {
   // Approvers with no loans of their own do not need empty panels under their approvals.
   const compact = overview && !apps.length && !live.length;
   // Everyone who lends from the fund pool, or oversees it, sees what is left of it.
-  const pool = actor.permissions.has("fund.view") ? await fundPosition(db) : null;
+  const pool = actor.permissions.has("fund.view") ? await fundPositions(db) : null;
   const outstanding = live.reduce((acc, l) => acc.plus(l.loan.principalOutstanding).plus(l.loan.interestOutstanding), dec(0));
 
   const myStats = (
@@ -81,7 +81,7 @@ export default async function Dashboard() {
         actions={<><Link href="/eligibility" className="btn-secondary h-8 px-3 text-xs">Check eligibility</Link>{/* With no applications yet, the Recent applications card offers this instead. */}
           {(apps.length > 0 || compact) && <Link href="/applications/new" className="btn-primary h-8 px-3 text-xs">New application</Link>}</>} />
 
-      {pool && <FundPoolCard pos={pool} manage={actor.permissions.has("fund.manage")} />}
+      {pool && <FundPoolsCard pools={pool} manage={actor.permissions.has("fund.manage")} />}
       {overview && <ApprovalOverview db={db} actor={actor} aside={notices}><OverviewHeading>My loans</OverviewHeading>{myStats}</ApprovalOverview>}
       {!overview && workspaces.length > 0 && (
         <Card title="Your work" className="mb-6">

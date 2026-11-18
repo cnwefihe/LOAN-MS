@@ -253,6 +253,8 @@ export const loanApplications = pgTable("loan_applications", {
   id: uuid("id").primaryKey().defaultRandom(),
   reference: varchar("reference", { length: 30 }).notNull().unique(),
   applicantId: uuid("applicant_id").notNull().references(() => users.id),
+  /** The school of the applicant's department: its fund pool pays for the loan. */
+  schoolId: uuid("school_id").references(() => schools.id),
   productId: uuid("product_id").notNull().references(() => loanProducts.id),
   policyVersionId: uuid("policy_version_id").notNull().references(() => policyVersions.id),
   status: applicationStatusEnum("status").notNull().default("draft"),
@@ -627,13 +629,15 @@ export const guarantorPool = pgTable("guarantor_pool", {
 /** The money set aside for staff loans in a year, set by the Head of Account. Loans paid out that year draw on it. */
 export const fundPools = pgTable("fund_pools", {
   id: uuid("id").primaryKey().defaultRandom(),
-  year: integer("year").notNull().unique(),
+  year: integer("year").notNull(),
+  /** Each school has its own pool for the year. (Rows without a school are from before pools were by school.) */
+  schoolId: uuid("school_id").references(() => schools.id),
   amount: money("amount").notNull(),
   note: text("note"),
   setBy: uuid("set_by").references(() => users.id),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
-}, (t) => [check("fund_pools_amount_not_negative", sql`${t.amount} >= 0`)]);
+}, (t) => [check("fund_pools_amount_not_negative", sql`${t.amount} >= 0`), uniqueIndex("fund_pools_year_school_uq").on(t.year, t.schoolId)]);
 
 /**
  * A borrower repaying the whole balance early by bank transfer: the amount quoted on the day, their
