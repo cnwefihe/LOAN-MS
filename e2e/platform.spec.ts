@@ -59,6 +59,14 @@ test.describe.serial("application lifecycle through the UI", () => {
     await expect(page.getByText("Saved.")).toBeVisible();
     await page.goto("/admin/organisation");
     await expect(page.getByRole("row", { name: /Computer Science.*Funmilayo Adebayo/ })).toBeVisible();
+    // Going back to the list keeps the search (and page) used there.
+    await page.goto("/admin/organisation?tab=departments&q=computer");
+    await openRowMenu(page, "Actions for Computer Science");
+    await page.getByRole("menuitem", { name: "Manage" }).click();
+    await page.waitForURL(/\/admin\/organisation\/department\//);
+    await expect(page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Organisation" })).toHaveAttribute("href", /q=computer/);
+    await page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Organisation" }).click();
+    await page.waitForURL(/q=computer/);
   });
 
   test("applicant drafts, uploads a payslip and submits", async ({ page }) => {

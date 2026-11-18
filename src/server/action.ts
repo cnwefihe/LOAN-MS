@@ -1,5 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { LIST_COOKIE, parseMemory, resolveBack } from "@/lib/list-memory";
 import { getActor } from "@/lib/auth/session";
 import type { Actor } from "./actor";
 import type { ActionResult } from "./action-result";
@@ -29,7 +31,8 @@ export async function runAction(fn: (actor: Actor) => Promise<Done>, opts: { rev
   }
   // Redirect on the server (outside the try: redirect() works by throwing). Doing it client-side is
   // unreliable when the revalidated page no longer renders the submitting form.
-  if (result.ok && result.redirectTo) redirect(result.redirectTo);
+  // A list is shown again at the page, search and filters last used there.
+  if (result.ok && result.redirectTo) redirect(resolveBack(parseMemory((await cookies()).get(LIST_COOKIE)?.value), result.redirectTo));
   return result;
 }
 

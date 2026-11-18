@@ -8,6 +8,8 @@ import { getBranding, logoUrl } from "@/server/branding";
 import { getSettings, idleMinutesFor } from "@/server/settings";
 import { AppShell } from "@/components/shell";
 import { IdleGuard } from "@/components/idle-guard";
+import { ListMemoryRecorder } from "@/components/list-memory";
+import { Suspense } from "react";
 import { currentVersion } from "@/server/services/releases";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       brand={{ systemName: brand.systemName, institutionName: brand.institutionName, logoWhite: logoUrl(brand, "logo-white"), crestWhite: logoUrl(brand, "crest-white"), version: await currentVersion(db) }}
       announcement={notice["system.announcement"] ? { text: notice["system.announcement"], tone: notice["system.announcementTone"] } : null}
       user={{ name: profile?.name?.trim() || actor.displayName, email: actor.email, roles: roleNames.length ? roleNames : ["Staff"] }}>
+      <Suspense fallback={null}><ListMemoryRecorder /></Suspense>
       <IdleGuard minutes={await idleMinutesFor(db, actor.roles)} />
       {children}
     </AppShell>

@@ -1,5 +1,6 @@
 import { TableLabels } from "./table-labels";
 import Link from "next/link";
+import { BackLink } from "./list-memory";
 import { ChevronRight, Info, CircleCheck, TriangleAlert, CircleX, Check, X } from "lucide-react";
 import { formatNaira } from "@/lib/finance/money";
 import { formatDate, formatDateTime } from "@/lib/finance/dates";
@@ -21,7 +22,7 @@ export function PageHeader({ title, description, crumbs, actions }: { title: str
             {crumbs.map((c, i) => (
               <li key={i} className="flex items-center gap-1">
                 {i > 0 && <ChevronRight aria-hidden className="h-3 w-3" />}
-                {c.href ? <Link href={c.href} className="hover:text-brand hover:underline">{c.label}</Link> : <span aria-current="page">{c.label}</span>}
+                {c.href ? <BackLink href={c.href} className="hover:text-brand hover:underline">{c.label}</BackLink> : <span aria-current="page">{c.label}</span>}
               </li>
             ))}
           </ol>
