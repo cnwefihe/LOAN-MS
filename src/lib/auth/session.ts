@@ -10,7 +10,8 @@ import { and, eq, isNull } from "drizzle-orm";
 import { getDb } from "@/db";
 import { sessions, users } from "@/db/schema";
 import { randomToken, sha256Hex } from "@/lib/security/crypto";
-import { idleMinutesFor } from "@/server/settings";
+import { getSetting, idleMinutesFor } from "@/server/settings";
+import { HUMAN_COOKIE } from "@/server/human-check";
 import { loadActor } from "@/server/services/identity";
 import type { Actor } from "@/server/actor";
 import { mfaRequiredFor } from "@/server/services/mfa";
@@ -37,9 +38,12 @@ export async function createSession(userId: string, authMethod: "entra" | "dev_f
   const expiresAt = new Date(Date.now() + SESSION_MAX_HOURS * 3600_000);
   const ctx = await requestContext();
   await db.insert(sessions).values({ tokenHash: sha256Hex(token), userId, authMethod, ipAddress: ctx.ip, userAgent: ctx.userAgent, expiresAt, mfaVerifiedAt: mfaVerified ? new Date() : null });
-  (await cookies()).set(SESSION_COOKIE, token, {
+  const jar = await cookies();
+  jar.set(SESSION_COOKIE, token, {
     httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", expires: expiresAt,
   });
+  // When the security verification is asked at every sign-in, a pass is used up by signing in.
+  if ((await getSetting(db, "security.verifyValidMinutes")) === 0) jar.delete(HUMAN_COOKIE);
 }
 
 export async function destroySession(): Promise<void> {

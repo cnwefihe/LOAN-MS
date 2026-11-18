@@ -4,12 +4,14 @@ import { cookies } from "next/headers";
 import { entraConfig, msalClient, cryptoProvider, redirectUri, ENTRA_SCOPES } from "@/lib/auth/entra";
 import { hmac, randomToken } from "@/lib/security/crypto";
 import { rateLimit } from "@/server/rate-limit";
+import { hasPassed, HUMAN_COOKIE } from "@/server/human-check";
 
 const OIDC_COOKIE = "pau_oidc";
 
 export async function GET(req: NextRequest) {
   const cfg = entraConfig();
   if (!cfg) return NextResponse.redirect(appUrl("/login?error=sso_not_configured", req));
+  if (!hasPassed(req.cookies.get(HUMAN_COOKIE)?.value)) return NextResponse.redirect(appUrl("/login?error=human_check", req));
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
   try {
     await rateLimit(`login:${ip}`, 30, 300);

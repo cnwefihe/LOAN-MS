@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { users } from "@/db/schema";
@@ -7,6 +8,8 @@ import { entraConfig } from "@/lib/auth/entra";
 import { FIXTURE_USERS } from "@/server/seed";
 import { getBranding, logoUrl } from "@/server/branding";
 import { currentVersion } from "@/server/services/releases";
+import { hasPassed, HUMAN_COOKIE } from "@/server/human-check";
+import { HumanCheck } from "@/components/human-check";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Sign in" };
@@ -23,6 +26,7 @@ const ERRORS: Record<string, string> = {
   unknown_fixture: "Unknown development account.",
   not_institutional: "Only institutional staff accounts may use this system.",
   account_deactivated: "Your platform access has been deactivated. Contact the Bursary or Human Resources.",
+  human_check: "Please complete the security verification before signing in.",
 };
 
 function MicrosoftLogo() {
@@ -41,7 +45,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const sso = entraConfig();
   const brand = await getBranding(await getDb());
   const version = await currentVersion(await getDb());
-  const dev = devLoginEnabled();
+  // The sign-in buttons appear only after the human check is passed.
+  const human = hasPassed((await cookies()).get(HUMAN_COOKIE)?.value);
+  const dev = devLoginEnabled() && human;
   let fixtures: { id: string; displayName: string; email: string }[] = [];
   if (dev) {
     const db = await getDb();
@@ -65,7 +71,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           {sp.signedOut && <p role="status" className="mt-6 rounded-md border border-green-200 bg-success-50 px-3 py-2 text-sm text-green-900">{sp.signedOut === "idle" ? "You were signed out because you were inactive. Sign in to continue." : "You have been signed out."}</p>}
           {error && <p role="alert" className="mt-6 rounded-md border border-red-200 bg-danger-50 px-3 py-2 text-sm text-red-900">{error}</p>}
 
-          {sso ? (
+          {!human ? <HumanCheck /> : sso ? (
             <a href={loginHref} className="mt-7 flex w-full items-center justify-center gap-3 rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600">
               <MicrosoftLogo /> Sign in with Microsoft
             </a>
@@ -74,7 +80,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
               <MicrosoftLogo /> Sign in with Microsoft
             </button>
           )}
-          {!sso && <p className="mt-2 text-center text-xs text-warning-ink">Microsoft sign-in is not yet configured.</p>}
+          {human && !sso && <p className="mt-2 text-center text-xs text-warning-ink">Microsoft sign-in is not yet configured.</p>}
         </div>
 
         {dev && (

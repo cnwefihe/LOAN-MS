@@ -15,6 +15,10 @@ const reminderMinutes = (maxDays: number) => z.number().int().min(1).max(maxDays
 export const MFA_SCOPES = ["everyone", "staff", "off"] as const;
 const IDLE_CHOICES = ["5", "10", "30", "60"] as const;
 const idleMinutes = z.number().int().refine((m) => (IDLE_CHOICES as readonly string[]).includes(String(m)), "Choose one of the listed times.");
+const VERIFY_TRIES = ["3", "5", "10"] as const;
+const VERIFY_LOCK = ["5", "10", "15", "30", "60"] as const;
+const VERIFY_VALID = ["0", "5", "10", "15", "30", "60"] as const;
+const oneOf = (list: readonly string[]) => z.number().int().refine((n) => list.includes(String(n)), "Choose one of the listed values.");
 const hexColour = z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Use a six-digit hex colour such as #2E3A6E.")
   .refine((c) => contrastRatio(c, "#ffffff") >= 4.5, "This colour is too light: white text on it would fall below the WCAG AA contrast ratio of 4.5:1.");
 
@@ -70,6 +74,9 @@ export const SETTINGS = {
 
   "security.idleMinutesUsers": { group: "Security", schema: idleMinutes, default: 10, sensitive: true, label: "Sign out users after", options: IDLE_CHOICES },
   "security.idleMinutesAdmin": { group: "Security", schema: idleMinutes, default: 10, sensitive: true, label: "Sign out administrators after", options: IDLE_CHOICES },
+  "security.verifyMaxFailures": { group: "Security", schema: oneOf(VERIFY_TRIES), default: 5, sensitive: true, label: "Failed security verifications allowed before a device is locked", options: VERIFY_TRIES, optionLabels: { 3: "3 attempts", 5: "5 attempts", 10: "10 attempts" } },
+  "security.verifyLockMinutes": { group: "Security", schema: oneOf(VERIFY_LOCK), default: 10, sensitive: true, label: "Lock the device for", options: VERIFY_LOCK },
+  "security.verifyValidMinutes": { group: "Security", schema: oneOf(VERIFY_VALID), default: 10, sensitive: true, label: "After passing the security verification, do not ask again for", options: VERIFY_VALID, optionLabels: { 0: "None: ask at every sign-in" } },
   "security.mfaScope": { group: "Security", schema: z.enum(MFA_SCOPES), default: "everyone", sensitive: true, label: "Require two-step verification for", options: MFA_SCOPES, optionLabels: { everyone: "Everyone", staff: "Approval and payment roles", off: "No one" } },
 
   "notifications.emailEnabled": { group: "Notifications", schema: z.boolean(), default: true, sensitive: false, label: "Send email notifications" },

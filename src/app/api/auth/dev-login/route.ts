@@ -10,9 +10,11 @@ import { getDb } from "@/db";
 import { users } from "@/db/schema";
 import { createSession, devLoginEnabled } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
+import { hasPassed, HUMAN_COOKIE } from "@/server/human-check";
 
 export async function POST(req: NextRequest) {
   if (!devLoginEnabled()) return new NextResponse("Not found", { status: 404 });
+  if (!hasPassed(req.cookies.get(HUMAN_COOKIE)?.value)) return NextResponse.redirect(appUrl("/login?error=human_check", req), 303);
   const form = await req.formData();
   const userId = String(form.get("userId") ?? "");
   const db = await getDb();

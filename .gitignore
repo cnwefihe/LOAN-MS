@@ -16,6 +16,7 @@ storage/
 # Browser tests
 .next-e2e/
 .next-prod/
+.next-local/
 test-results/
 playwright-report/
 

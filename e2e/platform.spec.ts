@@ -8,9 +8,31 @@ import { todayLagos } from "../src/lib/finance/dates";
 const LAST_MONTH = previousMonth(todayLagos().slice(0, 7));
 const LAST_MONTH_NAME = new Date(`${LAST_MONTH}-15T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
 
+/**
+ * The human check before sign-in: drag the slider so the piece fits the gap, moving like a person
+ * (several uneven steps). Outside production the page carries the answer for tests.
+ */
+async function passHumanCheck(page: Page, offBy = 0) {
+  const handle = page.getByRole("slider", { name: "Verification slider" });
+  await expect(handle).toBeVisible();
+  const target = Number(await page.getByTestId("dev-human-answer").textContent()) + offBy;
+  const track = (await handle.locator("..").boundingBox())!;
+  const box = (await handle.boundingBox())!;
+  const scale = track.width / 300;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(box.x + box.width / 2, y);
+  await page.mouse.down();
+  for (const [f, dy] of [[0.2, 1], [0.45, 2], [0.7, 1], [0.9, 3], [1, 2]] as const) {
+    await page.mouse.move(box.x + box.width / 2 + target * scale * f, y + dy, { steps: 3 });
+    await page.waitForTimeout(70);
+  }
+  await page.mouse.up();
+}
+
 async function signIn(page: Page, name: string) {
   await page.context().clearCookies();
   await page.goto("/login");
+  await passHumanCheck(page);
   await page.getByRole("button", { name: new RegExp(`^${name}`) }).click();
   // Applicants land on their dashboard; staff with a work role in their work area.
   await page.waitForURL((u) => !["/login", "/home"].includes(u.pathname));
@@ -396,6 +418,14 @@ test.describe("security in the browser", () => {
   test("HR, Accounts and administrators cannot use the system until two-step verification is complete", async ({ page }) => {
     await page.context().clearCookies();
     await page.goto("/login");
+    // No sign-in until the human check is passed: a wrong fit is refused with a new puzzle.
+    await expect(page.getByRole("button", { name: /^Bisi Lawal/ })).toHaveCount(0);
+    expect((await page.request.post("/api/auth/dev-login", { form: { userId: "x" }, maxRedirects: 0 })).headers().location ?? "").not.toContain("/home");
+    await passHumanCheck(page, 40);
+    await expect(page.getByRole("status").filter({ hasText: /Verification failed\. Please try again\. \d attempts left/ })).toBeVisible();
+    // A new image follows by itself; the slider is usable again once it has loaded.
+    await expect(page.getByRole("slider", { name: "Verification slider" })).not.toHaveAttribute("aria-disabled", "true");
+    await passHumanCheck(page);
     await page.getByRole("button", { name: /^Bisi Lawal/ }).click();
     await page.waitForURL("**/mfa");
     for (const path of ["/accounts", "/dashboard", "/admin"]) {
@@ -461,6 +491,7 @@ test.describe("accessibility (axe, WCAG 2.2 AA)", () => {
   test("login and privacy pages", async ({ page }) => {
     for (const path of ["/login", "/privacy"]) {
       await page.goto(path);
+      if (path === "/login") await expect(page.getByRole("slider", { name: "Verification slider" })).toBeVisible();
       const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
       const serious = r.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
       expect(serious.map((v) => `${path}: ${v.id}: ${v.help} (${v.nodes.length})`)).toEqual([]);
