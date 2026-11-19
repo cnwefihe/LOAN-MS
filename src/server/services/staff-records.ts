@@ -21,23 +21,58 @@ export interface Skipped { row: number; reason: string }
 const clean = (s: unknown) => String(s ?? "").replace(/\s+/g, " ").trim();
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
-/** "15/03/2019", "15-03-2019", "2019-03-15" or a spreadsheet date, as 2019-03-15. Day first, as in Nigeria. */
-export function readDate(v: unknown): string | null {
+const NUMERIC = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$/;
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+const monthOf = (w: string) => { const i = MONTHS.indexOf(w.slice(0, 3).toLowerCase()); return i < 0 ? null : i + 1; };
+/** A two-digit year: this century unless that would be in the future. */
+const fullYear = (y: string) => y.length !== 2 ? Number(y) : 2000 + Number(y) > new Date().getUTCFullYear() ? 1900 + Number(y) : 2000 + Number(y);
+
+/**
+ * "15/03/2019", "15-03-2019", "15 Mar 2019", "15-Mar-19", "2019-03-15" or a spreadsheet date, as 2019-03-15.
+ * Day first, as in Nigeria, unless `order` says the file writes the month first.
+ */
+export function readDate(v: unknown, order: "dmy" | "mdy" = "dmy"): string | null {
   if (v instanceof Date && !Number.isNaN(v.getTime())) return v.toISOString().slice(0, 10);
   const s = clean(v);
   if (!s) return null;
-  let y: number, mo: number, d: number;
+  let y: number, mo: number | null, d: number;
   let m = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec(s);
   if (m) [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
-  else if ((m = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$/.exec(s))) [d, mo, y] = [Number(m[1]), Number(m[2]), Number(m[3].length === 2 ? `20${m[3]}` : m[3])];
+  else if ((m = NUMERIC.exec(s))) [d, mo, y] = order === "mdy" && Number(m[1]) <= 12 ? [Number(m[2]), Number(m[1]), fullYear(m[3])] : [Number(m[1]), Number(m[2]), fullYear(m[3])];
+  else if ((m = /^(\d{1,2})(?:st|nd|rd|th)?[\s\-/.]+([a-z]{3,9})\.?[\s\-/.,]+(\d{2}|\d{4})$/i.exec(s))) [d, mo, y] = [Number(m[1]), monthOf(m[2]), fullYear(m[3])];
+  else if ((m = /^([a-z]{3,9})\.?[\s\-]+(\d{1,2})(?:st|nd|rd|th)?,?[\s\-]+(\d{4})$/i.exec(s))) [d, mo, y] = [Number(m[2]), monthOf(m[1]), Number(m[3])];
   else if (/^\d{5}$/.test(s)) { // a spreadsheet serial number
     const t = new Date(Date.UTC(1899, 11, 30) + Number(s) * 86400000);
     return t.toISOString().slice(0, 10);
   } else return null;
+  if (!mo) return null;
   const t = new Date(Date.UTC(y, mo - 1, d));
   if (t.getUTCFullYear() !== y || t.getUTCMonth() !== mo - 1 || t.getUTCDate() !== d) return null;
   return t.toISOString().slice(0, 10);
 }
+
+/**
+ * How a file writes its dates. Excel on a computer set to US dates reads "02/03/2015" as 3 February and saves
+ * it back month first, while "15/03/2020" (no 15th month) is left as typed. So a column holding both kinds
+ * was typed day first and Excel has switched the rest: those are switched back. A column whose dates only
+ * make sense month first is read month first. Otherwise dates are read day first.
+ */
+export function dateOrder(values: unknown[]): { order: "dmy" | "mdy"; swapDates: boolean; unsure: boolean } {
+  const texts = values.map((v) => (v instanceof Date ? null : NUMERIC.exec(clean(v)))).filter((m): m is RegExpExecArray => !!m);
+  const dayFirst = texts.filter((m) => Number(m[1]) > 12), monthFirst = texts.filter((m) => Number(m[2]) > 12);
+  const ambiguous = texts.filter((m) => Number(m[1]) <= 12 && Number(m[2]) <= 12 && m[1] !== m[2]);
+  const hasDates = values.some((v) => v instanceof Date);
+  if (dayFirst.length && monthFirst.length) return { order: "dmy", swapDates: false, unsure: true };
+  if (monthFirst.length) return { order: "mdy", swapDates: false, unsure: false };
+  if (dayFirst.length && hasDates) return { order: "dmy", swapDates: true, unsure: false };
+  // A CSV saved by Excel set to US dates: typed dates kept as "15/03/2020", switched ones written as "2/3/2015".
+  const padded = (m: RegExpExecArray) => m[1].length === 2 && m[2].length === 2;
+  if (dayFirst.length && dayFirst.every(padded) && ambiguous.length && ambiguous.every((m) => !padded(m) && m[3].length === 4)) return { order: "mdy", swapDates: false, unsure: false };
+  return { order: "dmy", swapDates: false, unsure: false };
+}
+
+/** A spreadsheet date with its day and month switched back (only possible when the day is 12 or less). */
+const switchBack = (d: Date) => d.getUTCDate() <= 12 ? new Date(Date.UTC(d.getUTCFullYear(), d.getUTCDate() - 1, d.getUTCMonth() + 1)) : d;
 
 /** "Confirmed", "Yes" or "True" is confirmed; "Not confirmed", "No", "Unconfirmed", "Probation" or "False" is not. */
 export function readConfirmed(v: unknown): boolean | null {
@@ -56,7 +91,7 @@ const HEADERS: [keyof StaffRecordInput, RegExp][] = [
 ];
 
 /** Rows of cells to records. The first row must name the columns; their order does not matter. */
-export function readRows(cells: unknown[][]): { rows: ParsedRow[]; skipped: Skipped[] } {
+export function readRows(cells: unknown[][]): { rows: ParsedRow[]; skipped: Skipped[]; monthFirst: boolean } {
   const headerAt = cells.findIndex((r) => r.some((c) => HEADERS[0][1].test(clean(c))));
   if (headerAt < 0) throw new DomainError("The first row must name the columns: Employee code, Pay grade, Employment date, Confirmation (and Email, optional).");
   const head = cells[headerAt].map(clean);
@@ -65,13 +100,21 @@ export function readRows(cells: unknown[][]): { rows: ParsedRow[]; skipped: Skip
   if (missing.length) throw new DomainError(`Columns not found: ${missing.map((k) => ({ employeeCode: "Employee code", payGrade: "Pay grade", employmentDate: "Employment date", confirmed: "Confirmation" })[k]).join(", ")}.`);
   const rows: ParsedRow[] = [];
   const skipped: Skipped[] = [];
-  cells.slice(headerAt + 1).forEach((r, i) => {
+  const body = cells.slice(headerAt + 1);
+  const dates = dateOrder(body.map((r) => r[col.employmentDate]));
+  body.forEach((r, i) => {
     const row = headerAt + i + 2;
     const get = (k: keyof StaffRecordInput) => (col[k] >= 0 ? r[col[k]] : undefined);
     const employeeCode = clean(get("employeeCode"));
     if (!r.some((c) => clean(c))) return; // blank line
     const payGrade = clean(get("payGrade"));
-    const employmentDate = readDate(get("employmentDate"));
+    const rawDate = get("employmentDate");
+    const numeric = rawDate instanceof Date ? null : NUMERIC.exec(clean(rawDate));
+    if (dates.unsure && numeric && Number(numeric[1]) <= 12 && Number(numeric[2]) <= 12 && numeric[1] !== numeric[2]) {
+      skipped.push({ row, reason: "employment date could be day or month first; write it as 02 Mar 2015" });
+      return;
+    }
+    const employmentDate = readDate(rawDate instanceof Date && dates.swapDates ? switchBack(rawDate) : rawDate, dates.order);
     const confirmed = readConfirmed(get("confirmed"));
     const email = clean(get("email")).toLowerCase() || null;
     const reason = !employeeCode ? "no employee code" : employeeCode.length > 40 ? "employee code too long"
@@ -82,7 +125,7 @@ export function readRows(cells: unknown[][]): { rows: ParsedRow[]; skipped: Skip
     if (reason) skipped.push({ row, reason });
     else rows.push({ row, employeeCode, payGrade, employmentDate: employmentDate!, confirmed: confirmed!, email });
   });
-  return { rows, skipped };
+  return { rows, skipped, monthFirst: dates.order === "mdy" || dates.swapDates };
 }
 
 /** Reads an Excel (.xlsx) or CSV file into rows of cells. */
@@ -223,7 +266,7 @@ async function upsert(tx: Executor, actor: Actor, input: StaffRecordInput): Prom
 /** Saves the rows of an uploaded spreadsheet and fills the profiles of those who have signed in. */
 export async function importStaffRecords(db: Executor, actor: Actor, file: { buffer: Buffer; name: string }) {
   assertCan(actor, "admin.settings.manage");
-  const { rows, skipped } = readRows(await readSheet(file.buffer, file.name));
+  const { rows, skipped, monthFirst } = readRows(await readSheet(file.buffer, file.name));
   if (!rows.length && !skipped.length) throw new DomainError("The file has no rows under its headings.");
   if (rows.length > 5000) throw new DomainError("Upload at most 5,000 rows at a time.");
   const seen = new Set<string>();
@@ -244,7 +287,7 @@ export async function importStaffRecords(db: Executor, actor: Actor, file: { buf
     await audit(tx, actor, { action: "staff_records.imported", entityType: "staff_record", summary: `${added} added, ${updated} updated, ${linked} profiles filled, ${skipped.length} not read` });
   });
   skipped.sort((a, b) => a.row - b.row);
-  return { added, updated, linked, skipped };
+  return { added, updated, linked, skipped, monthFirst };
 }
 
 /** One record added or changed by the administrator. */

@@ -1,3 +1,4 @@
+import { DateInput } from "@/components/date-input";
 import { Fragment } from "react";
 import { getDb } from "@/db";
 import { requireActor } from "@/lib/auth/session";
@@ -133,8 +134,8 @@ export default async function Reports({ searchParams }: { searchParams: Promise<
       <form method="get" className="mb-4 grid items-end gap-3 rounded-lg border border-line bg-white p-4 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
         <input type="hidden" name="tab" value="library" />
         <div><label htmlFor="area" className="label">Area</label><select id="area" name="area" defaultValue={area} className="input h-9 py-0"><option value="">All areas</option>{AREAS.map((x) => <option key={x}>{x}</option>)}</select></div>
-        <div><label htmlFor="from" className="label">Period from</label><input id="from" name="from" type="date" defaultValue={p.from} className="input h-9 py-0" /></div>
-        <div><label htmlFor="to" className="label">Period to</label><input id="to" name="to" type="date" defaultValue={p.to} className="input h-9 py-0" /></div>
+        <div><label htmlFor="from" className="label">Period from</label><DateInput id="from" name="from" defaultValue={p.from} className="input h-9 py-0" inWordsBelow={false} /></div>
+        <div><label htmlFor="to" className="label">Period to</label><DateInput id="to" name="to" defaultValue={p.to} className="input h-9 py-0" inWordsBelow={false} /></div>
         <div><label htmlFor="month" className="label">Payroll month</label><input id="month" name="month" type="month" defaultValue={p.month} className="input h-9 py-0" /></div>
         <button className="btn-primary">Apply</button>
       </form>
@@ -171,8 +172,8 @@ export default async function Reports({ searchParams }: { searchParams: Promise<
       <Card title="Report library" description={exportable ? "Downloads are recorded in the audit log." : "Your role can view reports but not export them."}>
         <form method="get" className="mb-5 grid items-center gap-2.5 rounded-lg border border-line bg-canvas p-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
           <input type="hidden" name="tab" value="library" />
-          <div className="flex items-center gap-2"><label htmlFor="from" className="shrink-0 text-sm font-medium text-slate-700">Period from</label><input id="from" name="from" type="date" defaultValue={p.from} className="input h-9 min-w-0 flex-1" /></div>
-          <div className="flex items-center gap-2"><label htmlFor="to" className="shrink-0 text-sm font-medium text-slate-700">Period to</label><input id="to" name="to" type="date" defaultValue={p.to} className="input h-9 min-w-0 flex-1" /></div>
+          <div className="flex items-center gap-2"><label htmlFor="from" className="shrink-0 text-sm font-medium text-slate-700">Period from</label><DateInput id="from" name="from" defaultValue={p.from} className="input h-9 py-0" inWordsBelow={false} /></div>
+          <div className="flex items-center gap-2"><label htmlFor="to" className="shrink-0 text-sm font-medium text-slate-700">Period to</label><DateInput id="to" name="to" defaultValue={p.to} className="input h-9 py-0" inWordsBelow={false} /></div>
           <div className="flex items-center gap-2"><label htmlFor="month" className="shrink-0 text-sm font-medium text-slate-700">Payroll month</label><input id="month" name="month" type="month" defaultValue={p.month} className="input h-9 min-w-0 flex-1" /></div>
           <button className="btn-primary">Apply</button>
         </form>

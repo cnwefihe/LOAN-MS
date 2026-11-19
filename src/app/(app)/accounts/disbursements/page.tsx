@@ -1,3 +1,4 @@
+import { DateInput } from "@/components/date-input";
 import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
@@ -54,7 +55,7 @@ export default async function Disbursements({ searchParams }: { searchParams: Pr
                         <ActionForm action={recordDisbursementAction.bind(null, loan.id, randomToken(16))} submitLabel="Record payment" encType="multipart/form-data">
                           <div className="mt-3 grid gap-3 sm:grid-cols-3">
                             <div><label className="label" htmlFor={`amt-${loan.id}`}>Amount paid (₦)</label><input id={`amt-${loan.id}`} name="amountDisbursed" defaultValue={loan.principal} inputMode="decimal" required className="input" /></div>
-                            <div><label className="label" htmlFor={`pd-${loan.id}`}>Payment date</label><input id={`pd-${loan.id}`} name="paymentDate" type="date" max={todayLagos()} defaultValue={todayLagos()} required className="input" /></div>
+                            <div><label className="label" htmlFor={`pd-${loan.id}`}>Payment date</label><DateInput id={`pd-${loan.id}`} name="paymentDate" max={todayLagos()} defaultValue={todayLagos()} required /></div>
                             <div><label className="label" htmlFor={`pm-${loan.id}`}>Method</label><select id={`pm-${loan.id}`} name="paymentMethod" className="input"><option value="bank_transfer">Bank transfer</option><option value="internal_transfer">Internal transfer</option><option value="cheque">Cheque</option></select></div>
                             <div><label className="label" htmlFor={`ref-${loan.id}`}>Bank transaction reference</label><input id={`ref-${loan.id}`} name="transactionReference" required className="input" /></div>
                             <div><label className="label" htmlFor={`ev-${loan.id}`}>Evidence (payment advice)</label><input id={`ev-${loan.id}`} name="evidence" type="file" accept=".pdf,.png,.jpg,.jpeg" className="input py-1.5" /></div>

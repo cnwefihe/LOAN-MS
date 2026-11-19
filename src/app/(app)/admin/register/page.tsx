@@ -1,3 +1,4 @@
+import { DateInput } from "@/components/date-input";
 import Link from "next/link";
 import { Lock } from "lucide-react";
 import { getDb } from "@/db";
@@ -73,7 +74,7 @@ export default async function StaffRecords({ searchParams }: { searchParams: Pro
             <div className="grid gap-4 sm:grid-cols-2">
               <div><label htmlFor="employeeCode" className="label">Employee code</label><input id="employeeCode" name="employeeCode" required maxLength={40} defaultValue={editing === "new" ? "" : editing.employeeCode} className="input" /></div>
               <div><label htmlFor="payGrade" className="label">Pay grade</label><input id="payGrade" name="payGrade" required maxLength={120} defaultValue={editing === "new" ? "" : editing.payGrade} className="input" /><p className="hint">Exactly as printed on the payslip.</p></div>
-              <div><label htmlFor="employmentDate" className="label">Employment date</label><input id="employmentDate" name="employmentDate" type="date" required max={today} defaultValue={editing === "new" ? "" : editing.employmentDate} className="input" /></div>
+              <div><label htmlFor="employmentDate" className="label">Employment date</label><DateInput id="employmentDate" name="employmentDate" required max={today} defaultValue={editing === "new" ? "" : editing.employmentDate} /></div>
               <div><label htmlFor="email" className="label">Work email (optional)</label><input id="email" name="email" type="email" maxLength={320} defaultValue={editing === "new" ? "" : editing.email ?? ""} className="input" /></div>
             </div>
             <label className="mt-4 flex items-center gap-2 text-sm"><input id="confirmed" name="confirmed" type="checkbox" defaultChecked={editing === "new" ? false : editing.confirmed} className="h-4 w-4" /> Confirmed</label>
@@ -91,7 +92,7 @@ export default async function StaffRecords({ searchParams }: { searchParams: Pro
         <ActionForm action={importStaffRecordsAction} submitLabel="Upload" encType="multipart/form-data" resetOnSuccess confirm="Upload to the Register? Profiles of employees who have signed in are updated at once.">
           <label htmlFor="sheet" className="label">Spreadsheet</label>
           <input id="sheet" name="sheet" type="file" required accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="input py-1.5" />
-          <p className="hint"><a href={TEMPLATE} download="register-template.csv" className="link">Download a template</a> with the headings in place.</p>
+          <p className="hint"><a href={TEMPLATE} download="register-template.csv" className="link">Download a template</a> with the headings in place. Dates are read day first. If Excel on your computer is set to US dates, writing them as 02 Mar 2015 keeps the day and month from being switched.</p>
         </ActionForm>
       </Card>
 

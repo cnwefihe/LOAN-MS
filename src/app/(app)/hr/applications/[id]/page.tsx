@@ -1,3 +1,4 @@
+import { DateInput } from "@/components/date-input";
 import { notFound } from "next/navigation";
 import { ADVANCE_TYPES } from "@/lib/finance/policy";
 import { getDb } from "@/db";
@@ -74,7 +75,7 @@ export default async function HrReview({ params }: { params: Promise<{ id: strin
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div><label htmlFor="employmentStatus" className="label">Employment status</label>
                       <select id="employmentStatus" name="employmentStatus" defaultValue={p?.employmentStatus ?? ""} className="input"><option value="">Keep unchanged</option>{EMPLOYMENT_STATUSES.map((s) => <option key={s} value={s}>{s.replace("_", " ")}</option>)}</select></div>
-                    <div><label htmlFor="employmentDate" className="label">Employment date</label><input id="employmentDate" name="employmentDate" type="date" defaultValue={p?.employmentDate ?? ""} className="input" /></div>
+                    <div><label htmlFor="employmentDate" className="label">Employment date</label><DateInput id="employmentDate" name="employmentDate" defaultValue={p?.employmentDate ?? ""} /></div>
                   </div>
                   <div className="mt-4 grid gap-2">
                     {[["employmentVerified","Employment confirmed against the personnel file"],["salaryVerified","Payslip figures confirmed against payroll"],["staffStatusVerified","Staff status confirmed (active, not on notice or suspension)"],["departmentVerified","Department and designation confirmed"]].map(([n, l]) => (

@@ -1,3 +1,4 @@
+import { DateInput } from "@/components/date-input";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Download } from "lucide-react";
@@ -73,7 +74,7 @@ export default async function AccountsLoan({ params, searchParams }: { params: P
                 <ActionForm action={recordRepaymentAction.bind(null, id, randomToken(16))} submitLabel="Record repayment" resetOnSuccess>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div><label className="label" htmlFor="ramt">Amount (₦)</label><input id="ramt" name="amount" defaultValue={loan.monthlyInstalment} required className="input" /></div>
-                    <div><label className="label" htmlFor="rvd">Value date</label><input id="rvd" name="valueDate" type="date" max={todayLagos()} defaultValue={todayLagos()} required className="input" /></div>
+                    <div><label className="label" htmlFor="rvd">Value date</label><DateInput id="rvd" name="valueDate" max={todayLagos()} defaultValue={todayLagos()} required /></div>
                     <div><label className="label" htmlFor="rref">Reference</label><input id="rref" name="reference" required className="input" /></div>
                     <div><label className="label" htmlFor="rch">Channel</label><select id="rch" name="channel" className="input"><option value="payroll">Payroll deduction</option><option value="bank_transfer">Bank transfer</option></select></div>
                     {loan.status === "defaulted" && guarantors.length > 0 && (

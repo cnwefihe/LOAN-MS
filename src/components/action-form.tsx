@@ -25,7 +25,7 @@ function changesIn(form: HTMLFormElement): Change[] {
   const out: Change[] = [];
   for (const el of Array.from(form.elements)) {
     if (el instanceof HTMLInputElement) {
-      if (el.type === "hidden" || el.type === "submit" || el.type === "button") continue;
+      if (el.type === "hidden" || el.type === "submit" || el.type === "button" || "noChange" in el.dataset) continue;
       if (el.type === "checkbox" || el.type === "radio") {
         if (el.checked !== el.defaultChecked && (el.type === "checkbox" || el.checked)) {
           out.push(el.type === "checkbox" ? { label: labelOf(el), from: el.defaultChecked ? "On" : "Off", to: el.checked ? "On" : "Off" } : { label: el.name, from: "", to: labelOf(el) });

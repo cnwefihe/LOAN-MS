@@ -350,7 +350,7 @@ test.describe.serial("application lifecycle through the UI", () => {
     expect(mgmt.headers()["content-type"]).toBe("application/pdf");
     expect((await mgmt.body()).subarray(0, 5).toString()).toBe("%PDF-");
     await page.keyboard.press("Escape");
-    await page.getByLabel("Period from").fill("2020-01-01");
+    await page.getByLabel("Period from").fill("01/01/2020");
     await page.getByRole("button", { name: "Apply" }).click();
     await page.waitForURL(/from=2020-01-01/);
     await openRowMenu(page, "Actions for Disbursements register download");

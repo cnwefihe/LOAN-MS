@@ -1,3 +1,4 @@
+import { DateInput } from "@/components/date-input";
 import Link from "next/link";
 import { and, eq, isNull } from "drizzle-orm";
 import { getDb } from "@/db";
@@ -83,7 +84,7 @@ export default async function Repayments({ searchParams }: { searchParams: Promi
                       <ActionForm action={confirmClaimAction.bind(null, c.id)} submitLabel="Confirm repayment" variant="success">
                         <div className="grid gap-3 sm:grid-cols-3">
                           <div><label className="label" htmlFor={`a-${c.id}`}>Amount received (₦)</label><input id={`a-${c.id}`} name="amount" defaultValue={c.amount} required className="input" /></div>
-                          <div><label className="label" htmlFor={`v-${c.id}`}>Value date</label><input id={`v-${c.id}`} name="valueDate" type="date" max={today} defaultValue={valueDateFor(c.deductionMonth)} required className="input" /></div>
+                          <div><label className="label" htmlFor={`v-${c.id}`}>Value date</label><DateInput id={`v-${c.id}`} name="valueDate" max={today} defaultValue={valueDateFor(c.deductionMonth)} required /></div>
                           <div><label className="label" htmlFor={`r-${c.id}`}>Payroll or bank reference</label><input id={`r-${c.id}`} name="bankReference" required className="input" /></div>
                         </div>
                       </ActionForm>

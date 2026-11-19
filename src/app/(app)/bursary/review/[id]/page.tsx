@@ -1,3 +1,4 @@
+import { DateInput } from "@/components/date-input";
 import { notFound } from "next/navigation";
 import { ADVANCE_TYPES } from "@/lib/finance/policy";
 import { getDb } from "@/db";
@@ -102,8 +103,8 @@ export default async function BursaryReview({ params }: { params: Promise<{ id: 
             <Card title="Your decision">
               <ActionForm action={bursaryDecisionAction.bind(null, id)} submitLabel="Record decision" confirm="Record this decision? It cannot be edited afterwards.">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div><label htmlFor="lastLoanDate" className="label">Date last loan taken</label><input id="lastLoanDate" name="lastLoanDate" type="date" defaultValue={w.lastLoan?.takenOn ?? ""} className="input" /><p className="hint">Change only for a loan taken before this system.</p></div>
-                  <div><label htmlFor="lastLoanRepaidDate" className="label">Date fully repaid</label><input id="lastLoanRepaidDate" name="lastLoanRepaidDate" type="date" defaultValue={w.lastLoan?.repaidOn ?? ""} className="input" /></div>
+                  <div><label htmlFor="lastLoanDate" className="label">Date last loan taken</label><DateInput id="lastLoanDate" name="lastLoanDate" defaultValue={w.lastLoan?.takenOn ?? ""} /><p className="hint">Change only for a loan taken before this system.</p></div>
+                  <div><label htmlFor="lastLoanRepaidDate" className="label">Date fully repaid</label><DateInput id="lastLoanRepaidDate" name="lastLoanRepaidDate" defaultValue={w.lastLoan?.repaidOn ?? ""} /></div>
                 </div>
                 <label className="mt-4 flex items-start gap-2 text-sm"><input type="checkbox" name="fundsAvailable" className="mt-1" /> I confirm that funds are available to pay out this loan.</label>
                 <div className="mt-4"><label htmlFor="comments" className="label">Comments</label><textarea id="comments" name="comments" rows={3} required minLength={5} className="input" /></div>

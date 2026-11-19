@@ -24,6 +24,7 @@ import { setSchoolRepaymentAccount } from "@/server/services/admin";
 import { earlyRepaymentAccount } from "@/server/services/loans";
 import { productSummary, whoMayApply } from "@/lib/finance/product-summary";
 import { DEFAULT_POLICY } from "@/lib/finance/defaults";
+import { parseDayFirst, toDayFirst } from "@/components/date-input";
 
 let db: Database;
 const ids: Record<string, string> = {};
@@ -44,16 +45,45 @@ describe("reading the spreadsheet", () => {
       ["Confirmation", "Employment Date", "Pay Grade", "Employee Code", "Email"],
       ["Confirmed", "15/03/2019", "Lecturer I Step 2", "EX/001", "ada.obi@example.edu.ng"],
       ["Not confirmed", "2024-01-08", "Officer II Step 1", "EX/002", ""],
-      ["Yes", new Date(Date.UTC(2020, 5, 1)), "Officer I Step 1", "EX/003", ""],
+      ["Yes", new Date(Date.UTC(2020, 5, 15)), "Officer I Step 1", "EX/003", ""],
       ["Maybe", "01/01/2020", "Officer", "EX/004", ""],
       ["Confirmed", "31/02/2020", "Officer", "EX/005", ""],
       ["", "", "", "", ""],
     ]);
     expect(rows.map((r) => [r.employeeCode, r.employmentDate, r.confirmed, r.email])).toEqual([
-      ["EX/001", "2019-03-15", true, "ada.obi@example.edu.ng"], ["EX/002", "2024-01-08", false, null], ["EX/003", "2020-06-01", true, null],
+      ["EX/001", "2019-03-15", true, "ada.obi@example.edu.ng"], ["EX/002", "2024-01-08", false, null], ["EX/003", "2020-06-15", true, null],
     ]);
     expect(skipped).toEqual([{ row: 5, reason: "confirmation not read (use Confirmed or Not confirmed)" }, { row: 6, reason: "employment date not read (use DD/MM/YYYY)" }]);
     expect(() => readRows([["Name", "Grade"]])).toThrow(/first row must name the columns/);
+  });
+
+  it("keeps day first when Excel set to US dates has switched the day and month", () => {
+    const read = (dates: unknown[]) => readRows([["Employee code", "Pay grade", "Employment date", "Confirmation"], ...dates.map((d, i) => [`EX/${i}`, "Officer", d, "Confirmed"])]);
+    // CSV saved by US Excel: typed 02/03/2015 (2 March) came back as 3/2/2015; 15/03/2020 was left as typed.
+    expect(read(["15/03/2020", "3/2/2015"]).rows.map((r) => r.employmentDate)).toEqual(["2020-03-15", "2015-03-02"]);
+    expect(read(["15/03/2020", "3/2/2015"]).monthFirst).toBe(true);
+    // Excel workbook: the switched one is stored as 3 February, the other kept as text.
+    expect(read(["15/03/2020", new Date(Date.UTC(2015, 1, 3))]).rows.map((r) => r.employmentDate)).toEqual(["2020-03-15", "2015-03-02"]);
+    // Only month first makes sense.
+    expect(read(["03/25/2015", "02/03/2015"]).rows.map((r) => r.employmentDate)).toEqual(["2015-03-25", "2015-02-03"]);
+    // Day first written throughout, padded or not.
+    expect(read(["02/03/2015", "15/03/2020", "1/2/2019"]).rows.map((r) => r.employmentDate)).toEqual(["2015-03-02", "2020-03-15", "2019-02-01"]);
+    expect(read(["02/03/2015"]).monthFirst).toBe(false);
+    // Month names are never in doubt.
+    expect(read(["02 Mar 2015", "2-Mar-15", "March 2, 2015", "2nd March 2015"]).rows.map((r) => r.employmentDate)).toEqual(Array(4).fill("2015-03-02"));
+    // Both kinds in one file: the ones that could go either way are not guessed.
+    const mixed = read(["15/03/2020", "03/25/2015", "02/03/2015"]);
+    expect(mixed.rows.map((r) => r.employmentDate)).toEqual(["2020-03-15"]);
+    expect(mixed.skipped.map((s) => s.reason)).toEqual(["employment date not read (use DD/MM/YYYY)", "employment date could be day or month first; write it as 02 Mar 2015"]);
+  });
+
+  it("date boxes are typed day first", () => {
+    expect(parseDayFirst("02/03/2015")).toBe("2015-03-02");
+    expect(parseDayFirst("2/3/2015")).toBe("2015-03-02");
+    expect(parseDayFirst("2015-03-02")).toBe("2015-03-02");
+    expect(parseDayFirst("31/02/2015")).toBeNull();
+    expect(parseDayFirst("03/25/2015")).toBeNull();
+    expect(toDayFirst("2015-03-02")).toBe("02/03/2015");
   });
 
   it("reads CSV with quoted fields and semicolons", () => {

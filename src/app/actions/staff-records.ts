@@ -44,7 +44,8 @@ export async function importStaffRecordsAction(_: Prev, fd: FormData) {
     if (f.size > 5 * 1024 * 1024) throw new DomainError("The file is larger than 5 MB.");
     const r = await importStaffRecords(await getDb(), actor, { buffer: Buffer.from(await f.arrayBuffer()), name: f.name });
     const skipped = r.skipped.length ? ` Not saved: ${r.skipped.slice(0, 6).map((s) => `row ${s.row} (${s.reason})`).join("; ")}${r.skipped.length > 6 ? ` and ${r.skipped.length - 6} more` : ""}.` : "";
-    return `${r.added} added, ${r.updated} updated; ${r.linked} profiles filled.${skipped}`;
+    const dates = r.monthFirst ? " Excel had saved the dates month first (US setting); they were read back as day, month, year." : "";
+    return `${r.added} added, ${r.updated} updated; ${r.linked} profiles filled.${dates}${skipped}`;
   }, { revalidate: PATHS });
 }
 

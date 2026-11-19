@@ -1,3 +1,4 @@
+import { DateInput } from "@/components/date-input";
 import Link from "next/link";
 import { asc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
@@ -136,7 +137,7 @@ export default async function Reconciliation({ searchParams }: { searchParams: P
           <ActionForm action={importPayrollAction} submitLabel="Import" encType="multipart/form-data" confirm="Post all rows in this file as repayments?">
             <div className="grid gap-4 md:grid-cols-2">
               <div><label htmlFor="csv" className="label">CSV file</label><input id="csv" name="csv" type="file" accept=".csv,text/csv" required className="input py-1.5" /></div>
-              <div><label htmlFor="valueDate" className="label">Default value date</label><input id="valueDate" name="valueDate" type="date" max={todayLagos()} defaultValue={todayLagos()} className="input" /></div>
+              <div><label htmlFor="valueDate" className="label">Default value date</label><DateInput id="valueDate" name="valueDate" max={todayLagos()} defaultValue={todayLagos()} /></div>
             </div>
           </ActionForm>
           {payroll ? (

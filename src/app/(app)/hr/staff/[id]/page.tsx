@@ -1,3 +1,4 @@
+import { DateInput } from "@/components/date-input";
 import Link from "next/link";
 import { designationOf } from "@/lib/designation";
 import { notFound } from "next/navigation";
@@ -66,7 +67,7 @@ export default async function StaffRecord({ params }: { params: Promise<{ id: st
                 <h3 className="mb-3 mt-6 text-sm font-semibold text-navy">Employment</h3>
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div><label htmlFor="employmentStatus" className="label">Employment status</label><select id="employmentStatus" name="employmentStatus" defaultValue={p?.employmentStatus ?? ""} className="input"><option value="">Not set</option>{EMPLOYMENT_STATUSES.map((s) => <option key={s} value={s}>{s.replace("_", " ")}</option>)}</select><p className="hint">Confirmed staff only may borrow.</p></div>
-                  <div><label htmlFor="employmentDate" className="label">Employment date</label><input id="employmentDate" name="employmentDate" type="date" defaultValue={p?.employmentDate ?? ""} className="input" /><p className="hint">Service: {monthsText(rec.serviceMonths)}.</p></div>
+                  <div><label htmlFor="employmentDate" className="label">Employment date</label><DateInput id="employmentDate" name="employmentDate" defaultValue={p?.employmentDate ?? ""} /><p className="hint">Service: {monthsText(rec.serviceMonths)}.</p></div>
                   <div><label htmlFor="designation" className="label">Designation</label><input id="designation" name="designation" defaultValue={designationOf(p) ?? ""} className="input" /></div>
                   <div><label htmlFor="schoolId" className="label">School</label><select id="schoolId" name="schoolId" defaultValue={p?.schoolId ?? ""} className="input"><option value="">Not set</option>{sch.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
                   <div><label htmlFor="departmentId" className="label">Department</label><select id="departmentId" name="departmentId" defaultValue={p?.departmentId ?? ""} className="input"><option value="">Not set</option>{dep.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
