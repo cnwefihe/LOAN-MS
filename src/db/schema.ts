@@ -126,6 +126,10 @@ export const schools = pgTable("schools", {
   code: varchar("code", { length: 20 }).notNull().unique(),
   name: varchar("name", { length: 200 }).notNull(),
   isActive: boolean("is_active").notNull().default(true),
+  /** Where staff in this school's departments pay an early repayment; the general account is used when not set. */
+  earlyRepaymentBank: varchar("early_repayment_bank", { length: 100 }),
+  earlyRepaymentAccountName: varchar("early_repayment_account_name", { length: 150 }),
+  earlyRepaymentAccountNumber: varchar("early_repayment_account_number", { length: 10 }),
   createdAt: createdAt(),
 });
 
@@ -615,6 +619,23 @@ export const repaymentClaims = pgTable("repayment_claims", {
  * Staff who may stand as guarantors (the managerial cadre), kept by an administrator. Applicants choose
  * from these names; the email is used only to invite the guarantor and is never shown to the applicant.
  */
+/**
+ * The administrator's staff records, uploaded from a spreadsheet: employee code, pay grade, employment date
+ * and whether confirmed. Each staff member's profile is filled from theirs (matched by employee code, then
+ * work email), on upload and at sign-in; staff cannot change these details themselves.
+ */
+export const staffRecords = pgTable("staff_records", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  employeeCode: varchar("employee_code", { length: 40 }).notNull(),
+  email: varchar("email", { length: 320 }),
+  payGrade: varchar("pay_grade", { length: 120 }).notNull(),
+  employmentDate: date("employment_date").notNull(),
+  confirmed: boolean("confirmed").notNull(),
+  updatedBy: uuid("updated_by").references(() => users.id),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => [uniqueIndex("staff_records_code_uq").on(sql`lower(${t.employeeCode})`), index("staff_records_email_idx").on(sql`lower(${t.email})`)]);
+
 export const guarantorPool = pgTable("guarantor_pool", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: varchar("name", { length: 150 }).notNull(),

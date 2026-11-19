@@ -11,6 +11,7 @@
  *   NET PAY                amount
  */
 import { getDocumentProxy } from "unpdf";
+import { repairMacText } from "./pdf-text-repair";
 import { m } from "./money";
 import type { Payslip, PayslipLine } from "./payslip";
 
@@ -131,15 +132,26 @@ export function parsePayslipText(items: TextItem[]): Payslip {
 /** Read a payslip PDF. Throws PayslipReadError with a plain explanation when it cannot be read. */
 export async function readPayslipPdf(data: Uint8Array): Promise<Payslip> {
   if (!(data[0] === 0x25 && data[1] === 0x50 && data[2] === 0x44 && data[3] === 0x46)) throw new PayslipReadError("Please upload your payslip as a PDF.");
-  let items: TextItem[] = [];
+  const items = await textOf(data);
+  if (!items.some((i) => i.str.trim())) throw new PayslipReadError("This PDF has no readable text (it may be a scan or photo). Please upload the payslip PDF from SeamlessHR.");
   try {
-    const pdf = await getDocumentProxy(data, { verbosity: 0 });
+    return parsePayslipText(items);
+  } catch (err) {
+    // Saved from Safari or Preview on a Mac: the text layer is scrambled. Rebuild it from the fonts and read again.
+    const repaired = err instanceof PayslipReadError ? await repairMacText(data) : null;
+    if (!repaired) throw err;
+    return parsePayslipText(await textOf(repaired));
+  }
+}
+
+async function textOf(data: Uint8Array): Promise<TextItem[]> {
+  try {
+    // pdf.js may take ownership of the buffer it is given, so it reads a copy.
+    const pdf = await getDocumentProxy(data.slice(), { verbosity: 0 });
     const page = await pdf.getPage(1);
     const content = await page.getTextContent();
-    items = content.items.flatMap((i) => ("str" in i ? [{ str: i.str, x: i.transform[4], y: i.transform[5] }] : []));
+    return content.items.flatMap((i) => ("str" in i ? [{ str: i.str, x: i.transform[4], y: i.transform[5] }] : []));
   } catch {
     throw new PayslipReadError("The PDF could not be opened. Please download your payslip again and upload it.");
   }
-  if (!items.some((i) => i.str.trim())) throw new PayslipReadError("This PDF has no readable text (it may be a scan or photo). Please upload the payslip PDF from SeamlessHR.");
-  return parsePayslipText(items);
 }

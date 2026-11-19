@@ -141,7 +141,7 @@ export async function markReadAction(ids: string[], _: Prev) {
 
 export async function updatePayslipDetailsAction(_: Prev, fd: FormData) {
   return runAction(async (actor) => {
-    const changed = await updatePayslipDetails(await getDb(), actor, { name: str(fd, "payslipName"), staffNumber: str(fd, "staffNumber"), payGrade: str(fd, "payGrade") });
-    return changed ? "Saved. You can now upload your payslip; Human Resources will confirm these details." : "No changes.";
+    const changed = await updatePayslipDetails(await getDb(), actor, { name: str(fd, "payslipName") });
+    return changed ? "Saved." : "No changes.";
   }, { revalidate: ["/profile", "/eligibility"] });
 }

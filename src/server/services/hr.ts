@@ -10,6 +10,7 @@ import { DomainError, NotFoundError } from "../errors";
 import { getPolicyVersion } from "./policies";
 import { computeEligibilityFor, assessedWith } from "./applications";
 import { guarantorExposure, LIVE_GUARANTEE_STATUSES } from "./guarantors";
+import { syncRegisterFromProfile } from "./staff-records";
 import { getStaffRecord, payslipDetailsConfirmed } from "./staff";
 
 type AppStatus = (typeof loanApplications.$inferSelect)["status"];
@@ -75,6 +76,7 @@ export async function recordHrDecision(db: Executor, actor: Actor, applicationId
     }
     const [before] = await tx.select().from(staffProfiles).where(eq(staffProfiles.userId, app.applicantId));
     await tx.update(staffProfiles).set(patch).where(eq(staffProfiles.userId, app.applicantId));
+    if (input.employmentStatus || input.employmentDate) await syncRegisterFromProfile(tx, actor.userId, app.applicantId);
     await audit(tx, actor, { action: "staff.verified_by_hr", entityType: "staff_profile", entityId: app.applicantId, before, after: patch, summary: `During verification of ${app.reference}` });
 
     const elig = await computeEligibilityFor(tx, app.applicantId, policy.params, { requestedAmount: app.requestedAmount, tenorMonths: app.tenorMonths, excludeApplicationId: app.id, ...assessedWith(app) });

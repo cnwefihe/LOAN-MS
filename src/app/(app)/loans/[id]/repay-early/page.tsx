@@ -42,7 +42,7 @@ export default async function RepayEarly({ params }: { params: Promise<{ id: str
   }
 
   const q = await earlyRepaymentQuote(db, id);
-  const account = await earlyRepaymentAccount(db);
+  const account = await earlyRepaymentAccount(db, id);
   return (
     <>
       <PageHeader title="Repay early" crumbs={crumbs} description="Repay the whole balance now. Part payments are taken only from your salary." />

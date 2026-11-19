@@ -1,13 +1,13 @@
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import type { Executor } from "@/db";
-import { users, staffProfiles, departments, schools, staffCategories, loanAccounts, loanApplications } from "@/db/schema";
+import { users, staffProfiles, staffRecords, departments, schools, staffCategories, loanAccounts, loanApplications } from "@/db/schema";
 import { monthsBetween, todayLagos } from "@/lib/finance/dates";
 import { m, sum } from "@/lib/finance/money";
 import { encryptString } from "@/lib/security/crypto";
 import { assertCan, type Actor } from "../actor";
 import { audit } from "../audit";
+import { syncRegisterFromProfile } from "./staff-records";
 import { DomainError, NotFoundError } from "../errors";
-import { notify } from "../notifications";
 
 export const LIVE_LOAN_STATUSES = ["pending_disbursement", "active", "overdue", "defaulted"] as const;
 export const IN_FLIGHT_APP_STATUSES = ["pending_guarantor", "pending_hr", "pending_bursary", "pending_approval", "returned"] as const;
@@ -102,12 +102,18 @@ export function payslipDetailsConfirmed(p: { payslipDetailsConfirmedAt: Date | n
 }
 
 /**
- * The staff member enters their name, staff number and pay grade exactly as printed on their payslip.
- * They take effect straight away, so the payslip can be uploaded, and wait for HR to confirm them.
+ * The staff member's name as printed on their payslip. The employee code and pay grade come from the
+ * administrator's staff records and are kept as they are; they can be given here only by internal callers
+ * (such as tests) for someone with no staff record.
  */
-export async function updatePayslipDetails(db: Executor, actor: Actor, input: { name: string; staffNumber: string; payGrade: string }) {
+export async function updatePayslipDetails(db: Executor, actor: Actor, input: { name: string; staffNumber?: string; payGrade?: string }) {
   assertCan(actor, "profile.edit_own");
-  const name = input.name.replace(/\s+/g, " ").trim(), staffNumber = input.staffNumber.trim(), payGrade = input.payGrade.replace(/\s+/g, " ").trim();
+  const [mine] = await db.select().from(staffProfiles).where(eq(staffProfiles.userId, actor.userId));
+  const name = input.name.replace(/\s+/g, " ").trim();
+  const staffNumber = (input.staffNumber ?? mine?.staffNumber ?? "").trim(), payGrade = (input.payGrade ?? mine?.payGrade ?? "").replace(/\s+/g, " ").trim();
+  if ((input.staffNumber !== undefined || input.payGrade !== undefined) && await hasStaffRecord(db, actor)) throw new DomainError("Your employee code and pay grade are updated by Human Resources. Contact Human Resources if they are wrong.");
+  if (!name) throw new DomainError("Enter your name as it appears on your payslip.");
+  if (!staffNumber || !payGrade) throw new DomainError("Your employee code and pay grade have not been added yet. Please contact Human Resources.");
   if (!name || !staffNumber || !payGrade) throw new DomainError("Enter your name, employee code and pay grade as they appear on your payslip.");
   if (name.length > 200 || staffNumber.length > 40 || payGrade.length > 120) throw new DomainError("One of the details is too long.");
   return db.transaction(async (tx) => {
@@ -117,10 +123,17 @@ export async function updatePayslipDetails(db: Executor, actor: Actor, input: { 
     if (before && (before.payslipName || actor.displayName) === name && before.staffNumber === staffNumber && before.payGrade === payGrade) return false;
     const patch = { payslipName: name, staffNumber, payGrade, payslipDetailsUpdatedAt: new Date(), updatedAt: new Date() };
     await tx.insert(staffProfiles).values({ userId: actor.userId, ...patch }).onConflictDoUpdate({ target: staffProfiles.userId, set: patch });
-    await audit(tx, actor, { action: "profile.payslip_details", entityType: "staff_profile", entityId: actor.userId, before: before && { payslipName: before.payslipName, staffNumber: before.staffNumber, payGrade: before.payGrade }, after: { payslipName: name, staffNumber, payGrade }, summary: "Payslip details updated; awaiting Human Resources confirmation" });
-    await notify(tx, { template: "staff.payslip_details", roles: ["HR_ADMIN"], excludeUserIds: [actor.userId], link: `/hr/staff/${actor.userId}`, vars: { staffName: name } });
+    await audit(tx, actor, { action: "profile.payslip_details", entityType: "staff_profile", entityId: actor.userId, before: before && { payslipName: before.payslipName, staffNumber: before.staffNumber, payGrade: before.payGrade }, after: { payslipName: name, staffNumber, payGrade }, summary: "Payslip name updated" });
+    // Human Resources is not emailed about profile changes; they see the details when an application reaches them.
     return true;
   });
+}
+
+/** Whether the administrator holds a staff record for this person (by employee code or work email). */
+async function hasStaffRecord(db: Executor, actor: Actor) {
+  const [p] = await db.select({ code: staffProfiles.staffNumber }).from(staffProfiles).where(eq(staffProfiles.userId, actor.userId));
+  const [r] = await db.select({ id: staffRecords.id }).from(staffRecords).where(sql`lower(${staffRecords.email}) = ${actor.email.toLowerCase()} or lower(${staffRecords.employeeCode}) = ${(p?.code ?? "").toLowerCase()}`).limit(1);
+  return !!r;
 }
 
 /** HR confirms the payslip details a staff member entered match the personnel record. */
@@ -170,6 +183,7 @@ export async function setStaffConfirmation(db: Executor, actor: Actor, userId: s
       ...(confirmed && !before?.confirmationDate ? { confirmationDate: todayLagos() } : {}),
     };
     await tx.insert(staffProfiles).values({ userId, ...patch }).onConflictDoUpdate({ target: staffProfiles.userId, set: patch });
+    await syncRegisterFromProfile(tx, actor.userId, userId);
     await audit(tx, actor, { action: "staff.confirmation_changed", entityType: "staff_profile", entityId: userId, before: { employmentStatus: current }, after: { employmentStatus }, summary: confirmed ? "Marked as confirmed staff" : "Marked as not confirmed" });
   });
 }
@@ -194,6 +208,7 @@ export async function hrUpdateStaffRecord(db: Executor, actor: Actor, userId: st
     if (staffNumber && payGrade) Object.assign(patch, { payslipDetailsConfirmedBy: actor.userId, payslipDetailsConfirmedAt: new Date() });
     if (patch.monthlyNet && patch.monthlyGross && Number(patch.monthlyNet) > Number(patch.monthlyGross)) throw new DomainError("Net salary cannot exceed gross salary.");
     await tx.insert(staffProfiles).values({ userId, ...patch }).onConflictDoUpdate({ target: staffProfiles.userId, set: patch });
+    await syncRegisterFromProfile(tx, actor.userId, userId, before);
     await audit(tx, actor, { action: "staff.record_updated", entityType: "staff_profile", entityId: userId, before, after: patch, summary: note });
   });
 }

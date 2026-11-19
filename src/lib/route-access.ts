@@ -23,6 +23,7 @@ const PAGES: [pattern: string, anyOf: Permission[]][] = [
   ["/admin/outbox", ["admin.audit.view"]],
   ["/admin/branding", ["admin.settings.manage"]],
   ["/admin/settings", ["admin.settings.manage"]],
+  ["/admin/register", ["admin.settings.manage"]],
   ["/admin/releases", ["admin.settings.manage"]],
   ["/admin/content", ["admin.content.manage"]],
   ["/admin/content/*/*", ["admin.content.manage"]],

@@ -23,7 +23,7 @@ export default async function EarlyRepayment({ params }: { params: Promise<{ id:
   // The figure today, to show whether the balance has moved since the borrower's quote.
   const now = pending && ["active", "overdue", "defaulted"].includes(loan.status) ? await earlyRepaymentQuote(db, loan.id, r.quoteDate) : null;
   const changed = now && now.settlementAmount !== r.amount;
-  const account = await earlyRepaymentAccount(db);
+  const account = await earlyRepaymentAccount(db, loan.id);
   const own = loan.borrowerId === actor.userId;
   const canConfirm = pending && can(actor, "settlement.confirm") && !own;
 

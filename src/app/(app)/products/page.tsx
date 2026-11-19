@@ -6,15 +6,10 @@ import type { PolicyParameters } from "@/lib/finance/policy";
 import { Card, PageHeader, EmptyState, Tabs } from "@/components/ui";
 import { monthsText } from "@/lib/finance/dates";
 import { RichText } from "@/components/rich-text";
+import { productSummary, whoMayApply } from "@/lib/finance/product-summary";
 
 export const metadata = { title: "Loans and advances" };
 
-/** "Confirmed members of staff", or "Confirmed, probation and contract members of staff" when a product is open more widely. */
-function staffLabel(statuses: readonly string[]) {
-  const names = statuses.map((s) => s.replace("_", " "));
-  const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0];
-  return `${list[0].toUpperCase()}${list.slice(1)} members of staff`;
-}
 
 const months = (n: number) => `${n} ${n === 1 ? "month" : "months"}`;
 
@@ -63,7 +58,7 @@ function loanFacts(x: PolicyParameters, docs: string[]) {
   ];
   const eligibility: [string, React.ReactNode][] = [
     ["Amount", `Set by your latest payslip. Total deductions, including this loan, within ${x.maxDeductionPercent}% of net pay.`],
-    ["Who may apply", `${staffLabel(x.eligibleEmploymentStatuses)}, subject to verification by Human Resources.`],
+    ["Who may apply", whoMayApply(x)],
     ["Purpose", "Stated clearly on the application form."],
     ["Guarantors", x.requiredGuarantors
       ? `${x.requiredGuarantors === 2 ? "Two" : "One"} colleague: confirmed, with ${months(x.guarantorMinServiceMonths)}' service and deductions within ${x.guarantorMaxDeductionPercent}% of net pay.`
@@ -93,7 +88,7 @@ function advanceFacts(x: PolicyParameters, docs: string[]) {
       <li>Salary: part of your net pay.</li>
       <li>Leave allowance or 13th month: part of one month&apos;s basic salary.</li>
     </ul>],
-    ["Who may apply", `${staffLabel(x.eligibleEmploymentStatuses)}, subject to verification by Human Resources.`],
+    ["Who may apply", whoMayApply(x)],
     ["Documents", <DocList key="d" docs={docs} />],
   ];
   const recovery: [string, React.ReactNode][] = [
@@ -127,7 +122,7 @@ export default async function Products({ searchParams }: { searchParams: Promise
         const isAdvance = x.productType === "advance";
         const { headline, panels } = isAdvance ? advanceFacts(x, required) : loanFacts(x, required);
         return (
-          <Card title={<span className="text-base">{p.name}</span>} description={p.description ?? undefined}
+          <Card title={<span className="text-base">{p.name}</span>} description={<>{productSummary(x)}{p.description ? <span className="mt-1 block">{p.description}</span> : null}</>}
             actions={<>
               <Link href={`/eligibility?productId=${p.id}`} className="btn-secondary">{isAdvance ? "Preview advance" : "Check eligibility"}</Link>
               <Link href={`/applications/new?productId=${p.id}`} className="btn-primary">Apply</Link>

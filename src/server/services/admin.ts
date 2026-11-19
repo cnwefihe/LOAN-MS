@@ -219,6 +219,21 @@ export async function upsertSchool(db: Executor, actor: Actor, input: { id?: str
   await audit(db, actor, { action: input.id ? "org.school_updated" : "org.school_created", entityType: "school", entityId: row.id, after: values });
 }
 
+/** Each school's account for early repayments, set by an administrator under Settings > School accounts. */
+export async function setSchoolRepaymentAccount(db: Executor, actor: Actor, schoolId: string, input: { bank: string; accountName: string; accountNumber: string }) {
+  assertCan(actor, "admin.settings.manage");
+  const bank = input.bank.trim(), accountName = input.accountName.trim(), accountNumber = input.accountNumber.trim();
+  const given = [bank, accountName, accountNumber].filter(Boolean).length;
+  if (given && given < 3) throw new DomainError("Enter the bank, account name and account number, or leave all three empty.");
+  if (accountNumber && !/^\d{10}$/.test(accountNumber)) throw new DomainError("Enter the 10-digit account number.");
+  if (bank.length > 100 || accountName.length > 150) throw new DomainError("The bank or account name is too long.");
+  const [before] = await db.select().from(schools).where(eq(schools.id, schoolId));
+  if (!before) throw new DomainError("This school no longer exists.");
+  const after = { earlyRepaymentBank: bank || null, earlyRepaymentAccountName: accountName || null, earlyRepaymentAccountNumber: accountNumber || null };
+  await db.update(schools).set(after).where(eq(schools.id, schoolId));
+  await audit(db, actor, { action: "settings.early_repayment_account", entityType: "school", entityId: schoolId, before: { bank: before.earlyRepaymentBank, accountName: before.earlyRepaymentAccountName, accountNumber: before.earlyRepaymentAccountNumber }, after, summary: `Early repayment account for ${before.name} ${given ? "saved" : "removed"}` });
+}
+
 export async function upsertDepartment(db: Executor, actor: Actor, input: { id?: string; code: string; name: string; schoolId: string | null; headUserId?: string | null; approverTitle?: string; isActive: boolean }) {
   assertCan(actor, "admin.org.manage");
   const approverTitle = input.approverTitle === "line_manager" ? "line_manager" as const : "hod" as const;

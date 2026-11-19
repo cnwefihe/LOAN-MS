@@ -7,6 +7,7 @@ import type { Actor } from "../actor";
 import { audit } from "../audit";
 import { DomainError } from "../errors";
 import { notify } from "../notifications";
+import { applyStaffRecordTo } from "./staff-records";
 import { getSetting } from "../settings";
 
 export async function loadActor(db: Executor, userId: string, ctx: { ip?: string | null; userAgent?: string | null } = {}): Promise<Actor | null> {
@@ -117,6 +118,9 @@ export async function provisionEntraUser(identity: EntraIdentity): Promise<strin
         phone: sql`coalesce(${staffProfiles.phone}, ${identity.mobilePhone ?? null})`,
       },
     });
+
+    // The administrator's staff record (employee code, pay grade, employment date, confirmed) fills the profile.
+    await applyStaffRecordTo(tx, user.id);
 
     await grantRole(tx, user.id, "APPLICANT", null);
 

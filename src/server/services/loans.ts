@@ -521,10 +521,25 @@ export async function earlyRepaymentQuote(db: Executor, loanId: string, asOf = t
   return { ...q, interestSaved: q.rebate };
 }
 
-export async function earlyRepaymentAccount(db: Executor) {
-  const s = await getSettings(db, ["earlyRepayment.bankName", "earlyRepayment.accountName", "earlyRepayment.accountNumber"]);
-  const account = { bankName: s["earlyRepayment.bankName"], accountName: s["earlyRepayment.accountName"], accountNumber: s["earlyRepayment.accountNumber"] };
-  return { ...account, ready: !!(account.bankName && account.accountName && account.accountNumber) };
+/**
+ * Where an early repayment is paid: the account of the school the loan belongs to (the school of the
+ * application, or of the borrower's department), set under Settings > School accounts.
+ */
+export async function earlyRepaymentAccount(db: Executor, loanId: string) {
+  const [row] = await db.select({ appSchool: loanApplications.schoolId, borrower: loanAccounts.borrowerId }).from(loanAccounts)
+    .innerJoin(loanApplications, eq(loanApplications.id, loanAccounts.applicationId)).where(eq(loanAccounts.id, loanId));
+  let schoolId = row?.appSchool ?? null;
+  if (row && !schoolId) {
+    const [d] = await db.select({ school: departments.schoolId }).from(staffProfiles).innerJoin(departments, eq(departments.id, staffProfiles.departmentId)).where(eq(staffProfiles.userId, row.borrower));
+    schoolId = d?.school ?? null;
+  }
+  if (schoolId) {
+    const [s] = await db.select().from(schools).where(eq(schools.id, schoolId));
+    if (s?.earlyRepaymentBank && s.earlyRepaymentAccountName && s.earlyRepaymentAccountNumber) {
+      return { bankName: s.earlyRepaymentBank, accountName: s.earlyRepaymentAccountName, accountNumber: s.earlyRepaymentAccountNumber, school: s.name, ready: true };
+    }
+  }
+  return { bankName: "", accountName: "", accountNumber: "", school: null as string | null, ready: false };
 }
 
 /** The borrower has paid the whole balance by transfer and sends the receipt for the Payroll Officer to check. */
@@ -538,7 +553,7 @@ export async function requestEarlyRepayment(db: Executor, actor: Actor, loanId: 
     if (!SERVICEABLE.includes(loan.status as never)) throw new DomainError("Only an active loan can be repaid early.");
     const [app] = await tx.select({ advanceType: loanApplications.advanceType }).from(loanApplications).where(eq(loanApplications.id, loan.applicationId));
     if (app?.advanceType) throw new DomainError("An advance is recovered from the payment it was taken against, so it cannot be repaid early.");
-    if (!(await earlyRepaymentAccount(tx)).ready) throw new DomainError("The account for early repayments has not been set up yet. Please contact the Bursary.");
+    if (!(await earlyRepaymentAccount(tx, loan.id)).ready) throw new DomainError("The account for early repayments for your school has not been set up yet. Please contact the Bursary.");
     const [pending] = await tx.select({ id: earlyRepayments.id }).from(earlyRepayments).where(and(eq(earlyRepayments.loanAccountId, loan.id), eq(earlyRepayments.status, "pending")));
     if (pending) throw new DomainError("You have already sent an early repayment for this loan. The Payroll Officer will confirm it.");
     const q = await earlyRepaymentQuote(tx, loan.id);

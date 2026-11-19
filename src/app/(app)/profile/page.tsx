@@ -5,7 +5,6 @@ import { users } from "@/db/schema";
 import { requireActor } from "@/lib/auth/session";
 import { getStaffRecord, getObligations } from "@/server/services/staff";
 import { latestPayslip } from "@/server/services/payslips";
-import { payslipDetailsBadge } from "@/components/payslip-details";
 import { payslipMonth } from "@/components/payslip-breakdown";
 import { guarantorExposure } from "@/server/services/guarantors";
 import { type RoleCode } from "@/lib/auth/permissions";
@@ -37,26 +36,23 @@ export default async function Profile() {
         description={`Signed in as ${rec.user.email}`} />
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="flex flex-col gap-6 lg:col-span-2">
-          <Card title="My details" description="Exactly as printed on your payslip."
-            actions={payslipDetailsBadge(p)}>
-            <ActionForm action={updatePayslipDetailsAction} submitLabel="Save">
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div><label htmlFor="payslipName" className="label">Name</label><input id="payslipName" name="payslipName" required maxLength={200} defaultValue={p?.payslipName || rec.user.displayName} className="input" /></div>
-                <div><label htmlFor="staffNumber" className="label">Employee code</label><input id="staffNumber" name="staffNumber" required maxLength={40} defaultValue={p?.staffNumber ?? ""} className="input" /></div>
-                <div><label htmlFor="payGrade" className="label">Pay grade</label><input id="payGrade" name="payGrade" required maxLength={120} defaultValue={p?.payGrade ?? ""} className="input" /></div>
-              </div>
-              <p className="hint mt-2">Once saved, you can upload your payslip. Human Resources confirms these details.</p>
-            </ActionForm>
+          <Card title="My details" description="Updated by Human Resources. Contact Human Resources if anything is wrong."
+            actions={p?.staffNumber && p.payGrade ? <Badge tone="success">Recorded by Human Resources</Badge> : <Badge tone="warning">Not yet recorded</Badge>}>
+            {!(p?.staffNumber && p.payGrade) && <div className="mb-4"><Alert tone="info">Your employee code and pay grade have not been added yet. They appear here once Human Resources adds them; you can then upload your payslip.</Alert></div>}
+            <KeyValues columns={3} items={[
+              ["Employee code", p?.staffNumber ?? "Not added yet"], ["Pay grade", p?.payGrade ?? "Not added yet"],
+              ["Confirmation", p?.employmentStatus === "confirmed" ? <Badge key="c" tone="success">Confirmed</Badge> : p?.employmentStatus ? <Badge key="c" tone="warning">Not confirmed</Badge> : "Not added yet"],
+              ["Employment date", p?.employmentDate ? <DateText key="e" value={p.employmentDate} /> : "Not added yet"], ["Length of service", p?.employmentDate ? monthsText(rec.serviceMonths) : "Not known yet"],
+              ["Department", rec.department?.name], ["School / faculty", rec.school?.name],
+              ["Designation", designationOf(p)], ["Staff category", rec.category?.name],
+              ["Latest payslip", slip ? <a key="s" href="/eligibility" className="link">{payslipMonth(slip.period)}</a> : <a key="s" href="/eligibility" className="link">Upload</a>],
+              ["Roles", <span key="r" className="flex flex-wrap gap-1">{actor.roles.map((r) => <Badge key={r}>{w.role[r as RoleCode]?.name ?? r}</Badge>)}</span>],
+            ]} />
             <div className="mt-6 border-t border-line pt-5">
-              <p className="mb-3 text-xs text-muted">From your Human Resources record. Contact Human Resources if any of these are wrong.</p>
-              {!p?.employmentStatus && <div className="mb-4"><Alert tone="info">Human Resources has not yet completed your employment record; it will be checked when you apply.</Alert></div>}
-              <KeyValues columns={3} items={[
-                ["Department", rec.department?.name], ["School / faculty", rec.school?.name],
-                ["Designation", designationOf(p)], ["Staff category", rec.category?.name], ["Employment status", p?.employmentStatus ? p.employmentStatus.charAt(0).toUpperCase() + p.employmentStatus.slice(1).replace("_", " ") : undefined],
-                ["Employment date", <DateText key="e" value={p?.employmentDate} />], ["Length of service", `${monthsText(rec.serviceMonths)}`],
-                ["Latest payslip", slip ? <a key="s" href="/eligibility" className="link">{payslipMonth(slip.period)}</a> : <a key="s" href="/eligibility" className="link">Upload</a>],
-                ["Roles", <span key="r" className="flex flex-wrap gap-1">{actor.roles.map((r) => <Badge key={r}>{w.role[r as RoleCode]?.name ?? r}</Badge>)}</span>],
-              ]} />
+              <ActionForm action={updatePayslipDetailsAction} submitLabel="Save name" variant="secondary">
+                <div className="max-w-md"><label htmlFor="payslipName" className="label">Name as printed on your payslip</label><input id="payslipName" name="payslipName" required maxLength={200} defaultValue={p?.payslipName || rec.user.displayName} className="input" /></div>
+                <p className="hint">Change it only if your payslip shows your name differently.</p>
+              </ActionForm>
             </div>
           </Card>
           <Card className="flex-1" title="Contact and bank details" description="Used by the Accounts Payable Officer to pay your loan or advance into your account.">

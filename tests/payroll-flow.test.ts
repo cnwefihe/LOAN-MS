@@ -157,9 +157,9 @@ describe("the fund pool", () => {
 
     it("needs the University's account to be set up, and charges interest only up to now", async () => {
       await expectErr(requestEarlyRepayment(db, await actor("applicant"), loanId, { receipt }), /has not been set up/);
-      for (const [key, value] of [["earlyRepayment.bankName", "Test Bank"], ["earlyRepayment.accountName", "University Loans"], ["earlyRepayment.accountNumber", "0123456789"]]) {
-        await db.update(s.systemSettings).set({ value: value as never }).where(eq(s.systemSettings.key, key));
-      }
+      // Each school has its own account; the loan's school is the applicant's.
+      const [app] = await db.select({ school: s.loanApplications.schoolId }).from(s.loanAccounts).innerJoin(s.loanApplications, eq(s.loanApplications.id, s.loanAccounts.applicationId)).where(eq(s.loanAccounts.id, loanId));
+      await db.update(s.schools).set({ earlyRepaymentBank: "Test Bank", earlyRepaymentAccountName: "University Loans", earlyRepaymentAccountNumber: "0123456789" }).where(eq(s.schools.id, app.school!));
       const q = await earlyRepaymentQuote(db, loanId);
       const [l] = await db.select().from(s.loanAccounts).where(eq(s.loanAccounts.id, loanId));
       // Principal still owed plus interest to date: less than everything left on the schedule.

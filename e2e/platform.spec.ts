@@ -462,6 +462,22 @@ test.describe("security in the browser", () => {
     await expect(page.getByRole("row", { name: /2099\s+Central Administration\s+₦2,500,000\.00/ })).toBeVisible();
   });
 
+  test("the Register opens only with the administrator's code, and a spreadsheet adds to it", async ({ page }) => {
+    await signIn(page, "Emeka Nwosu");
+    await page.getByRole("link", { name: "Register", exact: true }).click();
+    await expect(page.getByRole("table")).toHaveCount(0);
+    await page.getByLabel("Authentication code").fill("000000");
+    await page.getByRole("button", { name: "Open the Register" }).click();
+    await expect(page.getByText(/That code is not correct/)).toBeVisible();
+    await page.getByLabel("Authentication code").fill(await page.getByTestId("dev-mfa-code").innerText());
+    await page.getByRole("button", { name: "Open the Register" }).click();
+    await expect(page.getByRole("heading", { name: "Upload to the Register" })).toBeVisible();
+    await page.getByLabel("Spreadsheet").setInputFiles({ name: "staff.csv", mimeType: "text/csv", buffer: Buffer.from("Employee code,Pay grade,Employment date,Confirmation\r\nE2E/0001,Officer I Step 1,15/03/2020,Confirmed\r\n") });
+    await page.getByRole("button", { name: "Upload", exact: true }).click();
+    await expect(page.getByText(/1 added, 0 updated/)).toBeVisible();
+    await expect(page.getByRole("row", { name: /E2E\/0001.*Not signed in yet.*Officer I Step 1.*Confirmed/ })).toBeVisible();
+  });
+
   test("role-restricted pages redirect to access denied", async ({ page }) => {
     await signIn(page, "Adaeze Okafor");
     for (const path of ["/hr", "/accounts", "/admin", "/approvals"]) {

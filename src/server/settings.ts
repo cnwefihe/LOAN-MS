@@ -4,7 +4,7 @@ import type { Executor } from "@/db";
 import { systemSettings } from "@/db/schema";
 import { contrastRatio } from "@/lib/colour";
 
-export const SETTING_GROUPS = ["Organisation and branding", "Documents", "Workflow", "Workflow wording", "Lending rules", "Early repayment", "Reminders", "Automation", "Financial controls", "Security", "Notifications", "Data retention", "Privacy", "Announcements"] as const;
+export const SETTING_GROUPS = ["Organisation and branding", "Documents", "Workflow", "Workflow wording", "Lending rules", "School accounts", "Reminders", "Automation", "Financial controls", "Security", "Notifications", "Data retention", "Privacy", "Announcements"] as const;
 export type SettingGroup = (typeof SETTING_GROUPS)[number];
 
 const text = (max: number) => z.string().trim().min(1).max(max);
@@ -35,9 +35,6 @@ export const SETTINGS = {
   "org.hrEmail": { group: "Organisation and branding", schema: z.string().email(), default: "hr@example.edu.ng", sensitive: false, label: "Human Resources email" },
   "org.hrPhone": { group: "Organisation and branding", schema: optionalText(40), default: "", sensitive: false, label: "Human Resources telephone (optional)" },
   "org.ictEmail": { group: "Organisation and branding", schema: z.string().email(), default: "staff.member@example.edu.ng", sensitive: false, label: "ICT support email" },
-  "earlyRepayment.bankName": { group: "Early repayment", schema: z.string().trim().max(100), default: "", sensitive: false, label: "Bank for early repayments" },
-  "earlyRepayment.accountName": { group: "Early repayment", schema: z.string().trim().max(150), default: "", sensitive: false, label: "Account name for early repayments" },
-  "earlyRepayment.accountNumber": { group: "Early repayment", schema: z.string().trim().regex(/^(\d{10})?$/, "Enter the 10-digit account number"), default: "", sensitive: false, label: "Account number for early repayments" },
   "org.supportPhone": { group: "Organisation and branding", schema: optionalText(40), default: "", sensitive: false, label: "Bursary telephone (optional)" },
   "org.address": { group: "Organisation and branding", schema: optionalText(200), default: "Km 52 Lekki-Epe Expressway, Ibeju-Lekki, Lagos, Nigeria", sensitive: false, label: "Postal address" },
 
@@ -77,6 +74,7 @@ export const SETTINGS = {
   "security.verifyMaxFailures": { group: "Security", schema: oneOf(VERIFY_TRIES), default: 5, sensitive: true, label: "Failed security verifications allowed before a device is locked", options: VERIFY_TRIES, optionLabels: { 3: "3 attempts", 5: "5 attempts", 10: "10 attempts" } },
   "security.verifyLockMinutes": { group: "Security", schema: oneOf(VERIFY_LOCK), default: 10, sensitive: true, label: "Lock the device for", options: VERIFY_LOCK },
   "security.verifyValidMinutes": { group: "Security", schema: oneOf(VERIFY_VALID), default: 10, sensitive: true, label: "After passing the security verification, do not ask again for", options: VERIFY_VALID, optionLabels: { 0: "None: ask at every sign-in" } },
+  "security.registerIdleMinutes": { group: "Security", schema: oneOf(VERIFY_LOCK), default: 10, sensitive: true, label: "Close the Register after no activity for", options: VERIFY_LOCK },
   "security.mfaScope": { group: "Security", schema: z.enum(MFA_SCOPES), default: "everyone", sensitive: true, label: "Require two-step verification for", options: MFA_SCOPES, optionLabels: { everyone: "Everyone", staff: "Approval and payment roles", off: "No one" } },
 
   "notifications.emailEnabled": { group: "Notifications", schema: z.boolean(), default: true, sensitive: false, label: "Send email notifications" },

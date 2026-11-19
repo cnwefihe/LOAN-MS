@@ -11,6 +11,7 @@ import { ActionForm } from "@/components/action-form";
 import { Card, PageHeader, Stat, StatGrid, Badge, DateText, Tabs } from "@/components/ui";
 import { formatNaira } from "@/lib/finance/money";
 import { setProductActiveAction, saveProductTermsAction, updateProductDetailsAction, deleteProductAction } from "@/app/actions/admin";
+import { productSummary } from "@/lib/finance/product-summary";
 import { PolicyEditor } from "@/components/policy-editor";
 
 export const metadata = { title: "Product" };
@@ -51,7 +52,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
 
   return (
     <>
-      <PageHeader title={product.name} crumbs={[{ label: "Administration", href: "/admin" }, { label: "Products", href: "/admin/products" }, { label: product.name }]} description={product.description}
+      <PageHeader title={product.name} crumbs={[{ label: "Administration", href: "/admin" }, { label: "Products", href: "/admin/products" }, { label: product.name }]} description={current ? productSummary(p) : product.description}
         actions={product.isActive ? <Badge tone="success">Open for applications</Badge> : <Badge>Closed</Badge>} />
       <Tabs base={`/admin/products/${id}`} active={tab} tabs={[{ key: "terms", label: "Loan terms" }, { key: "settings", label: "Product settings" }]} />
 
@@ -87,8 +88,10 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
             <Card title="Product details">
               <ActionForm action={updateProductDetailsAction.bind(null, id)} submitLabel="Save details" listChanges confirm="Save these changes to the product?">
                 <label htmlFor="p-name" className="label">Name</label><input id="p-name" name="name" defaultValue={product.name} required minLength={3} maxLength={150} className="input" />
-                <label htmlFor="p-desc" className="label mt-3">Description</label><textarea id="p-desc" name="description" rows={3} defaultValue={product.description ?? ""} maxLength={300} className="input" />
-                <p className="hint">Code {product.code} cannot change.</p>
+                <p className="mt-3 text-sm"><span className="font-medium text-ink">Description shown to staff:</span> <span className="text-muted">{productSummary(p)}</span></p>
+                <p className="hint">Written from the loan terms, so it changes whenever they do.</p>
+                <label htmlFor="p-desc" className="label mt-3">Extra note for staff (optional)</label><textarea id="p-desc" name="description" rows={2} defaultValue={product.description ?? ""} maxLength={300} className="input" />
+                <p className="hint">Shown under the description. Do not repeat the terms here. Code {product.code} cannot change.</p>
               </ActionForm>
             </Card>
           )}

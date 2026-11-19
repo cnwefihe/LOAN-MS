@@ -2,7 +2,10 @@ import Link from "next/link";
 import { getDb } from "@/db";
 import { requireActor } from "@/lib/auth/session";
 import { SETTINGS, SETTING_GROUPS, getSettings, type SettingKey } from "@/server/settings";
-import { Card, PageHeader } from "@/components/ui";
+import { Card, EmptyState, PageHeader } from "@/components/ui";
+import { schools } from "@/db/schema";
+import { ActionForm } from "@/components/action-form";
+import { setSchoolRepaymentAccountAction } from "@/app/actions/admin";
 import { SettingsGroupForm } from "@/components/settings-form";
 
 export const metadata = { title: "System settings" };
@@ -11,6 +14,7 @@ const ON_BRANDING_PAGE = new Set<string>(["Organisation and branding", "Document
 const GROUPS = SETTING_GROUPS.filter((g) => !ON_BRANDING_PAGE.has(g));
 const DESCRIPTIONS: Record<string, string> = {
   Workflow: "How applications move between Human Resources and approvers.",
+  "School accounts": "The account each school's staff pay into when they repay a loan early. Staff see their own school's account.",
   "Workflow wording": "Names shown on queues, trackers, documents and menus.",
   "Lending rules": "Limits on borrowing and guaranteeing.",
   Reminders: "Timed from when work reaches the person who must act.",
@@ -27,7 +31,9 @@ export default async function Settings({ searchParams }: { searchParams: Promise
   await requireActor("admin.settings.manage");
   const { section } = await searchParams;
   const active = GROUPS.find((g) => g === section) ?? GROUPS[0];
-  const values = await getSettings(await getDb(), Object.keys(SETTINGS) as SettingKey[]);
+  const db = await getDb();
+  const values = await getSettings(db, Object.keys(SETTINGS) as SettingKey[]);
+  const schoolList = active === "School accounts" ? await db.select().from(schools).orderBy(schools.name) : [];
   return (
     <>
       <PageHeader title="System settings" crumbs={[{ label: "Administration", href: "/admin" }, { label: "Settings" }]}
@@ -47,7 +53,24 @@ export default async function Settings({ searchParams }: { searchParams: Promise
         <Card key={active} title={active} description={active === "Privacy"
           ? <>The contact shown in the privacy notice. To change the notice itself, go to <Link href="/admin/content/terms/privacy_notice" className="link">Templates &gt; Privacy notice</Link>.</>
           : DESCRIPTIONS[active]}>
-          <SettingsGroupForm group={active} values={values} />
+          {active === "School accounts" ? (
+            schoolList.length === 0 ? <EmptyState title="No schools yet" description="Add schools under Organisation first." /> : (
+              <ul className="divide-y divide-line">
+                {schoolList.map((sc) => (
+                  <li key={sc.id} className="py-4 first:pt-0 last:pb-0">
+                    <h3 className="text-sm font-semibold text-navy">{sc.name}{!sc.earlyRepaymentAccountNumber && <span className="ml-2 text-xs font-normal text-warning-ink">Not set</span>}</h3>
+                    <ActionForm action={setSchoolRepaymentAccountAction.bind(null, sc.id)} submitLabel="Save" variant="secondary" listChanges>
+                      <div className="mt-2 grid gap-3 sm:grid-cols-3">
+                        <div><label htmlFor={`bank-${sc.id}`} className="label">Bank</label><input id={`bank-${sc.id}`} name="bank" maxLength={100} defaultValue={sc.earlyRepaymentBank ?? ""} className="input" /></div>
+                        <div><label htmlFor={`name-${sc.id}`} className="label">Account name</label><input id={`name-${sc.id}`} name="accountName" maxLength={150} defaultValue={sc.earlyRepaymentAccountName ?? ""} className="input" /></div>
+                        <div><label htmlFor={`number-${sc.id}`} className="label">Account number</label><input id={`number-${sc.id}`} name="accountNumber" inputMode="numeric" pattern="\d{10}" maxLength={10} defaultValue={sc.earlyRepaymentAccountNumber ?? ""} className="input" /></div>
+                      </div>
+                    </ActionForm>
+                  </li>
+                ))}
+              </ul>
+            )
+          ) : <SettingsGroupForm group={active} values={values} />}
         </Card>
       </div>
     </>

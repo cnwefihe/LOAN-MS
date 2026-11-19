@@ -9,7 +9,7 @@ import { POLICY_FIELD_LABELS, type PolicyParameters } from "@/lib/finance/policy
 import { DEFAULT_POLICY } from "@/lib/finance/defaults";
 import { processOutbox } from "@/server/email";
 import { assertCan } from "@/server/actor";
-import { setUserRole, setUserActive, setDisplayName, revokeUserSessions, setRolePermissions, createRole, deleteRole, updateRoleDetails, upsertSchool, upsertDepartment, upsertCategory, deleteOrgItem, setDepartmentApprover, clearDepartmentApprover, upsertDocumentRequirement, publishTerms, updateTemplate, updateSetting,
+import { setUserRole, setUserActive, setDisplayName, revokeUserSessions, setRolePermissions, createRole, deleteRole, updateRoleDetails, upsertSchool, setSchoolRepaymentAccount, upsertDepartment, upsertCategory, deleteOrgItem, setDepartmentApprover, clearDepartmentApprover, upsertDocumentRequirement, publishTerms, updateTemplate, updateSetting,
   revokeSession, requeueEmails, updateSettingsGroup, uploadBrandAsset, resetBrandAsset, sendTestEmail,
 } from "@/server/services/admin";
 import { createProduct, setProductActive, saveProductTerms, updateProductDetails, deleteProduct } from "@/server/services/policies";
@@ -311,4 +311,11 @@ export async function resetMfaAction(userId: string, _: Prev) {
     await resetMfa(await getDb(), actor, userId);
     return "Two-step verification reset. They will set it up again at their next sign-in.";
   }, { revalidate: ["/admin/users", `/admin/users/${userId}`] });
+}
+
+export async function setSchoolRepaymentAccountAction(schoolId: string, _: Prev, fd: FormData) {
+  return runAction(async (actor) => {
+    await setSchoolRepaymentAccount(await getDb(), actor, schoolId, { bank: str(fd, "bank"), accountName: str(fd, "accountName"), accountNumber: str(fd, "accountNumber") });
+    return "Saved.";
+  }, { revalidate: ["/admin/settings"] });
 }

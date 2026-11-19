@@ -107,7 +107,7 @@ export async function buildNav(db: Executor, actor: Actor): Promise<{ sections: 
   }
   if (can(actor, "admin.policy.manage")) admin.push({ href: "/admin/guarantors", label: "Guarantors", icon: "handshake" });
   if (can(actor, "admin.content.manage")) admin.push({ href: "/admin/content", label: "Templates", icon: "book" });
-  if (can(actor, "admin.settings.manage")) admin.push({ href: "/admin/branding", label: "Branding", icon: "palette" }, { href: "/admin/settings", label: "Settings", icon: "settings" }, { href: "/admin/releases", label: "Versions", icon: "tag" });
+  if (can(actor, "admin.settings.manage")) admin.push({ href: "/admin/branding", label: "Branding", icon: "palette" }, { href: "/admin/settings", label: "Settings", icon: "settings" }, { href: "/admin/register", label: "Register", icon: "clipboard" }, { href: "/admin/releases", label: "Versions", icon: "tag" });
   if (can(actor, "admin.audit.view")) admin.push({ href: "/admin/audit", label: "Activity", icon: "scroll" }, { href: "/admin/outbox", label: "Emails", icon: "mail" });
   if (admin.length) sections.push({ title: "Administration", items: admin });
 
