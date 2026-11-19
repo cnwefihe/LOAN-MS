@@ -21,6 +21,8 @@ export const SETTINGS_PERMISSIONS: Permission[] = ["admin.settings.manage", "set
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 const optionalText = (max: number) => z.string().trim().max(max);
+/** An email address, or empty until an administrator enters it (kept in the database, never in the code). */
+const optionalEmail = z.union([z.literal(""), z.string().trim().email()]);
 const DAY = 1440;
 /** Stored in minutes; entered as minutes, hours or days. */
 const reminderMinutes = (maxDays: number) => z.number().int().min(1).max(maxDays * DAY);
@@ -43,10 +45,10 @@ export const SETTINGS = {
   "org.shortName": { group: "Organisation and branding", schema: text(20), default: "PAU", sensitive: false, label: "Short name" },
   "org.systemName": { group: "Organisation and branding", schema: text(80), default: "Loan Management System", sensitive: false, label: "System name" },
   "branding.primaryColour": { group: "Organisation and branding", schema: hexColour, default: "#2E3A6E", sensitive: false, label: "Primary colour" },
-  "org.supportEmail": { group: "Organisation and branding", schema: z.string().email(), default: "bursary@example.edu.ng", sensitive: false, label: "Bursary email" },
-  "org.hrEmail": { group: "Organisation and branding", schema: z.string().email(), default: "hr@example.edu.ng", sensitive: false, label: "Human Resources email" },
+  "org.supportEmail": { group: "Organisation and branding", schema: optionalEmail, default: "", sensitive: false, label: "Bursary email" },
+  "org.hrEmail": { group: "Organisation and branding", schema: optionalEmail, default: "", sensitive: false, label: "Human Resources email" },
   "org.hrPhone": { group: "Organisation and branding", schema: optionalText(40), default: "", sensitive: false, label: "Human Resources telephone (optional)" },
-  "org.ictEmail": { group: "Organisation and branding", schema: z.string().email(), default: "staff.member@example.edu.ng", sensitive: false, label: "ICT support email" },
+  "org.ictEmail": { group: "Organisation and branding", schema: optionalEmail, default: "", sensitive: false, label: "ICT support email" },
   "org.supportPhone": { group: "Organisation and branding", schema: optionalText(40), default: "", sensitive: false, label: "Bursary telephone (optional)" },
   "org.address": { group: "Organisation and branding", schema: optionalText(200), default: "Km 52 Lekki-Epe Expressway, Ibeju-Lekki, Lagos, Nigeria", sensitive: false, label: "Postal address" },
 
@@ -96,7 +98,7 @@ export const SETTINGS = {
   "retention.sessionDays": { group: "Data retention", schema: z.number().int().min(7).max(730), default: 90, sensitive: false, label: "Delete session records after (days)" },
   "retention.emailOutboxMonths": { group: "Data retention", schema: z.number().int().min(1).max(120), default: 12, sensitive: false, label: "Delete sent email copies after (months)" },
 
-  "privacy.dpoEmail": { group: "Privacy", schema: z.string().email(), default: "dpo@example.edu.ng", sensitive: false, label: "Data Protection Officer contact" },
+  "privacy.dpoEmail": { group: "Privacy", schema: optionalEmail, default: "", sensitive: false, label: "Data Protection Officer contact" },
 
   "system.announcement": { group: "Announcements", schema: optionalText(400), default: "", sensitive: false, label: "Announcement" },
   "system.announcementTone": { group: "Announcements", schema: z.enum(["info", "warning"]), default: "info", sensitive: false, label: "Style", options: ["info", "warning"] },

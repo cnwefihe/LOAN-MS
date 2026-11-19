@@ -12,7 +12,8 @@ export const metadata = { title: "Privacy notice" };
 
 export default async function Privacy() {
   const db = await getDb();
-  const dpo = await getSetting(db, "privacy.dpoEmail");
+  // Until an administrator enters the address under Settings > Privacy, the notice says where to ask.
+  const dpo = (await getSetting(db, "privacy.dpoEmail")) || "the address given by Human Resources";
   const brand = await getBranding(db);
   const [published] = await db.select().from(termsDocuments).where(and(eq(termsDocuments.kind, "privacy_notice"), eq(termsDocuments.isActive, true)));
   const fill = (s: string) => fillPrivacy(s, { institution: brand.institutionName, system: brand.systemName, dpo });

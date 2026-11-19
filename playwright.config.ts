@@ -34,6 +34,9 @@ export default defineConfig({
         PGLITE_DIR: ".data/e2e",
         STORAGE_DIR: ".data/e2e-storage",
         AUTH_DEV_LOGIN: "true",
+        // The test staff use example addresses, whatever this computer's own settings say.
+        ALLOWED_EMAIL_DOMAINS: "example.edu.ng",
+        BOOTSTRAP_SUPER_ADMIN_EMAILS: "",
         APP_BASE_URL: `http://localhost:${PORT}`,
         NEXT_DIST_DIR: ".next-e2e",
         EMAIL_TRANSPORT: "graph",

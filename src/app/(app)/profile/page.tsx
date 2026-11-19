@@ -95,9 +95,9 @@ export default async function Profile() {
               {[
                 { href: "/privacy", icon: ShieldCheck, title: "Privacy notice", text: "How your data is used, and your rights under the Nigeria Data Protection Act 2023." },
                 { href: "/api/me/export", icon: Download, title: "Download my data", text: "A PDF of every record held about you." },
-                { href: `mailto:${contact["privacy.dpoEmail"]}`, icon: Mail, title: "Data Protection Officer", text: contact["privacy.dpoEmail"] },
-                { href: `mailto:${contact["org.hrEmail"]}`, icon: LifeBuoy, title: "Help with a loan", text: `Human Resources, ${contact["org.hrEmail"]}${contact["org.hrPhone"] ? `, ${contact["org.hrPhone"]}` : ""}` },
-                { href: `mailto:${contact["org.ictEmail"]}`, icon: Monitor, title: "ICT Support", text: contact["org.ictEmail"] },
+                ...(contact["privacy.dpoEmail"] ? [{ href: `mailto:${contact["privacy.dpoEmail"]}`, icon: Mail, title: "Data Protection Officer", text: contact["privacy.dpoEmail"] }] : []),
+                ...(contact["org.hrEmail"] ? [{ href: `mailto:${contact["org.hrEmail"]}`, icon: LifeBuoy, title: "Help with a loan", text: `Human Resources, ${contact["org.hrEmail"]}${contact["org.hrPhone"] ? `, ${contact["org.hrPhone"]}` : ""}` }] : []),
+                ...(contact["org.ictEmail"] ? [{ href: `mailto:${contact["org.ictEmail"]}`, icon: Monitor, title: "ICT Support", text: contact["org.ictEmail"] }] : []),
               ].map((x) => (
                 <li key={x.title}>
                   <a href={x.href} className="flex items-start gap-3 px-5 py-3 hover:bg-slate-50">
