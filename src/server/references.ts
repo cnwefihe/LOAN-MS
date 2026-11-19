@@ -31,4 +31,19 @@ export async function nextReference(db: Executor, at = new Date()): Promise<stri
   return `LMS-${lagosDate(at)}-${String(value).padStart(3, "0")}`;
 }
 
+/**
+ * The reference for a new application: a reference freed by removing a test application, oldest first,
+ * otherwise the next number. Concurrency-safe: two applications can never take the same freed reference.
+ */
+export async function applicationReference(db: Executor, at = new Date()): Promise<string> {
+  const res = await db.execute<{ reference: string }>(sql`
+    delete from freed_references where reference = (
+      select f.reference from freed_references f
+      where not exists (select 1 from loan_applications a where a.reference = f.reference)
+      order by f.reference limit 1 for update skip locked)
+    returning reference`);
+  const freed = (res as unknown as { rows: { reference: string }[] }).rows[0]?.reference;
+  return freed ?? nextReference(db, at);
+}
+
 export const REFERENCE_PATTERN = /^LMS-\d{6}-\d{3,}$/;

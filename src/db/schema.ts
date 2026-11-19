@@ -827,6 +827,12 @@ export const referenceCounters = pgTable("reference_counters", {
   value: integer("value").notNull().default(0),
 });
 
+/** References of removed test applications, given again to the next new applications (oldest first). */
+export const freedReferences = pgTable("freed_references", {
+  reference: varchar("reference", { length: 30 }).primaryKey(),
+  freedAt: timestamp("freed_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Persistent rate-limit buckets (works across instances, unlike in-memory counters). */
 export const rateLimits = pgTable("rate_limits", {
   key: varchar("key", { length: 200 }).primaryKey(),

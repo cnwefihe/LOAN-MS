@@ -12,7 +12,7 @@ import { ADVANCE_TYPES, type AdvanceType, type PolicyParameters } from "@/lib/fi
 import { assertCan, canAny, type Actor } from "../actor";
 import { audit } from "../audit";
 import { notify } from "../notifications";
-import { nextReference } from "../references";
+import { applicationReference } from "../references";
 import { transition } from "../workflow";
 import { applicantSchool } from "./funds";
 import { DomainError, ForbiddenError, NotFoundError } from "../errors";
@@ -135,7 +135,7 @@ export async function saveDraft(db: Executor, actor: Actor, input: DraftInput) {
       await audit(tx, actor, { action: "application.draft_saved", entityType: "loan_application", entityId: app.id, summary: app.reference });
       return { id: app.id, reference: app.reference, eligibility: elig };
     }
-    const reference = await nextReference(tx);
+    const reference = await applicationReference(tx);
     const [created] = await tx.insert(loanApplications).values({ ...values, reference, applicantId: actor.userId, status: "draft" }).returning();
     await attachPayslip(tx, actor, created.id, elig.payslipId);
     await tx.insert(workflowTransitions).values({ applicationId: created.id, action: "create", fromStatus: null, toStatus: "draft", actorId: actor.userId, actorRole: "APPLICANT" });

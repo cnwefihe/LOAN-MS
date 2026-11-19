@@ -71,7 +71,7 @@ jobs:
 
       - name: Check Nginx, Compose and shell scripts
         run: |
-          for f in deploy/deploy.sh deploy/backup.sh deploy/scheduler.sh deploy/nginx/start.sh deploy/certbot/renew.sh; do sh -n "$f"; done
+          for f in deploy/deploy.sh deploy/backup.sh deploy/scheduler.sh deploy/remove-applications.sh deploy/nginx/start.sh deploy/certbot/renew.sh; do sh -n "$f"; done
           mkdir -p conf certs/live/example.test
           openssl req -x509 -nodes -newkey rsa:2048 -days 1 -subj /CN=example.test \
             -keyout certs/live/example.test/privkey.pem -out certs/live/example.test/fullchain.pem

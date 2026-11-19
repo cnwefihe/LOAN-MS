@@ -7,7 +7,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import os from "node:os";
 import path from "node:path";
 import fs from "node:fs";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 
 process.env.PGLITE_DIR = "memory://";
 process.env.STORAGE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "pau-loans-payroll-"));
@@ -29,6 +29,7 @@ import { currentSchedule } from "@/server/services/ledger";
 import { addDays, addMonths, daysBetween, firstOfMonth, todayLagos } from "@/lib/finance/dates";
 import { dec } from "@/lib/finance/money";
 import { encryptString } from "@/lib/security/crypto";
+import { applicationReference } from "@/server/references";
 import { generateSecret, totp } from "@/lib/security/totp";
 
 let db: Database;
@@ -203,6 +204,56 @@ describe("the fund pool", () => {
       expect(done.status).toBe("confirmed");
       // Nothing more is deducted from a closed loan.
       expect((await runServicing(db, null, addMonths(todayLagos(), 6))).deductions).toBe(0);
+    });
+  });
+
+  describe("removing a test application (deploy/remove-applications.sql)", () => {
+    const client = () => (db as unknown as { $client: { exec: (q: string) => Promise<unknown> } }).$client;
+    const removal = fs.readFileSync(path.join(process.cwd(), "deploy", "remove-applications.sql"), "utf8");
+    const run = (refs: string[], end: "commit" | "rollback") =>
+      client().exec(`begin; create temp table rm_refs (ref text) on commit drop; insert into rm_refs values ${refs.map((r) => `('${r}')`).join(",")};\n${removal}\n${end};`);
+    const count = async (q: ReturnType<typeof sql>) => Number(((await db.execute(q)) as unknown as { rows: { n: number }[] }).rows[0].n);
+
+    it("checks first without changing anything, then removes the paid-out, repaid loan and everything about it", async () => {
+      const [app] = await db.select({ id: s.loanApplications.id, reference: s.loanApplications.reference }).from(s.loanApplications).innerJoin(s.loanAccounts, eq(s.loanAccounts.applicationId, s.loanApplications.id)).where(eq(s.loanAccounts.id, loanId));
+      // Another application, which must be left as it is.
+      const keep = await toBursary("100000");
+      const others = [{ id: keep }];
+      const ledgerBefore = await count(sql`select count(*)::int as n from ledger_entries`);
+      expect(await count(sql`select count(*)::int as n from ledger_entries where loan_account_id = ${loanId}`)).toBeGreaterThan(0);
+
+      await expect(run(["LMS-000000-999"], "rollback")).rejects.toThrow(/No application has the reference: LMS-000000-999/);
+      await client().exec("rollback"); // psql ends the session on the error; here the transaction is closed by hand.
+      await run([app.reference], "rollback");
+      expect(await db.select().from(s.loanApplications).where(eq(s.loanApplications.id, app.id))).toHaveLength(1);
+
+      await run([app.reference], "commit");
+      const left = await count(sql`select (
+          (select count(*) from loan_applications where id = ${app.id}) + (select count(*) from loan_accounts where id = ${loanId})
+        + (select count(*) from application_guarantors where application_id = ${app.id}) + (select count(*) from workflow_transitions where application_id = ${app.id})
+        + (select count(*) from approvals where application_id = ${app.id}) + (select count(*) from hr_verifications where application_id = ${app.id})
+        + (select count(*) from financial_transactions where loan_account_id = ${loanId}) + (select count(*) from ledger_entries where loan_account_id = ${loanId})
+        + (select count(*) from early_repayments where loan_account_id = ${loanId}) + (select count(*) from repayment_claims where loan_account_id = ${loanId})
+        + (select count(*) from documents where application_id = ${app.id} or loan_account_id = ${loanId})
+        + (select count(*) from notifications where strpos(concat_ws(' ', link, title, body), ${app.reference}) > 0 or strpos(coalesce(link, ''), ${app.id}) > 0)
+        + (select count(*) from audit_logs where entity_id in (${app.id}, ${loanId}))
+      )::int as n`);
+      expect(left).toBe(0);
+      // Other loans are untouched, the removal is recorded once, and the record's protection is back on.
+      expect(await count(sql`select count(*)::int as n from ledger_entries`)).toBeLessThan(ledgerBefore);
+      expect(await db.select().from(s.loanApplications).where(eq(s.loanApplications.id, others[0].id))).toHaveLength(1);
+      expect(await count(sql`select count(*)::int as n from audit_logs where action = 'maintenance.test_applications_removed' and summary like ${"%" + app.reference + "%"}`)).toBe(1);
+      await expect(db.execute(sql`delete from audit_logs where action = 'maintenance.test_applications_removed'`)).rejects.toThrow();
+      expect(await count(sql`select count(*)::int as n from pg_trigger where not tgisinternal and tgenabled <> 'O'`)).toBe(0);
+      expect(await count(sql`select count(*)::int as n from audit_logs where action = 'maintenance.test_applications_removed'`)).toBe(1);
+      // The next new application is given the removed reference again; the one after gets the next number.
+      const again = await db.transaction((tx) => applicationReference(tx));
+      expect(again).toBe(app.reference);
+      const next = await db.transaction((tx) => applicationReference(tx));
+      expect(next).not.toBe(app.reference);
+      expect(await count(sql`select count(*)::int as n from freed_references`)).toBe(0);
+      // The borrower's own payslips stay on their profile.
+      expect((await db.select().from(s.staffPayslips).where(eq(s.staffPayslips.userId, ids.applicant))).length).toBeGreaterThan(0);
     });
   });
 });
