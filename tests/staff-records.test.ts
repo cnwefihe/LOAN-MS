@@ -7,7 +7,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import os from "node:os";
 import path from "node:path";
 import fs from "node:fs";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import ExcelJS from "exceljs";
 
 process.env.PGLITE_DIR = "memory://";
@@ -18,9 +18,11 @@ import * as s from "@/db/schema";
 import { seedBase, seedFixtures } from "@/server/seed";
 import { loadActor } from "@/server/services/identity";
 import type { Actor } from "@/server/actor";
-import { applyStaffRecordTo, importStaffRecords, parseCsv, readRows, saveStaffRecord } from "@/server/services/staff-records";
+import { applyStaffRecordTo, importStaffRecords, listStaffRecords, parseCsv, readRows, saveStaffRecord } from "@/server/services/staff-records";
 import { hrUpdateStaffRecord, updatePayslipDetails } from "@/server/services/staff";
-import { setSchoolRepaymentAccount } from "@/server/services/admin";
+import { setSchoolRepaymentAccount, updateSettingsGroup } from "@/server/services/admin";
+import { guaranteeRequests } from "@/server/services/guarantor-pool";
+import { SPLIT_FROM, withImplied, type Permission } from "@/lib/auth/permissions";
 import { earlyRepaymentAccount } from "@/server/services/loans";
 import { productSummary, whoMayApply } from "@/lib/finance/product-summary";
 import { DEFAULT_POLICY } from "@/lib/finance/defaults";
@@ -128,6 +130,46 @@ describe("staff records", () => {
     // Human Resources is not notified of profile changes.
     const hr = await db.select().from(s.notifications).where(eq(s.notifications.templateCode, "staff.payslip_details"));
     expect(hr).toHaveLength(0);
+  });
+});
+
+describe("permissions", () => {
+  it("the Register, Guarantors, school accounts and settings each have their own permission that can be given to anyone", async () => {
+    const hr = await actor("hradmin");
+    const give = (...p: Permission[]): Actor => ({ ...hr, permissions: withImplied([...hr.permissions, ...p]) });
+    await expect(listStaffRecords(db, hr)).rejects.toThrow();
+    // Seeing the Register is not changing it.
+    expect(Array.isArray(await listStaffRecords(db, give("register.view")))).toBe(true);
+    await expect(saveStaffRecord(db, give("register.view"), { employeeCode: "EX/P1", payGrade: "Officer", employmentDate: "2020-01-01", confirmed: true })).rejects.toThrow();
+    await saveStaffRecord(db, give("register.manage"), { employeeCode: "EX/P1", payGrade: "Officer", employmentDate: "2020-01-01", confirmed: true });
+    await expect(guaranteeRequests(db, hr)).rejects.toThrow();
+    await guaranteeRequests(db, give("guarantors.view"));
+    const [school] = await db.select().from(s.schools).limit(1);
+    const account = { bank: "Test Bank", accountName: "School Loans", accountNumber: "0123456789" };
+    await expect(setSchoolRepaymentAccount(db, hr, school.id, account)).rejects.toThrow();
+    await setSchoolRepaymentAccount(db, give("settings.school_accounts"), school.id, account);
+    await expect(updateSettingsGroup(db, give("settings.school_accounts"), "Security", { "security.verifyLockMinutes": 15 }, true)).rejects.toThrow();
+    expect(await updateSettingsGroup(db, give("settings.security"), "Security", { "security.verifyLockMinutes": 15 }, true)).toBe(1);
+    // The Super Administrator holds every new permission.
+    const admin = await actor("admin");
+    for (const p of ["register.manage", "guarantors.view", "settings.school_accounts", "settings.lending", "settings.security", "admin.branding.manage", "admin.releases.manage"] as Permission[]) expect(admin.permissions.has(p)).toBe(true);
+  });
+});
+
+describe("upgrading", () => {
+  it("a role that could change settings keeps each part of it once the new permissions appear", async () => {
+    const codes = Object.keys(SPLIT_FROM);
+    const [settings] = await db.select().from(s.permissions).where(eq(s.permissions.code, "admin.settings.manage"));
+    const [role] = await db.insert(s.roles).values({ code: "TEST_SETTINGS", name: "Settings clerk", description: "Test" }).returning();
+    await db.insert(s.rolePermissions).values({ roleId: role.id, permissionId: settings.id });
+    // As before this release: the new permissions do not exist yet.
+    const gone = await db.select().from(s.permissions).where(inArray(s.permissions.code, codes));
+    await db.delete(s.rolePermissions).where(inArray(s.rolePermissions.permissionId, gone.map((p) => p.id)));
+    await db.delete(s.permissions).where(inArray(s.permissions.code, codes));
+    await db.transaction((tx) => seedBase(tx));
+    const held = await db.select({ code: s.permissions.code }).from(s.rolePermissions).innerJoin(s.permissions, eq(s.permissions.id, s.rolePermissions.permissionId)).where(eq(s.rolePermissions.roleId, role.id));
+    expect(held.map((h) => h.code).sort()).toEqual(["admin.settings.manage", ...codes.filter((c) => SPLIT_FROM[c as Permission] === "admin.settings.manage")].sort());
+    expect((await actor("admin")).permissions.has("guarantors.view")).toBe(true);
   });
 });
 

@@ -22,6 +22,9 @@ export const PERMISSIONS = {
   "hr.guarantor.assess": { category: "Human Resources", description: "Assess guarantor eligibility and capacity" },
   "hr.staff.view": { category: "Human Resources", description: "View staff employment and salary records" },
   "hr.staff.edit": { category: "Human Resources", description: "Update staff employment and salary records" },
+  "register.view": { category: "Human Resources", description: "See the Register: each employee's code, pay grade, employment date and confirmation (opened with their own two-step verification code)" },
+  "register.manage": { category: "Human Resources", description: "Upload to and edit the Register; the employee's profile is updated at once (opened with their own two-step verification code)" },
+  "guarantors.view": { category: "Human Resources", description: "See everyone chosen as a guarantor, for whom, and whether they accepted or declined" },
   // Approval
   "approval.queue.view": { category: "Approval", description: "View applications at the approval stages" },
   "approval.hr_director": { category: "Approval", description: "Approve applications as HR Director (after the Line Manager)" },
@@ -36,6 +39,8 @@ export const PERMISSIONS = {
   "fund.view": { category: "Finance", description: "See each school's fund pool for staff loans and what is left of it" },
   "fund.manage": { category: "Finance", description: "Set each school's fund pool for staff loans each year" },
   "finance.overview": { category: "Finance", description: "See the overview of lending, repayments and the fund pool" },
+  "settings.school_accounts": { category: "Finance", description: "Set each school's account for early repayments (Settings > School accounts)" },
+  "settings.lending": { category: "Finance", description: "Change the lending rules and which transactions need the Bursar's authorisation (Settings > Lending rules, Financial controls)" },
   "transaction.adjust": { category: "Bursary", description: "Propose adjustments and refunds" },
   "transaction.approve": { category: "Bursary", description: "Approve or reject pending financial transactions (checker)" },
   "transaction.reverse": { category: "Bursary", description: "Propose reversals of posted transactions" },
@@ -52,7 +57,10 @@ export const PERMISSIONS = {
   "admin.policy.approve": { category: "Administration", description: "Approve and activate policy versions" },
   "admin.org.manage": { category: "Administration", description: "Manage schools, departments and staff categories" },
   "admin.content.manage": { category: "Administration", description: "Manage terms, document requirements and notification templates" },
-  "admin.settings.manage": { category: "Administration", description: "Manage system settings, branding, document markings and email" },
+  "admin.settings.manage": { category: "Administration", description: "Manage general settings: workflow, wording, reminders, automation, notifications, data retention, privacy, announcements and email" },
+  "settings.security": { category: "Administration", description: "Change security settings: sign-out times, two-step verification, the security verification before sign-in and when the Register closes" },
+  "admin.branding.manage": { category: "Administration", description: "Change the institution's details, logos, colours and document markings (Branding)" },
+  "admin.releases.manage": { category: "Administration", description: "Publish version notes (Versions)" },
   "admin.audit.view": { category: "Administration", description: "View audit logs, sessions and email outbox" },
 } as const;
 
@@ -90,6 +98,22 @@ export const IMPLIED_PERMISSIONS: Partial<Record<Permission, Permission[]>> = {
   "fund.manage": ["fund.view"],
   "finance.overview": ["fund.view"],
   "reports.export": ["reports.view"],
+  "register.manage": ["register.view"],
+};
+
+/**
+ * Permissions split out of a broader one. When one first appears, every role that held the broader
+ * permission is given it too, so no one loses what they could already do.
+ */
+export const SPLIT_FROM: Partial<Record<Permission, Permission>> = {
+  "register.view": "admin.settings.manage",
+  "register.manage": "admin.settings.manage",
+  "guarantors.view": "admin.policy.manage",
+  "settings.school_accounts": "admin.settings.manage",
+  "settings.lending": "admin.settings.manage",
+  "settings.security": "admin.settings.manage",
+  "admin.branding.manage": "admin.settings.manage",
+  "admin.releases.manage": "admin.settings.manage",
 };
 
 /** A set of permissions with everything they need added (see IMPLIED_PERMISSIONS). */
@@ -154,7 +178,8 @@ export const ROLE_DEFINITIONS: Record<RoleCode, { name: string; description: str
     permissions: [
       "admin.users.manage", "admin.roles.manage", "admin.policy.manage", "admin.policy.approve", "admin.org.manage",
       "admin.content.manage", "admin.settings.manage", "admin.audit.view", "reports.view", "reports.export", "accounts.view",
-      "servicing.run",
+      "servicing.run", "register.view", "register.manage", "guarantors.view", "settings.school_accounts", "settings.lending",
+      "settings.security", "admin.branding.manage", "admin.releases.manage",
     ],
   },
 };

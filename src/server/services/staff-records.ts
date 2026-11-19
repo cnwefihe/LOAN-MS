@@ -265,7 +265,7 @@ async function upsert(tx: Executor, actor: Actor, input: StaffRecordInput): Prom
 
 /** Saves the rows of an uploaded spreadsheet and fills the profiles of those who have signed in. */
 export async function importStaffRecords(db: Executor, actor: Actor, file: { buffer: Buffer; name: string }) {
-  assertCan(actor, "admin.settings.manage");
+  assertCan(actor, "register.manage");
   const { rows, skipped, monthFirst } = readRows(await readSheet(file.buffer, file.name));
   if (!rows.length && !skipped.length) throw new DomainError("The file has no rows under its headings.");
   if (rows.length > 5000) throw new DomainError("Upload at most 5,000 rows at a time.");
@@ -292,7 +292,7 @@ export async function importStaffRecords(db: Executor, actor: Actor, file: { buf
 
 /** One record added or changed by the administrator. */
 export async function saveStaffRecord(db: Executor, actor: Actor, input: StaffRecordInput & { id?: string }) {
-  assertCan(actor, "admin.settings.manage");
+  assertCan(actor, "register.manage");
   const employeeCode = clean(input.employeeCode), payGrade = clean(input.payGrade), email = clean(input.email).toLowerCase() || null;
   const employmentDate = readDate(input.employmentDate);
   if (!employeeCode || employeeCode.length > 40) throw new DomainError("Enter the employee code.");
@@ -321,7 +321,7 @@ export async function saveStaffRecord(db: Executor, actor: Actor, input: StaffRe
 }
 
 export async function deleteStaffRecord(db: Executor, actor: Actor, id: string) {
-  assertCan(actor, "admin.settings.manage");
+  assertCan(actor, "register.manage");
   const [rec] = await db.delete(staffRecords).where(eq(staffRecords.id, id)).returning();
   if (!rec) throw new DomainError("This record no longer exists.");
   await audit(db, actor, { action: "staff_record.deleted", entityType: "staff_record", entityId: id, before: rec, summary: `Staff record ${rec.employeeCode} removed` });
@@ -329,7 +329,7 @@ export async function deleteStaffRecord(db: Executor, actor: Actor, id: string) 
 
 /** Every record, with the person it belongs to once they have signed in. */
 export async function listStaffRecords(db: Executor, actor: Actor) {
-  assertCan(actor, "admin.settings.manage");
+  assertCan(actor, "register.view");
   const rows = await db.select().from(staffRecords).orderBy(asc(staffRecords.employeeCode));
   const people = await db.select({ id: users.id, name: users.displayName, email: users.email, code: staffProfiles.staffNumber }).from(users).leftJoin(staffProfiles, eq(staffProfiles.userId, users.id));
   const byCode = new Map(people.filter((p) => p.code).map((p) => [p.code!.toLowerCase(), p]));

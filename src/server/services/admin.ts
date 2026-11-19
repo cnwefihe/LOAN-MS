@@ -9,7 +9,7 @@ import { LOGO_VARIANTS, type LogoVariant } from "../branding";
 import { RETIRED_ROLE_CODES, ROLE_CODES, type Permission, type RoleCode } from "@/lib/auth/permissions";
 import { assertCan, type Actor } from "../actor";
 import { audit } from "../audit";
-import { SETTINGS, getSetting, type SettingKey, type SettingGroup } from "../settings";
+import { GROUP_PERMISSION, SETTINGS, getSetting, type SettingKey, type SettingGroup } from "../settings";
 import { notify } from "../notifications";
 import { preferredName } from "./staff";
 import { DomainError, NotFoundError } from "../errors";
@@ -221,7 +221,7 @@ export async function upsertSchool(db: Executor, actor: Actor, input: { id?: str
 
 /** Each school's account for early repayments, set by an administrator under Settings > School accounts. */
 export async function setSchoolRepaymentAccount(db: Executor, actor: Actor, schoolId: string, input: { bank: string; accountName: string; accountNumber: string }) {
-  assertCan(actor, "admin.settings.manage");
+  assertCan(actor, "settings.school_accounts");
   const bank = input.bank.trim(), accountName = input.accountName.trim(), accountNumber = input.accountNumber.trim();
   const given = [bank, accountName, accountNumber].filter(Boolean).length;
   if (given && given < 3) throw new DomainError("Enter the bank, account name and account number, or leave all three empty.");
@@ -371,9 +371,9 @@ export async function updateTemplate(db: Executor, actor: Actor, code: string, i
 /* ───────────────────────── Settings ───────────────────────── */
 
 export async function updateSetting(db: Executor, actor: Actor, key: SettingKey, raw: unknown) {
-  assertCan(actor, "admin.settings.manage");
   const def = SETTINGS[key];
   if (!def) throw new DomainError("Unknown setting.");
+  assertCan(actor, GROUP_PERMISSION[def.group]);
   const parsed = def.schema.safeParse(raw);
   if (!parsed.success) throw new DomainError(`${def.label}: ${parsed.error.issues[0]?.message ?? "invalid value"}`);
   return db.transaction(async (tx) => {
@@ -389,7 +389,7 @@ export async function updateSetting(db: Executor, actor: Actor, key: SettingKey,
  * a change to a sensitive control needs explicit confirmation.
  */
 export async function updateSettingsGroup(db: Executor, actor: Actor, group: SettingGroup, values: Partial<Record<SettingKey, unknown>>, confirmed: boolean) {
-  assertCan(actor, "admin.settings.manage");
+  assertCan(actor, GROUP_PERMISSION[group]);
   const keys = (Object.keys(SETTINGS) as SettingKey[]).filter((k) => SETTINGS[k].group === group && k in values);
   const current = new Map((await db.select().from(systemSettings).where(inArray(systemSettings.key, keys))).map((r) => [r.key, r.value]));
   const changed = keys.filter((k) => {
@@ -410,7 +410,7 @@ export async function updateSettingsGroup(db: Executor, actor: Actor, group: Set
 const IMAGE_SIGNATURES: [string, number[]][] = [["image/png", [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]], ["image/jpeg", [0xff, 0xd8, 0xff]]];
 
 export async function uploadBrandAsset(db: Executor, actor: Actor, variant: LogoVariant, file: { buffer: Buffer; fileName: string }) {
-  assertCan(actor, "admin.settings.manage");
+  assertCan(actor, "admin.branding.manage");
   if (!(variant in LOGO_VARIANTS)) throw new DomainError("Unknown logo type.");
   if (file.buffer.length > 2 * 1024 * 1024) throw new DomainError("Logos must be 2 MB or smaller.");
   // Identify the image from its content, not from the name or the browser-declared type.
@@ -423,7 +423,7 @@ export async function uploadBrandAsset(db: Executor, actor: Actor, variant: Logo
 }
 
 export async function resetBrandAsset(db: Executor, actor: Actor, variant: LogoVariant) {
-  assertCan(actor, "admin.settings.manage");
+  assertCan(actor, "admin.branding.manage");
   const removed = await db.delete(brandAssets).where(eq(brandAssets.variant, variant)).returning({ v: brandAssets.variant });
   if (removed.length) await audit(db, actor, { action: "branding.logo_reset", entityType: "brand_asset", entityId: variant, summary: `${LOGO_VARIANTS[variant].label} restored to the bundled default` });
 }

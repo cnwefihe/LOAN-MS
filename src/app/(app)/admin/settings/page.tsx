@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { getDb } from "@/db";
 import { requireActor } from "@/lib/auth/session";
-import { SETTINGS, SETTING_GROUPS, getSettings, type SettingKey } from "@/server/settings";
+import { GROUP_PERMISSION, SETTINGS, SETTING_GROUPS, getSettings, type SettingKey } from "@/server/settings";
+import { can } from "@/server/actor";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { schools } from "@/db/schema";
 import { ActionForm } from "@/components/action-form";
@@ -28,20 +29,22 @@ const DESCRIPTIONS: Record<string, string> = {
 };
 
 export default async function Settings({ searchParams }: { searchParams: Promise<{ section?: string }> }) {
-  await requireActor("admin.settings.manage");
+  const actor = await requireActor("admin.settings.manage", "settings.lending", "settings.school_accounts", "settings.security");
   const { section } = await searchParams;
-  const active = GROUPS.find((g) => g === section) ?? GROUPS[0];
+  // Each person sees the groups their permissions let them change.
+  const groups = GROUPS.filter((g) => can(actor, GROUP_PERMISSION[g]));
+  const active = groups.find((g) => g === section) ?? groups[0];
   const db = await getDb();
   const values = await getSettings(db, Object.keys(SETTINGS) as SettingKey[]);
   const schoolList = active === "School accounts" ? await db.select().from(schools).orderBy(schools.name) : [];
   return (
     <>
       <PageHeader title="System settings" crumbs={[{ label: "Administration", href: "/admin" }, { label: "Settings" }]}
-        description={<>How the system behaves. Logos and document markings are under <Link href="/admin/branding" className="link">Branding</Link>.</>} />
+        description={can(actor, "admin.branding.manage") ? <>How the system behaves. Logos and document markings are under <Link href="/admin/branding" className="link">Branding</Link>.</> : "How the system behaves."} />
       <div className="grid items-start gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
         <nav aria-label="Settings sections" className="min-w-0">
           <ul className="flex gap-1 overflow-x-auto lg:flex-col">
-            {GROUPS.map((g) => (
+            {groups.map((g) => (
               <li key={g} className="shrink-0">
                 <Link href={`/admin/settings?section=${encodeURIComponent(g)}`} aria-current={g === active ? "page" : undefined}
                   className={`block rounded-md px-3 py-2 text-sm ${g === active ? "bg-white font-medium text-brand shadow-sm ring-1 ring-line" : "text-muted hover:bg-white hover:text-ink"}`}>{g}</Link>

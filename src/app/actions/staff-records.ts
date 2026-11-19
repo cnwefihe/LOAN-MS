@@ -21,7 +21,7 @@ async function mustBeOpen(actor: Actor) {
 
 export async function openStaffRecordsAction(_: Prev, fd: FormData) {
   return runAction(async (actor) => {
-    assertCan(actor, "admin.settings.manage");
+    assertCan(actor, "register.view");
     await rateLimit(`records-open:${actor.userId}`, 8, 300);
     await confirmWithCode(await getDb(), actor, str(fd, "code", true), "open the Register");
     await openRecords(await getDb(), actor.userId);

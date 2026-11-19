@@ -34,7 +34,7 @@ export async function ensureInitialRelease(db: Executor) {
 
 /** Publishes a new version and tells every active member of staff through an in-app notification. */
 export async function publishRelease(db: Executor, actor: Actor, input: { version: string; title: string; notes: string }) {
-  assertCan(actor, "admin.settings.manage");
+  assertCan(actor, "admin.releases.manage");
   const version = input.version.trim().replace(/^v/i, "");
   const title = input.title.trim();
   const notes = input.notes.trim();

@@ -14,7 +14,7 @@ export const metadata = { title: "Branding and documents" };
 const TABS = [{ key: "organisation", label: "Organisation" }, { key: "logos", label: "Logos" }, { key: "documents", label: "Documents" }];
 
 export default async function BrandingPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
-  await requireActor("admin.settings.manage");
+  await requireActor("admin.branding.manage");
   const { tab: chosen } = await searchParams;
   const tab = TABS.some((x) => x.key === chosen) ? chosen! : "organisation";
   const db = await getDb();

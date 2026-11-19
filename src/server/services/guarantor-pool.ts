@@ -67,7 +67,7 @@ export type GuaranteeFilter = (typeof GUARANTEE_FILTERS)[number];
  * declined or have not replied, and whether the guarantee is still in force.
  */
 export async function guaranteeRequests(db: Executor, actor: Actor) {
-  assertCan(actor, "admin.policy.manage");
+  assertCan(actor, "guarantors.view");
   const applicant = sql<string>`(select coalesce(nullif(trim(sp.payslip_name), ''), u.display_name) from users u left join staff_profiles sp on sp.user_id = u.id where u.id = ${loanApplications.applicantId})`;
   const rows = await db.select({
     id: applicationGuarantors.id, status: applicationGuarantors.status, invitedAt: applicationGuarantors.invitedAt, respondedAt: applicationGuarantors.respondedAt,

@@ -3,9 +3,21 @@ import { z } from "zod";
 import type { Executor } from "@/db";
 import { systemSettings } from "@/db/schema";
 import { contrastRatio } from "@/lib/colour";
+import type { Permission } from "@/lib/auth/permissions";
 
 export const SETTING_GROUPS = ["Organisation and branding", "Documents", "Workflow", "Workflow wording", "Lending rules", "School accounts", "Reminders", "Automation", "Financial controls", "Security", "Notifications", "Data retention", "Privacy", "Announcements"] as const;
 export type SettingGroup = (typeof SETTING_GROUPS)[number];
+
+/** The permission that lets someone change each group of settings. */
+export const GROUP_PERMISSION: Record<SettingGroup, Permission> = {
+  "Organisation and branding": "admin.branding.manage", Documents: "admin.branding.manage",
+  "Lending rules": "settings.lending", "Financial controls": "settings.lending",
+  "School accounts": "settings.school_accounts", Security: "settings.security",
+  Workflow: "admin.settings.manage", "Workflow wording": "admin.settings.manage", Reminders: "admin.settings.manage", Automation: "admin.settings.manage",
+  Notifications: "admin.settings.manage", "Data retention": "admin.settings.manage", Privacy: "admin.settings.manage", Announcements: "admin.settings.manage",
+};
+/** Anyone with one of these may open Settings, and sees the groups their permissions allow. */
+export const SETTINGS_PERMISSIONS: Permission[] = ["admin.settings.manage", "settings.lending", "settings.school_accounts", "settings.security"];
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 const optionalText = (max: number) => z.string().trim().max(max);

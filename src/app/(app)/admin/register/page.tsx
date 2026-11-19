@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Lock } from "lucide-react";
 import { getDb } from "@/db";
 import { requireActor } from "@/lib/auth/session";
+import { can } from "@/server/actor";
+import { canOpen } from "@/lib/route-access";
 import { monthsBetween, monthsText, todayLagos } from "@/lib/finance/dates";
 import { listStaffRecords } from "@/server/services/staff-records";
 import { devFixtureCode } from "@/server/services/mfa";
@@ -22,14 +24,16 @@ const CRUMBS = [{ label: "Administration", href: "/admin" }, { label: "Settings"
 type Search = { q?: string; tab?: string; edit?: string; page?: string; size?: string };
 
 export default async function StaffRecords({ searchParams }: { searchParams: Promise<Search> }) {
-  const actor = await requireActor("admin.settings.manage");
+  const actor = await requireActor("register.view");
   const db = await getDb();
+  const manage = can(actor, "register.manage");
+  const crumbs = canOpen(actor.permissions, "/admin/settings") ? CRUMBS : [{ label: "Register" }];
 
   if (!(await recordsOpen(db, actor.userId))) {
     const dev = await devFixtureCode(db, actor.userId);
     return (
       <>
-        <PageHeader title="Register" crumbs={CRUMBS} description="Employee code, pay grade, employment date and confirmation for every employee." />
+        <PageHeader title="Register" crumbs={crumbs} description="Employee code, pay grade, employment date and confirmation for every employee." />
         <Card title={<span className="flex items-center gap-2"><Lock aria-hidden className="h-4 w-4 text-brand" />Enter your code to open</span>} className="max-w-md"
           description={`For your security, enter the six-digit code from your authenticator app. The Register stays open while you use it and closes after ${await registerIdleMinutes(db)} minutes without activity.`}>
           <ActionForm action={openStaffRecordsAction} submitLabel="Open the Register">
@@ -50,14 +54,14 @@ export default async function StaffRecords({ searchParams }: { searchParams: Pro
   const q = sp.q?.trim().toLowerCase();
   const list = pick(tab).filter((r) => !q || `${r.employeeCode} ${r.email ?? ""} ${r.payGrade} ${r.person?.name ?? ""}`.toLowerCase().includes(q));
   const pg = paginate(list, sp.page, sp.size);
-  const editing = sp.edit === "new" ? "new" : sp.edit ? all.find((r) => r.id === sp.edit) : undefined;
+  const editing = !manage ? undefined : sp.edit === "new" ? "new" : sp.edit ? all.find((r) => r.id === sp.edit) : undefined;
 
   return (
     <>
-      <PageHeader title="Register" crumbs={CRUMBS}
+      <PageHeader title="Register" crumbs={crumbs}
         description="Each employee's code, pay grade, employment date and confirmation fill their profile when they sign in. They cannot change them."
         actions={<>
-          <RowMenu label="Add to the Register" items={[{ label: "Add one employee", href: "/admin/register?edit=new" }]} />
+          {manage && <RowMenu label="Add to the Register" items={[{ label: "Add one employee", href: "/admin/register?edit=new" }]} />}
           <ActionForm action={closeStaffRecordsAction} submitLabel="Close" variant="secondary" submitClassName="btn-secondary h-8 px-3 text-xs" inline />
         </>} />
       <StatGrid>
@@ -88,13 +92,13 @@ export default async function StaffRecords({ searchParams }: { searchParams: Pro
         </Card>
       )}
 
-      <Card title="Upload to the Register" className="mb-6" description="Excel (.xlsx) or CSV. First row: Employee code, Pay grade, Employment date (DD/MM/YYYY), Confirmation (Confirmed or Not confirmed) and, optionally, Email. A code already here is updated.">
+      {manage && <Card title="Upload to the Register" className="mb-6" description="Excel (.xlsx) or CSV. First row: Employee code, Pay grade, Employment date (DD/MM/YYYY), Confirmation (Confirmed or Not confirmed) and, optionally, Email. A code already here is updated.">
         <ActionForm action={importStaffRecordsAction} submitLabel="Upload" encType="multipart/form-data" resetOnSuccess confirm="Upload to the Register? Profiles of employees who have signed in are updated at once.">
           <label htmlFor="sheet" className="label">Spreadsheet</label>
           <input id="sheet" name="sheet" type="file" required accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="input py-1.5" />
           <p className="hint"><a href={TEMPLATE} download="register-template.csv" className="link">Download a template</a> with the headings in place. Dates are read day first. If Excel on your computer is set to US dates, writing them as 02 Mar 2015 keeps the day and month from being switched.</p>
         </ActionForm>
-      </Card>
+      </Card>}
 
       <Tabs base="/admin/register" active={tab} tabs={[{ key: "all", label: "All", count: all.length }, { key: "linked", label: "Signed in", count: pick("linked").length }, { key: "waiting", label: "Not signed in yet", count: pick("waiting").length }, { key: "unconfirmed", label: "Not confirmed", count: pick("unconfirmed").length }]} />
       <Card bodyClassName="p-5" className="min-w-0">
@@ -111,7 +115,7 @@ export default async function StaffRecords({ searchParams }: { searchParams: Pro
                   <Td><DateText value={r.employmentDate} /></Td>
                   <Td>{monthsText(monthsBetween(r.employmentDate, today))}</Td>
                   <Td>{r.confirmed ? <Badge tone="success">Confirmed</Badge> : <Badge tone="warning">Not confirmed</Badge>}</Td>
-                  <Td right><RowMenu label={r.employeeCode} items={[{ label: "Manage", href: `/admin/register?edit=${r.id}` }]} /></Td>
+                  <Td right>{manage && <RowMenu label={r.employeeCode} items={[{ label: "Manage", href: `/admin/register?edit=${r.id}` }]} />}</Td>
                 </tr>
               ))}
             </tbody>

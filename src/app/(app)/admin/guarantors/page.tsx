@@ -19,7 +19,7 @@ const REPLY: Record<string, { label: string; tone: "success" | "warning" | "dang
 const TAB_LABEL: Record<GuaranteeFilter, string> = { all: "All", active: "Active", pending: "Awaiting reply", accepted: "Accepted", declined: "Declined" };
 
 export default async function Guarantors({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; page?: string; size?: string }> }) {
-  const actor = await requireActor("admin.policy.manage");
+  const actor = await requireActor("guarantors.view");
   const sp = await searchParams;
   const tab: GuaranteeFilter = (GUARANTEE_FILTERS as readonly string[]).includes(sp.tab ?? "") ? (sp.tab as GuaranteeFilter) : "all";
   const all = await guaranteeRequests(await getDb(), actor);

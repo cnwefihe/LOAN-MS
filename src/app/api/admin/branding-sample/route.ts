@@ -8,7 +8,7 @@ import { PdfBuilder } from "@/server/pdf";
 export async function GET() {
   const actor = await getActor();
   if (!actor) return new NextResponse("Unauthorised", { status: 401 });
-  if (!can(actor, "admin.settings.manage")) return new NextResponse("Forbidden", { status: 403 });
+  if (!can(actor, "admin.branding.manage")) return new NextResponse("Forbidden", { status: 403 });
   const db = await getDb();
   const pdf = await PdfBuilder.create(db, { kind: "sample", title: "Sample Document (not valid)", subtitle: "Branding preview produced from Administration > Branding and documents" });
   pdf.summary([

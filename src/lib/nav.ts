@@ -5,6 +5,7 @@ import { departments, loanApplications, applicationGuarantors, loanAccounts, rep
 import { can, canAny, type Actor } from "@/server/actor";
 import { canVerifyDocuments } from "@/server/services/verification";
 import { getWording } from "@/server/wording";
+import { SETTINGS_PERMISSIONS } from "@/server/settings";
 import { myApprovalQueue } from "@/server/services/approvals";
 import { advancesToRecover } from "@/server/services/advances";
 import { departmentsHeadedBy } from "@/server/services/staff";
@@ -105,10 +106,27 @@ export async function buildNav(db: Executor, actor: Actor): Promise<{ sections: 
   if (canAny(actor, "admin.policy.manage", "admin.policy.approve")) {
     admin.push({ href: "/admin/products", label: "Products", icon: "package" });
   }
-  if (can(actor, "admin.policy.manage")) admin.push({ href: "/admin/guarantors", label: "Guarantors", icon: "handshake" });
+  const isAdmin = admin.length > 0 || canAny(actor, "admin.content.manage", "admin.branding.manage", "admin.settings.manage", "admin.releases.manage", "admin.audit.view");
+  // The Register and the Guarantors list sit under Administration for administrators, and under Human
+  // Resources (or a section of their own) for anyone else given them.
+  const records: NavItem[] = [];
+  if (can(actor, "guarantors.view")) records.push({ href: "/admin/guarantors", label: "Guarantors", icon: "handshake" });
+  if (can(actor, "register.view")) records.push({ href: "/admin/register", label: "Register", icon: "clipboard" });
+  if (isAdmin) admin.push(...records.filter((r) => r.href === "/admin/guarantors"));
   if (can(actor, "admin.content.manage")) admin.push({ href: "/admin/content", label: "Templates", icon: "book" });
-  if (can(actor, "admin.settings.manage")) admin.push({ href: "/admin/branding", label: "Branding", icon: "palette" }, { href: "/admin/settings", label: "Settings", icon: "settings" }, { href: "/admin/register", label: "Register", icon: "clipboard" }, { href: "/admin/releases", label: "Versions", icon: "tag" });
+  if (can(actor, "admin.branding.manage")) admin.push({ href: "/admin/branding", label: "Branding", icon: "palette" });
+  if (canAny(actor, ...SETTINGS_PERMISSIONS)) admin.push({ href: "/admin/settings", label: "Settings", icon: "settings" });
+  if (isAdmin) admin.push(...records.filter((r) => r.href === "/admin/register"));
+  if (can(actor, "admin.releases.manage")) admin.push({ href: "/admin/releases", label: "Versions", icon: "tag" });
   if (can(actor, "admin.audit.view")) admin.push({ href: "/admin/audit", label: "Activity", icon: "scroll" }, { href: "/admin/outbox", label: "Emails", icon: "mail" });
+  if (!isAdmin && records.length) {
+    const hr = sections.find((s) => s.title === "Human Resources");
+    if (hr) hr.items.push(...records);
+    else {
+      const at = sections.findIndex((s) => s.title === "Insight");
+      sections.splice(at >= 0 ? at : sections.length, 0, { title: "Records", items: records });
+    }
+  }
   if (admin.length) sections.push({ title: "Administration", items: admin });
 
   // Administrators: Administration first, then every other area their permissions open (so turning a permission

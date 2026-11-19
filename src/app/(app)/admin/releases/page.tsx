@@ -8,7 +8,7 @@ import { publishReleaseAction } from "@/app/actions/admin";
 export const metadata = { title: "Version updates" };
 
 export default async function Releases() {
-  await requireActor("admin.settings.manage");
+  await requireActor("admin.releases.manage");
   const db = await getDb();
   const [rows, current] = await Promise.all([listReleases(db), currentVersion(db)]);
   return (

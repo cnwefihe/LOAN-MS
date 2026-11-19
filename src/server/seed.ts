@@ -5,7 +5,7 @@ import {
   schools, departments, staffCategories, loanProducts, policyVersions, documentRequirements,
   fundPools,
 } from "@/db/schema";
-import { PERMISSIONS, ROLE_DEFINITIONS, RETIRED_ROLE_CODES, type RoleCode } from "@/lib/auth/permissions";
+import { PERMISSIONS, ROLE_DEFINITIONS, RETIRED_ROLE_CODES, SPLIT_FROM, type RoleCode } from "@/lib/auth/permissions";
 import { DEFAULT_POLICY } from "@/lib/finance/defaults";
 import { SUGGESTED_PRODUCTS } from "@/lib/finance/suggested-products";
 import { encryptString } from "@/lib/security/crypto";
@@ -55,6 +55,16 @@ export async function seedBase(db: Executor) {
     const [role] = await db.insert(roles).values({ code, name: def.name, description: def.description }).returning();
     const ids = permRows.filter((p) => (def.permissions as string[]).includes(p.code)).map((p) => ({ roleId: role.id, permissionId: p.id }));
     if (ids.length) await db.insert(rolePermissions).values(ids).onConflictDoNothing();
+  }
+  // A permission split out of a broader one goes, when it first appears, to every role holding the broader one.
+  if (knownPermissions.size > 0) {
+    for (const [code, from] of Object.entries(SPLIT_FROM)) {
+      if (knownPermissions.has(code)) continue;
+      const target = permRows.find((p) => p.code === code), source = permRows.find((p) => p.code === from);
+      if (!target || !source) continue;
+      const holders = await db.select({ roleId: rolePermissions.roleId }).from(rolePermissions).where(eq(rolePermissions.permissionId, source.id));
+      if (holders.length) await db.insert(rolePermissions).values(holders.map((h) => ({ roleId: h.roleId, permissionId: target.id }))).onConflictDoNothing();
+    }
   }
   await retireRoles(db);
   // Permissions an administrator has turned on or off are kept as they are; deployments do not change them.
