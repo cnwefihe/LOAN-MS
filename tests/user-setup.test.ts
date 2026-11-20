@@ -45,7 +45,7 @@ describe("adding users", () => {
     const [dept] = await db.select().from(s.departments).where(eq(s.departments.id, d.id));
     expect(dept.headUserId).toBe(u.id);
     expect(dept.approverTitle).toBe("hod");
-    await expect(addUser(db, admin, { name: "Someone Else", email: "someone@gmail.com" })).rejects.toThrow(/work email/);
+    await expect(addUser(db, admin, { name: "Someone Else", email: "someone@gmail.com" })).rejects.toThrow(/not a staff email address/);
   });
 
   it("adds many at once, matching departments by name or code and reading the approver", async () => {

@@ -147,7 +147,7 @@ export async function provisionEntraUser(identity: EntraIdentity): Promise<strin
 /** Find or create a placeholder user for a colleague nominated by email who has not yet signed in. */
 export async function findOrCreateStaffByEmail(db: Executor, email: string, actor: Actor, name?: string): Promise<typeof users.$inferSelect> {
   const normalized = email.trim().toLowerCase();
-  if (!isInstitutionalEmail(normalized)) throw new DomainError(`${email} is not a work email address.`);
+  if (!isInstitutionalEmail(normalized)) throw new DomainError(`${email} is not a staff email address. Use the email address staff sign in with.`);
   const [existing] = await db.select().from(users).where(sql`lower(${users.email}) = ${normalized}`);
   if (existing) return existing;
   const local = normalized.split("@")[0];

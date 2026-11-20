@@ -56,7 +56,7 @@ export async function signInSupportRequestAction(_: ActionResult | null, fd: For
       subject: str(fd, "subject", true), message: str(fd, "message", true), page: str(fd, "page"), ip,
     });
     kickOutbox();
-    return { ok: true, message: `Sent. Your reference is ${ref}. ICT support will reply to your work email; a copy is in your inbox.` };
+    return { ok: true, message: `Sent. Your reference is ${ref}. ICT support will reply to your email; a copy is in your inbox.` };
   } catch (err) {
     return { ok: false, error: toMessage(err) };
   }

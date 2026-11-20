@@ -158,8 +158,8 @@ export async function submitSignInSupportRequest(db: Executor, input: { name: st
   const message = input.message.trim().slice(0, 4000);
   const page = /^\/[\w\-/?=&.%]*$/.test(input.page) ? input.page.slice(0, 200) : "";
   if (name.length < 2) throw new DomainError("Enter your name.");
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new DomainError("Enter your work email address.");
-  if (!isInstitutionalEmail(email)) throw new DomainError("Enter your work email address, so ICT can find your account and reply.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new DomainError("Enter your email address.");
+  if (!isInstitutionalEmail(email)) throw new DomainError("Use the email address you sign in with, so ICT can find your account and reply.");
   if (subject.length < 3) throw new DomainError("Give your request a short subject.");
   if (message.length < 10) throw new DomainError("Describe the problem in a few words so ICT can help.");
   const ref = `SR-${new Date().toISOString().slice(2, 10).replace(/-/g, "")}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;

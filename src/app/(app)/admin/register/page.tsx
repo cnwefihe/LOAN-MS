@@ -79,7 +79,7 @@ export default async function StaffRecords({ searchParams }: { searchParams: Pro
               <div><label htmlFor="employeeCode" className="label">Employee code</label><input id="employeeCode" name="employeeCode" required maxLength={40} defaultValue={editing === "new" ? "" : editing.employeeCode} className="input" /></div>
               <div><label htmlFor="payGrade" className="label">Pay grade</label><input id="payGrade" name="payGrade" required maxLength={120} defaultValue={editing === "new" ? "" : editing.payGrade} className="input" /><p className="hint">Exactly as printed on the payslip.</p></div>
               <div><label htmlFor="employmentDate" className="label">Employment date</label><DateInput id="employmentDate" name="employmentDate" required max={today} defaultValue={editing === "new" ? "" : editing.employmentDate} /></div>
-              <div><label htmlFor="email" className="label">Work email (optional)</label><input id="email" name="email" type="email" maxLength={320} defaultValue={editing === "new" ? "" : editing.email ?? ""} className="input" /></div>
+              <div><label htmlFor="email" className="label">Email (optional)</label><input id="email" name="email" type="email" maxLength={320} defaultValue={editing === "new" ? "" : editing.email ?? ""} className="input" /></div>
             </div>
             <label className="mt-4 flex items-center gap-2 text-sm"><input id="confirmed" name="confirmed" type="checkbox" defaultChecked={editing === "new" ? false : editing.confirmed} className="h-4 w-4" /> Confirmed</label>
           </ActionForm>

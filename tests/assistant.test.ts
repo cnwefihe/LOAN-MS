@@ -127,10 +127,10 @@ describe("before signing in", () => {
     expect((await myGuides(db, await actor("applicant"))).some((g) => g.id === "mfa-code")).toBe(true);
   });
 
-  it("someone who cannot sign in can reach ICT support, with a work email only", async () => {
+  it("someone who cannot sign in can reach ICT support, with the email they sign in with", async () => {
     await updateSetting(db, await actor("admin"), "org.ictEmail", "ict@example.edu.ng");
     const base = { name: "Kemi Ade", category: "Two-step verification code", subject: "Lost my phone", message: "I changed my phone and lost the codes.", page: "/mfa", ip: "203.0.113.5" };
-    await expect(submitSignInSupportRequest(db, { ...base, email: "someone@gmail.com" })).rejects.toThrow(/work email/);
+    await expect(submitSignInSupportRequest(db, { ...base, email: "someone@gmail.com" })).rejects.toThrow(/email address you sign in with/);
     const ref = await submitSignInSupportRequest(db, { ...base, email: "kemi.ade@example.edu.ng" });
     const sent = (await db.select().from(s.emailOutbox).where(eq(s.emailOutbox.toAddress, "ict@example.edu.ng"))).find((m) => m.subject.includes(ref))!;
     expect(sent.body).toContain("kemi.ade@example.edu.ng");

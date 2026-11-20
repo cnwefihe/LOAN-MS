@@ -28,7 +28,7 @@ export default async function AddUsers({ searchParams }: { searchParams: Promise
           <ActionForm action={addUserAction} submitLabel="Add user" resetOnSuccess listChanges confirm="Add this user?">
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Full name" htmlFor="name"><input id="name" name="name" required maxLength={200} className="input" /></Field>
-              <Field label="Work email" htmlFor="email"><input id="email" name="email" type="email" required className="input" /></Field>
+              <Field label="Email" htmlFor="email"><input id="email" name="email" type="email" required className="input" /></Field>
               <Field label="Employee code (optional)" htmlFor="staffNumber" hint="Filled from Microsoft at first sign-in if left empty."><input id="staffNumber" name="staffNumber" maxLength={50} className="input" /></Field>
               <Field label="Department" htmlFor="departmentName" hint="Choose one, or type a new name to create it.">
                 <input id="departmentName" name="departmentName" list="department-list" maxLength={200} autoComplete="off" className="input" />
@@ -53,7 +53,7 @@ export default async function AddUsers({ searchParams }: { searchParams: Promise
         </Card>
       ) : (
         <Card title="Add many at once" className="max-w-3xl"
-          description={`One person per line: full name, work email, department, school (optional)${approvers ? ", then HOD or Line Manager for an approver" : ""}. Separate with commas, or paste rows from a spreadsheet. Someone already known is updated.`}>
+          description={`One person per line: full name, email, department, school (optional)${approvers ? ", then HOD or Line Manager for an approver" : ""}. Separate with commas, or paste rows from a spreadsheet. Someone already known is updated.`}>
           <ActionForm action={importUsersAction} submitLabel="Add users" resetOnSuccess confirm="Add these users?">
             <label htmlFor="lines" className="label">Users</label>
             <textarea id="lines" name="lines" rows={10} required className="input font-mono text-xs"

@@ -452,7 +452,7 @@ test.describe("security in the browser", () => {
     await expect(panel.getByText("Your six-digit code")).toBeVisible();
     await panel.getByRole("tab", { name: "Contact ICT" }).click();
     // The form when ICT's address is set under Branding; otherwise a note to contact ICT directly.
-    await expect(panel.getByLabel("Your work email").or(panel.getByText(/contact ICT directly/))).toBeVisible();
+    await expect(panel.getByLabel("Email", { exact: true }).or(panel.getByText(/contact ICT directly/))).toBeVisible();
   });
 
   test("HR, Accounts and administrators cannot use the system until two-step verification is complete", async ({ page }) => {

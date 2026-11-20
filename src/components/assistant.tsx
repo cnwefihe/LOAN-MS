@@ -23,10 +23,17 @@ export function OpenAssistantButton({ children, className = "btn-secondary", tab
   return <button type="button" className={className} onClick={() => window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: tab }))}>{children}</button>;
 }
 
+/** Opening one item in the assistant closes the others, so the list stays short. */
+function onlyOneOpen(e: React.SyntheticEvent<HTMLDetailsElement>) {
+  const opened = e.currentTarget;
+  if (!opened.open) return;
+  opened.closest("[role=dialog]")?.querySelectorAll<HTMLDetailsElement>("details[data-assistant-item]").forEach((d) => { if (d !== opened && d.open) d.open = false; });
+}
+
 /** One guide: its title folds out to the summary, the steps and any links. */
 function GuideCard({ g, open, highlight }: { g: Guide; open?: boolean; highlight?: boolean }) {
   return (
-    <details className={`group rounded-md border bg-white ${highlight ? "border-brand/40" : "border-line"}`} open={open}>
+    <details data-assistant-item onToggle={onlyOneOpen} className={`group rounded-md border bg-white ${highlight ? "border-brand/40" : "border-line"}`} open={open}>
       <summary className="flex cursor-pointer list-none items-start gap-2 px-3 py-2.5 text-sm font-medium text-navy marker:hidden [&::-webkit-details-marker]:hidden">
         <BookOpen aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
         <span className="flex-1">{g.title}</span>
@@ -144,10 +151,8 @@ export function Assistant({ guides, steps, support, categories, firstName, signI
 
   return (
     <>
-      {/* Room at the foot of every page so the Help button never covers the last item. */}
-      <div aria-hidden className="h-16 print:hidden" />
       {tip && !open && (
-        <div role="status" className="fixed bottom-20 right-4 z-40 max-w-[18rem] rounded-lg border border-line bg-white p-3 text-sm shadow-lg print:hidden">
+        <div role="status" className="fixed bottom-[6.25rem] right-4 z-40 max-w-[18rem] rounded-lg border border-line bg-white p-3 text-sm shadow-lg print:hidden">
           <p className="flex items-start gap-2"><Lightbulb aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-brand" /><span>Help for this page: <strong className="font-medium text-navy">{tip.title}</strong></span></p>
           <div className="mt-2 flex justify-end gap-2">
             <button type="button" className="btn-secondary h-7 px-2 text-xs" onClick={() => setTip(null)}>Not now</button>
@@ -157,13 +162,13 @@ export function Assistant({ guides, steps, support, categories, firstName, signI
       )}
 
       <button ref={button} type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="assistant-panel"
-        className="fixed bottom-4 right-4 z-40 inline-flex h-11 items-center gap-2 rounded-full bg-brand px-4 text-sm font-medium text-white shadow-lg hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 print:hidden">
-        <LifeBuoy aria-hidden className="h-5 w-5" />Help
+        className="fixed bottom-[3.75rem] right-4 z-40 inline-flex h-8 items-center gap-1.5 rounded-full bg-brand px-3 text-xs font-medium text-white shadow-md ring-2 ring-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 print:hidden">
+        <LifeBuoy aria-hidden className="h-3.5 w-3.5" />Help
       </button>
 
       {open && (
         <div ref={panel} id="assistant-panel" role="dialog" aria-label="Loan assistant" tabIndex={-1}
-          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85vh] flex-col rounded-t-xl border border-line bg-slate-50 shadow-2xl outline-none sm:inset-x-auto sm:bottom-20 sm:right-4 sm:w-[26rem] sm:rounded-xl print:hidden">
+          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[calc(100vh-8rem)] flex-col rounded-t-xl border border-line bg-slate-50 shadow-2xl outline-none sm:inset-x-auto sm:bottom-[6.25rem] sm:right-4 sm:w-[26rem] sm:rounded-xl print:hidden">
           <div className="flex items-center justify-between gap-2 rounded-t-xl bg-navy px-4 py-3 text-white">
             <div>
               <p className="text-sm font-semibold">Loan assistant</p>
@@ -220,7 +225,7 @@ export function Assistant({ guides, steps, support, categories, firstName, signI
                 </section>
 
                 {steps.length > 0 && (
-                  <details className="group rounded-md border border-line bg-white">
+                  <details data-assistant-item onToggle={onlyOneOpen} className="group rounded-md border border-line bg-white">
                     <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-sm font-medium text-navy [&::-webkit-details-marker]:hidden">
                       <ListChecks aria-hidden className="h-4 w-4 shrink-0 text-brand" />
                       <span className="flex-1">Your next steps</span>
@@ -248,14 +253,14 @@ export function Assistant({ guides, steps, support, categories, firstName, signI
 
             {tab === "contact" && (support ? (
               <section>
-                <p className="mb-3 flex items-start gap-2 text-sm text-muted"><Mail aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-brand" />{signIn ? "Cannot sign in? Tell ICT support what happens. They reply to your work email, and you get a copy." : "Tell ICT support what went wrong. They reply to your work email, and you get a copy of your request."}</p>
+                <p className="mb-3 flex items-start gap-2 text-sm text-muted"><Mail aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-brand" />{signIn ? "Cannot sign in? Tell ICT support what happens. They reply to your email, and you get a copy." : "Tell ICT support what went wrong. They reply to your email, and you get a copy of your request."}</p>
                 <ActionForm action={signIn ? signInSupportRequestAction : supportRequestAction} submitLabel="Send" submitClassName="btn-primary h-8 px-4 text-xs" resetOnSuccess>
                   <input type="hidden" name="page" value={path} />
                   {signIn && (
                     <>
-                      <label htmlFor="sr-name" className="label">Your name</label>
+                      <label htmlFor="sr-name" className="label">Name</label>
                       <input id="sr-name" name="name" required minLength={2} maxLength={120} autoComplete="name" className="input" />
-                      <label htmlFor="sr-email" className="label mt-3">Your work email</label>
+                      <label htmlFor="sr-email" className="label mt-3">Email</label>
                       <input id="sr-email" name="email" type="email" required maxLength={254} autoComplete="email" className="input" />
                       {/* Left empty by people; filled only by automated form-fillers. */}
                       <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden"><label htmlFor="sr-website">Website</label><input id="sr-website" name="website" tabIndex={-1} autoComplete="off" /></div>

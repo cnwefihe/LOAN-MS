@@ -131,7 +131,7 @@ export const GUIDES: Guide[] = [
     steps: [
       "Select the bell at the top to see recent notifications.",
       "Selecting a notification takes you straight to the application, loan or request it is about.",
-      "Emails are sent to your work address for the same events.",
+      "Emails are sent to you for the same events.",
     ],
     links: [{ label: "All notifications", href: "/notifications" }],
   },

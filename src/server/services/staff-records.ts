@@ -121,7 +121,7 @@ export function readRows(cells: unknown[][]): { rows: ParsedRow[]; skipped: Skip
       : !payGrade ? "no pay grade" : payGrade.length > 120 ? "pay grade too long"
       : !employmentDate ? "employment date not read (use DD/MM/YYYY)" : employmentDate > new Date().toISOString().slice(0, 10) ? "employment date in the future"
       : confirmed === null ? "confirmation not read (use Confirmed or Not confirmed)"
-      : email && !isInstitutionalEmail(email) ? "email is not a work email" : null;
+      : email && !isInstitutionalEmail(email) ? "email is not a staff email address" : null;
     if (reason) skipped.push({ row, reason });
     else rows.push({ row, employeeCode, payGrade, employmentDate: employmentDate!, confirmed: confirmed!, email });
   });
@@ -298,7 +298,7 @@ export async function saveStaffRecord(db: Executor, actor: Actor, input: StaffRe
   if (!employeeCode || employeeCode.length > 40) throw new DomainError("Enter the employee code.");
   if (!payGrade || payGrade.length > 120) throw new DomainError("Enter the pay grade as printed on the payslip.");
   if (!employmentDate || !ISO.test(employmentDate)) throw new DomainError("Enter the employment date.");
-  if (email && !isInstitutionalEmail(email)) throw new DomainError(`${email} is not a work email address.`);
+  if (email && !isInstitutionalEmail(email)) throw new DomainError(`${email} is not a staff email address. Use the email address staff sign in with.`);
   return db.transaction(async (tx) => {
     if (input.id) {
       const [clash] = await tx.select({ id: staffRecords.id }).from(staffRecords).where(and(sql`lower(${staffRecords.employeeCode}) = ${employeeCode.toLowerCase()}`, ne(staffRecords.id, input.id)));
