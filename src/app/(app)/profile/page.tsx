@@ -43,7 +43,7 @@ export default async function Profile() {
               ["Employee code", p?.staffNumber ?? "Not added yet"], ["Pay grade", p?.payGrade ?? "Not added yet"],
               ["Confirmation", p?.employmentStatus === "confirmed" ? <Badge key="c" tone="success">Confirmed</Badge> : p?.employmentStatus ? <Badge key="c" tone="warning">Not confirmed</Badge> : "Not added yet"],
               ["Employment date", p?.employmentDate ? <DateText key="e" value={p.employmentDate} /> : "Not added yet"], ["Length of service", p?.employmentDate ? monthsText(rec.serviceMonths) : "Not known yet"],
-              ["Department", rec.department?.name], ["School", rec.school?.name],
+              ["Department", rec.department?.name], ["School/Unit", rec.school?.name],
               ["Designation", designationOf(p)], ["Staff category", rec.category?.name],
               ["Latest payslip", slip ? <a key="s" href="/eligibility" className="link">{payslipMonth(slip.period)}</a> : <a key="s" href="/eligibility" className="link">Upload</a>],
               ["Roles", <span key="r" className="flex flex-wrap gap-1">{actor.roles.map((r) => <Badge key={r}>{w.role[r as RoleCode]?.name ?? r}</Badge>)}</span>],
