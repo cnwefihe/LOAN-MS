@@ -257,6 +257,23 @@ test.describe.serial("application lifecycle through the UI", () => {
     await expect(page.getByText("Loan balance to repay")).toBeVisible();
   });
 
+  test("the loan assistant answers from the borrower's own records and shows only their guides", async ({ page }) => {
+    await signIn(page, "Adaeze Okafor");
+    await page.goto("/dashboard");
+    await page.getByRole("button", { name: "Open the assistant" }).click();
+    const panel = page.getByRole("dialog", { name: "Loan assistant" });
+    await expect(panel.getByText("Your next steps")).toBeVisible();
+    await panel.getByLabel("Ask a question").fill("How much do I owe?");
+    await panel.getByRole("button", { name: "Ask" }).click();
+    await expect(panel.getByText(/You owe ₦/)).toBeVisible();
+    await panel.getByRole("tab", { name: "All guides" }).click();
+    await expect(panel.getByText("How repayment works")).toBeVisible();
+    await expect(panel.getByText("Verifying an application")).toHaveCount(0);
+    await expect(panel.getByText("Users and roles")).toHaveCount(0);
+    await panel.getByRole("button", { name: "Close" }).click();
+    await expect(panel).toHaveCount(0);
+  });
+
   test("eligibility calculator: payslip in, a plain answer out", async ({ page }) => {
     await signIn(page, "Seun Bakare"); // no loan yet
     await page.goto("/eligibility");

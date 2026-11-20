@@ -8,7 +8,9 @@ describe("human check", () => {
     const c = newChallenge({ dev: true });
     expect(c.background.startsWith("data:image/png;base64,iVBOR")).toBe(true);
     expect(c.piece.startsWith("data:image/png;base64,iVBOR")).toBe(true);
-    expect(c.token).not.toContain(String(c.devAnswer));
+    // The answer is sealed: the token is not readable data (its random characters may include any digits).
+    expect(c.token).not.toMatch(/"x"|"y"|\{/);
+    expect(Buffer.from(c.token.split(/[.:]/).pop() ?? "", "base64").toString("latin1")).not.toContain(`"x":${c.devAnswer}`);
     expect(newChallenge().devAnswer).toBeUndefined();
   });
 

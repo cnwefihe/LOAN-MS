@@ -12,6 +12,8 @@ import { monthsText } from "@/lib/finance/dates";
 import { ApprovalOverview, OverviewHeading } from "@/components/approval-overview";
 import { FundPoolsCard } from "@/components/fund-pool";
 import { fundPositions } from "@/server/services/funds";
+import { OpenAssistantButton } from "@/components/assistant";
+import { LifeBuoy } from "lucide-react";
 
 export const metadata = { title: "Dashboard" };
 
@@ -80,6 +82,15 @@ export default async function Dashboard() {
       <PageHeader title={overview ? "Overview" : `Welcome, ${greetName}`} description={subtitle}
         actions={<><Link href="/eligibility" className="btn-secondary h-8 px-3 text-xs">Check eligibility</Link>{/* With no applications yet, the Recent applications card offers this instead. */}
           {(apps.length > 0 || compact) && <Link href="/applications/new" className="btn-primary h-8 px-3 text-xs">New application</Link>}</>} />
+
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-white px-4 py-3">
+        <p className="flex min-w-0 items-start gap-2 text-sm"><LifeBuoy aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+          <span><span className="font-medium text-navy">Need a hand?</span> <span className="text-muted">The loan assistant shows your next steps, explains each page{workspaces.length ? " and your role" : ""}, and answers questions.</span></span></p>
+        <div className="flex gap-2">
+          <OpenAssistantButton className="btn-primary h-8 px-3 text-xs">Open the assistant</OpenAssistantButton>
+          <OpenAssistantButton className="btn-secondary h-8 px-3 text-xs" tab="guides">All guides</OpenAssistantButton>
+        </div>
+      </div>
 
       {pool && <FundPoolsCard pools={pool} manage={actor.permissions.has("fund.manage")} />}
       {overview && <ApprovalOverview db={db} actor={actor} aside={notices}><OverviewHeading>My loans</OverviewHeading>{myStats}</ApprovalOverview>}

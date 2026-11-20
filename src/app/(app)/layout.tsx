@@ -11,6 +11,8 @@ import { IdleGuard } from "@/components/idle-guard";
 import { ListMemoryRecorder } from "@/components/list-memory";
 import { Suspense } from "react";
 import { currentVersion } from "@/server/services/releases";
+import { myGuides, nextSteps, supportAvailable, SUPPORT_CATEGORIES } from "@/server/services/assistant";
+import { Assistant } from "@/components/assistant";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +26,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const brand = await getBranding(db);
   const notice = await getSettings(db, ["system.announcement", "system.announcementTone"]);
   const roleNames = roleTitles(await getWording(db), actor.roles);
+  // The assistant: guides this person may read, their own next steps and the work waiting for them.
+  const work = sections.filter((s) => s.title !== "Self-service").flatMap((s) => s.items.filter((i) => (i.badge ?? 0) > 0 && i.href !== "/guarantor").map((i) => ({ label: `${s.title} > ${i.label}`, href: i.href, count: i.badge ?? 0 })));
+  const userName = profile?.name?.trim() || actor.displayName;
   return (
     <AppShell
       sections={sections} unread={unread} devBanner={!!u?.dev}
@@ -33,6 +38,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Suspense fallback={null}><ListMemoryRecorder /></Suspense>
       <IdleGuard minutes={await idleMinutesFor(db, actor.roles)} />
       {children}
+      <Assistant guides={await myGuides(db, actor)} steps={await nextSteps(db, actor, work)} support={await supportAvailable(db)} categories={SUPPORT_CATEGORIES} firstName={userName.split(" ")[0]} />
     </AppShell>
   );
 }
