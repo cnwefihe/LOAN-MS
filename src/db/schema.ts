@@ -117,6 +117,8 @@ export const sessions = pgTable("sessions", {
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
   /** When the second sign-in step was completed for this session (authenticator code or Microsoft MFA). */
   mfaVerifiedAt: timestamp("mfa_verified_at", { withTimezone: true }),
+  /** Why the session ended early: "limit" when the person signed in on another device. */
+  endedReason: varchar("ended_reason", { length: 20 }),
 }, (t) => [index("sessions_user_idx").on(t.userId)]);
 
 /* ───────────────────────────── Organisation ───────────────────────────── */

@@ -31,6 +31,13 @@ const IDLE_CHOICES = ["5", "10", "30", "60"] as const;
 const idleMinutes = z.number().int().refine((m) => (IDLE_CHOICES as readonly string[]).includes(String(m)), "Choose one of the listed times.");
 const VERIFY_TRIES = ["3", "5", "10"] as const;
 const VERIFY_LOCK = ["5", "10", "15", "30", "60"] as const;
+const SUPPORT_MAX = ["1", "2", "3", "5", "10"] as const;
+const SIGNIN_MAX = ["10", "20", "30", "50"] as const;
+const SIGNIN_WINDOW = ["5", "15", "30", "60"] as const;
+const CODE_TRIES = ["3", "5", "8", "10"] as const;
+const SESSIONS_USERS = ["1", "2", "3", "5"] as const;
+const SESSIONS_ADMIN = ["1", "2", "3", "5", "10"] as const;
+const SUPPORT_WINDOW = ["30", "60", "120", "360", "1440"] as const;
 const VERIFY_VALID = ["0", "5", "10", "15", "30", "60"] as const;
 const oneOf = (list: readonly string[]) => z.number().int().refine((n) => list.includes(String(n)), "Choose one of the listed values.");
 const hexColour = z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Use a six-digit hex colour such as #2E3A6E.")
@@ -83,13 +90,21 @@ export const SETTINGS = {
   "finance.makerChecker.adjustment": { group: "Financial controls", schema: z.boolean(), default: true, sensitive: true, label: "Waivers, adjustments and refunds" },
   "finance.makerChecker.reversal": { group: "Financial controls", schema: z.boolean(), default: true, sensitive: true, label: "Reversals" },
 
-  "security.idleMinutesUsers": { group: "Security", schema: idleMinutes, default: 10, sensitive: true, label: "Sign out users after", options: IDLE_CHOICES },
-  "security.idleMinutesAdmin": { group: "Security", schema: idleMinutes, default: 10, sensitive: true, label: "Sign out administrators after", options: IDLE_CHOICES },
-  "security.verifyMaxFailures": { group: "Security", schema: oneOf(VERIFY_TRIES), default: 5, sensitive: true, label: "Failed security verifications allowed before a device is locked", options: VERIFY_TRIES, optionLabels: { 3: "3 attempts", 5: "5 attempts", 10: "10 attempts" } },
-  "security.verifyLockMinutes": { group: "Security", schema: oneOf(VERIFY_LOCK), default: 10, sensitive: true, label: "Lock the device for", options: VERIFY_LOCK },
-  "security.verifyValidMinutes": { group: "Security", schema: oneOf(VERIFY_VALID), default: 10, sensitive: true, label: "After passing the security verification, do not ask again for", options: VERIFY_VALID, optionLabels: { 0: "None: ask at every sign-in" } },
-  "security.registerIdleMinutes": { group: "Security", schema: oneOf(VERIFY_LOCK), default: 10, sensitive: true, label: "Close the Register after no activity for", options: VERIFY_LOCK },
-  "security.mfaScope": { group: "Security", schema: z.enum(MFA_SCOPES), default: "everyone", sensitive: true, label: "Require two-step verification for", options: MFA_SCOPES, optionLabels: { everyone: "Everyone", staff: "Approval and payment roles", off: "No one" } },
+  "security.idleMinutesUsers": { group: "Security", schema: idleMinutes, default: 10, sensitive: true, label: "Sign out: everyone else after no activity for", options: IDLE_CHOICES },
+  "security.idleMinutesAdmin": { group: "Security", schema: idleMinutes, default: 10, sensitive: true, label: "Sign out: Super Administrators after no activity for", options: IDLE_CHOICES },
+  "security.maxSessionsUsers": { group: "Security", schema: oneOf(SESSIONS_USERS), default: 1, sensitive: true, label: "Sessions at the same time: everyone else (signing in again ends the oldest)", options: SESSIONS_USERS, optionLabels: { 1: "1 session", 2: "2 sessions", 3: "3 sessions", 5: "5 sessions" } },
+  "security.maxSessionsAdmin": { group: "Security", schema: oneOf(SESSIONS_ADMIN), default: 3, sensitive: true, label: "Sessions at the same time: Super Administrators", options: SESSIONS_ADMIN, optionLabels: { 1: "1 session", 2: "2 sessions", 3: "3 sessions", 5: "5 sessions", 10: "10 sessions" } },
+  "security.verifyMaxFailures": { group: "Security", schema: oneOf(VERIFY_TRIES), default: 5, sensitive: true, label: "Security check (slider): failed attempts before the device is locked", options: VERIFY_TRIES, optionLabels: { 3: "3 attempts", 5: "5 attempts", 10: "10 attempts" } },
+  "security.verifyLockMinutes": { group: "Security", schema: oneOf(VERIFY_LOCK), default: 10, sensitive: true, label: "Security check (slider): lock the device for", options: VERIFY_LOCK },
+  "security.verifyValidMinutes": { group: "Security", schema: oneOf(VERIFY_VALID), default: 10, sensitive: true, label: "Security check (slider): after passing, do not ask again for", options: VERIFY_VALID, optionLabels: { 0: "None: ask at every sign-in" } },
+  "security.signInAttemptsMax": { group: "Security", schema: oneOf(SIGNIN_MAX), default: 30, sensitive: true, label: "Sign-in with Microsoft: attempts allowed from one network address", options: SIGNIN_MAX, optionLabels: { 10: "10 attempts", 20: "20 attempts", 30: "30 attempts", 50: "50 attempts" } },
+  "security.signInAttemptsWindowMinutes": { group: "Security", schema: oneOf(SIGNIN_WINDOW), default: 5, sensitive: true, label: "Sign-in with Microsoft: counted over", options: SIGNIN_WINDOW, optionLabels: { 5: "5 minutes", 15: "15 minutes", 30: "30 minutes", 60: "1 hour" } },
+  "security.codeFailuresMax": { group: "Security", schema: oneOf(CODE_TRIES), default: 5, sensitive: true, label: "Two-step codes: wrong codes allowed before the account is locked", options: CODE_TRIES, optionLabels: { 3: "3 wrong codes", 5: "5 wrong codes", 8: "8 wrong codes", 10: "10 wrong codes" } },
+  "security.codeLockMinutes": { group: "Security", schema: oneOf(VERIFY_LOCK), default: 15, sensitive: true, label: "Two-step codes: lock the account for", options: VERIFY_LOCK },
+  "security.mfaScope": { group: "Security", schema: z.enum(MFA_SCOPES), default: "everyone", sensitive: true, label: "Two-step codes: required for", options: MFA_SCOPES, optionLabels: { everyone: "Everyone", staff: "Approval and payment roles", off: "No one" } },
+  "security.registerIdleMinutes": { group: "Security", schema: oneOf(VERIFY_LOCK), default: 10, sensitive: true, label: "Register: close after no activity for", options: VERIFY_LOCK },
+  "security.supportRequestsMax": { group: "Security", schema: oneOf(SUPPORT_MAX), default: 3, sensitive: true, label: "ICT support: requests allowed from each person or device", options: SUPPORT_MAX, optionLabels: { 1: "1 request", 2: "2 requests", 3: "3 requests", 5: "5 requests", 10: "10 requests" } },
+  "security.supportRequestsWindowMinutes": { group: "Security", schema: oneOf(SUPPORT_WINDOW), default: 60, sensitive: true, label: "ICT support: counted over", options: SUPPORT_WINDOW, optionLabels: { 30: "30 minutes", 60: "1 hour", 120: "2 hours", 360: "6 hours", 1440: "1 day" } },
 
   "notifications.emailEnabled": { group: "Notifications", schema: z.boolean(), default: true, sensitive: false, label: "Send email notifications" },
   "notifications.emailSignature": { group: "Notifications", schema: text(200), default: "Bursary, Pan-Atlantic University", sensitive: false, label: "Email sign-off" },

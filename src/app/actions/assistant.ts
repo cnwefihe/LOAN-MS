@@ -1,12 +1,21 @@
 "use server";
 
+import { headers } from "next/headers";
 import { getDb } from "@/db";
 import { getActor } from "@/lib/auth/session";
-import { runAction, str } from "@/server/action";
+import { runAction, str, toMessage } from "@/server/action";
 import type { ActionResult } from "@/server/action-result";
+import { kickOutbox } from "@/server/email";
 import { rateLimit } from "@/server/rate-limit";
-import { answerQuestion, submitSupportRequest, type Answer } from "@/server/services/assistant";
+import { answerQuestion, submitSignInSupportRequest, submitSupportRequest, type Answer } from "@/server/services/assistant";
 import { getWording, roleTitles } from "@/server/wording";
+import { getSettings } from "@/server/settings";
+
+/** How many requests to ICT support each person or device may send, and over how long (Settings > Security). */
+async function supportLimit() {
+  const s = await getSettings(await getDb(), ["security.supportRequestsMax", "security.supportRequestsWindowMinutes"]);
+  return { max: s["security.supportRequestsMax"], seconds: s["security.supportRequestsWindowMinutes"] * 60 };
+}
 
 /** An answer for the signed-in person only, from their own records and the guides they may read. */
 export async function askAssistantAction(question: string): Promise<Answer | { error: string }> {
@@ -22,7 +31,8 @@ export async function askAssistantAction(question: string): Promise<Answer | { e
 
 export async function supportRequestAction(_: ActionResult | null, fd: FormData) {
   return runAction(async (actor) => {
-    await rateLimit(`support:${actor.userId}`, 5, 3600);
+    const limit = await supportLimit();
+    await rateLimit(`support:${actor.userId}`, limit.max, limit.seconds);
     const db = await getDb();
     const ref = await submitSupportRequest(db, actor, {
       category: str(fd, "category"), subject: str(fd, "subject", true), message: str(fd, "message", true), page: str(fd, "page"),
@@ -30,4 +40,24 @@ export async function supportRequestAction(_: ActionResult | null, fd: FormData)
     });
     return `Sent. Your reference is ${ref}. ICT support will reply by email; a copy is in your inbox.`;
   }, { limit: 10 });
+}
+
+/** From the sign-in pages, for someone who cannot sign in. Limited per device and per email address. */
+export async function signInSupportRequestAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  // A field people never see: automated form-fillers complete it and are quietly ignored.
+  if (str(fd, "website")) return { ok: true, message: "Sent." };
+  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0].trim() || "local";
+  try {
+    const limit = await supportLimit();
+    await rateLimit(`support-public:${ip}`, limit.max, limit.seconds);
+    await rateLimit(`support-public:${str(fd, "email").toLowerCase()}`, limit.max, limit.seconds);
+    const ref = await submitSignInSupportRequest(await getDb(), {
+      name: str(fd, "name", true), email: str(fd, "email", true), category: str(fd, "category"),
+      subject: str(fd, "subject", true), message: str(fd, "message", true), page: str(fd, "page"), ip,
+    });
+    kickOutbox();
+    return { ok: true, message: `Sent. Your reference is ${ref}. ICT support will reply to your work email; a copy is in your inbox.` };
+  } catch (err) {
+    return { ok: false, error: toMessage(err) };
+  }
 }

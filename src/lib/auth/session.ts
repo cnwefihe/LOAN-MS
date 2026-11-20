@@ -15,6 +15,7 @@ import { HUMAN_COOKIE } from "@/server/human-check";
 import { loadActor } from "@/server/services/identity";
 import type { Actor } from "@/server/actor";
 import { mfaRequiredFor } from "@/server/services/mfa";
+import { endExtraSessions } from "@/server/session-limit";
 import type { Permission } from "./permissions";
 
 /** The browser signs people out on time; the server allows this much longer, so "Stay signed in" is never refused at the last second. */
@@ -38,6 +39,8 @@ export async function createSession(userId: string, authMethod: "entra" | "dev_f
   const expiresAt = new Date(Date.now() + SESSION_MAX_HOURS * 3600_000);
   const ctx = await requestContext();
   await db.insert(sessions).values({ tokenHash: sha256Hex(token), userId, authMethod, ipAddress: ctx.ip, userAgent: ctx.userAgent, expiresAt, mfaVerifiedAt: mfaVerified ? new Date() : null });
+  // One session at a time for most people (more for Super Administrators): older ones beyond the limit end.
+  await endExtraSessions(db, userId);
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {
     httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", expires: expiresAt,
@@ -90,10 +93,22 @@ export async function getSignInState() {
   return resolve();
 }
 
+/** Whether this browser's session was ended because the person signed in on another device. */
+async function endedElsewhere(): Promise<boolean> {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (!token) return false;
+  const [s] = await (await getDb()).select({ reason: sessions.endedReason }).from(sessions).where(eq(sessions.tokenHash, sha256Hex(token)));
+  return s?.reason === "limit";
+}
+
 /** For pages: redirect to sign-in when unauthenticated, to /forbidden when lacking permission. */
 export async function requireActor(...anyOf: Permission[]): Promise<Actor> {
   const actor = await getActor();
-  if (!actor) redirect((await resolve())?.mfaPending ? "/mfa" : "/login");
+  if (!actor) {
+    const state = await resolve();
+    if (state?.mfaPending) redirect("/mfa");
+    redirect((await endedElsewhere()) ? "/login?signedOut=elsewhere" : "/login");
+  }
   if (anyOf.length && !anyOf.some((p) => actor.permissions.has(p))) redirect("/forbidden");
   return actor;
 }

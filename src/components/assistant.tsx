@@ -5,9 +5,9 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ArrowRight, BookOpen, ListChecks, LifeBuoy, Lightbulb, Mail, MapPin, Search, X } from "lucide-react";
 import type { Guide } from "@/lib/assistant/guides";
-import { guideMatchesPage } from "@/lib/assistant/guides";
+import { guideMatchesPage, searchGuides } from "@/lib/assistant/guides";
 import type { Answer, NextStep } from "@/server/services/assistant";
-import { askAssistantAction, supportRequestAction } from "@/app/actions/assistant";
+import { askAssistantAction, signInSupportRequestAction, supportRequestAction } from "@/app/actions/assistant";
 import { ActionForm } from "@/components/action-form";
 
 const OPEN_EVENT = "open-assistant";
@@ -57,8 +57,10 @@ const TONE = { info: "border-sky-200 bg-sky-50", warning: "border-amber-200 bg-a
  * lists the person's next steps and every guide they may read, and sends requests to ICT support.
  * Guides and steps arrive already filtered for this person on the server.
  */
-export function Assistant({ guides, steps, support, categories, firstName }: {
-  guides: Guide[]; steps: NextStep[]; support: boolean; categories: readonly string[]; firstName: string;
+export function Assistant({ guides, steps, support, categories, firstName, signIn = false }: {
+  guides: Guide[]; steps: NextStep[]; support: boolean; categories: readonly string[]; firstName?: string;
+  /** On the sign-in pages: sign-in help only, answers from the guides, and a support form that asks who you are. */
+  signIn?: boolean;
 }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
@@ -128,10 +130,12 @@ export function Assistant({ guides, steps, support, categories, firstName }: {
   const ask = (q: string) => {
     const text = q.trim();
     if (!text) return;
+    // Before signing in there are no records to read: the answer comes from the sign-in guides alone.
+    if (signIn) { setAnswer({ lines: [], links: [], guides: searchGuides(guides, text).map((g) => g.id) }); return; }
     startAsk(async () => setAnswer(await askAssistantAction(text)));
   };
 
-  const suggestions = [
+  const suggestions = signIn ? ["The slider piece will not fit", "My code is refused", "I lost my phone", "How do I set up the code?"] : [
     ...(steps.length ? ["Where is my application?"] : []),
     ...(guides.some((g) => g.id === "apply") ? ["How do I apply?", "How much can I borrow?"] : []),
     ...(guides.some((g) => g.id === "repay-early") ? ["How do I repay early?"] : []),
@@ -163,12 +167,12 @@ export function Assistant({ guides, steps, support, categories, firstName }: {
           <div className="flex items-center justify-between gap-2 rounded-t-xl bg-navy px-4 py-3 text-white">
             <div>
               <p className="text-sm font-semibold">Loan assistant</p>
-              <p className="text-xs text-white/75">Hello {firstName}. Here is help for the page you are on.</p>
+              <p className="text-xs text-white/75">{signIn ? "Help with signing in, or contact ICT support." : `Hello ${firstName}. Here is help for the page you are on.`}</p>
             </div>
             <button type="button" aria-label="Close" className="rounded p-1 hover:bg-white/10" onClick={() => { setOpen(false); button.current?.focus(); }}><X aria-hidden className="h-5 w-5" /></button>
           </div>
           <div role="tablist" aria-label="Assistant sections" className="flex border-b border-line bg-white text-sm">
-            {([["help", "This page"], ["guides", "All guides"], ["contact", "Contact ICT"]] as [Tab, string][]).map(([k, label]) => (
+            {((signIn ? [["help", "This page"], ["contact", "Contact ICT"]] : [["help", "This page"], ["guides", "All guides"], ["contact", "Contact ICT"]]) as [Tab, string][]).map(([k, label]) => (
               <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
                 className={`flex-1 px-3 py-2 ${tab === k ? "border-b-2 border-brand font-medium text-brand" : "text-muted hover:text-ink"}`}>{label}</button>
             ))}
@@ -191,7 +195,7 @@ export function Assistant({ guides, steps, support, categories, firstName }: {
                   <Heading icon={Search}>Ask a question</Heading>
                   <form onSubmit={(e) => { e.preventDefault(); ask(input.current?.value ?? ""); }} className="flex gap-2">
                     <label htmlFor="assistant-question" className="sr-only">Ask a question</label>
-                    <input ref={input} id="assistant-question" maxLength={300} placeholder="For example: how do I repay early?" className="input min-w-0 flex-1" autoComplete="off" />
+                    <input ref={input} id="assistant-question" maxLength={300} placeholder={signIn ? "For example: my code is refused" : "For example: how do I repay early?"} className="input min-w-0 flex-1" autoComplete="off" />
                     <button type="submit" className="btn-primary px-3" aria-label="Ask" disabled={asking}><Search aria-hidden className="h-4 w-4" /></button>
                   </form>
                   {!answer && !asking && suggestions.length > 0 && (
@@ -204,6 +208,7 @@ export function Assistant({ guides, steps, support, categories, firstName }: {
                     <div aria-live="polite" className="mt-2 space-y-2">
                       {"error" in answer ? <p className="text-sm text-red-800">{answer.error}</p> : (
                         <>
+                          {signIn && !answer.guides.length && <p className="rounded-md border border-line bg-white p-3 text-sm">I could not find help for that. Try other words, or send a request to ICT support.</p>}
                           {answer.lines.length > 0 && <div className="space-y-1.5 rounded-md border border-line bg-white p-3 text-sm">{answer.lines.map((l, i) => <p key={i}>{l}</p>)}</div>}
                           {answer.links.length > 0 && <p className="flex flex-wrap gap-x-4">{answer.links.map((l) => <Link key={l.href} href={l.href} className="link text-sm">{l.label}</Link>)}</p>}
                           {answer.guides.filter((id) => guideById.has(id)).map((id, i) => <GuideCard key={id} g={guideById.get(id)!} open={i === 0 && !answer.lines.length} />)}
@@ -243,10 +248,20 @@ export function Assistant({ guides, steps, support, categories, firstName }: {
 
             {tab === "contact" && (support ? (
               <section>
-                <p className="mb-3 flex items-start gap-2 text-sm text-muted"><Mail aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-brand" />Tell ICT support what went wrong. They reply to your work email, and you get a copy of your request.</p>
-                <ActionForm action={supportRequestAction} submitLabel="Send" submitClassName="btn-primary h-8 px-4 text-xs" resetOnSuccess>
+                <p className="mb-3 flex items-start gap-2 text-sm text-muted"><Mail aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-brand" />{signIn ? "Cannot sign in? Tell ICT support what happens. They reply to your work email, and you get a copy." : "Tell ICT support what went wrong. They reply to your work email, and you get a copy of your request."}</p>
+                <ActionForm action={signIn ? signInSupportRequestAction : supportRequestAction} submitLabel="Send" submitClassName="btn-primary h-8 px-4 text-xs" resetOnSuccess>
                   <input type="hidden" name="page" value={path} />
-                  <label htmlFor="sr-category" className="label">Topic</label>
+                  {signIn && (
+                    <>
+                      <label htmlFor="sr-name" className="label">Your name</label>
+                      <input id="sr-name" name="name" required minLength={2} maxLength={120} autoComplete="name" className="input" />
+                      <label htmlFor="sr-email" className="label mt-3">Your work email</label>
+                      <input id="sr-email" name="email" type="email" required maxLength={254} autoComplete="email" className="input" />
+                      {/* Left empty by people; filled only by automated form-fillers. */}
+                      <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden"><label htmlFor="sr-website">Website</label><input id="sr-website" name="website" tabIndex={-1} autoComplete="off" /></div>
+                    </>
+                  )}
+                  <label htmlFor="sr-category" className={signIn ? "label mt-3" : "label"}>Topic</label>
                   <select id="sr-category" name="category" className="input">{categories.map((c) => <option key={c}>{c}</option>)}</select>
                   <label htmlFor="sr-subject" className="label mt-3">Subject</label>
                   <input id="sr-subject" name="subject" required minLength={3} maxLength={120} className="input" />

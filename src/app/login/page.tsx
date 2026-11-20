@@ -10,6 +10,7 @@ import { getBranding, logoUrl } from "@/server/branding";
 import { currentVersion } from "@/server/services/releases";
 import { hasPassed, HUMAN_COOKIE } from "@/server/human-check";
 import { HumanCheck } from "@/components/human-check";
+import { SignInAssistant } from "@/components/sign-in-assistant";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Sign in" };
@@ -68,7 +69,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             <p className="mt-1 text-sm text-muted">Staff sign-in</p>
           </div>
 
-          {sp.signedOut && <p role="status" className="mt-6 rounded-md border border-green-200 bg-success-50 px-3 py-2 text-sm text-green-900">{sp.signedOut === "idle" ? "You were signed out because you were inactive. Sign in to continue." : "You have been signed out."}</p>}
+          {sp.signedOut && <p role="status" className="mt-6 rounded-md border border-green-200 bg-success-50 px-3 py-2 text-sm text-green-900">{sp.signedOut === "idle" ? "You were signed out because you were inactive. Sign in to continue." : sp.signedOut === "elsewhere" ? "Your session ended, for example because you signed in on another device. Only one session at a time is allowed. Sign in to continue here." : "You have been signed out."}</p>}
           {error && <p role="alert" className="mt-6 rounded-md border border-red-200 bg-danger-50 px-3 py-2 text-sm text-red-900">{error}</p>}
 
           {!human ? <HumanCheck /> : sso ? (
@@ -114,6 +115,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <p className="text-[0.8125rem] font-semibold text-navy">&copy; {new Date().getFullYear()} {brand.institutionName}. All rights reserved.</p>
         <p className="text-[0.8125rem] font-medium text-slate-700">{brand.systemName} v{version}</p>
       </footer>
+      <SignInAssistant />
     </div>
   );
 }

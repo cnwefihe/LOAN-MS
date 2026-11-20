@@ -14,6 +14,7 @@ import { generateSecret, verifyTotp, otpauthUri, generateRecoveryCodes, normalis
 import { getSetting } from "../settings";
 import { audit } from "../audit";
 import { assertCan, type Actor } from "../actor";
+import { withCodeLock } from "../code-lock";
 import { DomainError } from "../errors";
 
 type UserRow = typeof users.$inferSelect;
@@ -60,7 +61,7 @@ export async function confirmEnrolment(db: Executor, userId: string, sessionId: 
   const [u] = await db.select().from(users).where(eq(users.id, userId));
   if (!u?.mfaPending) throw new DomainError("Start set-up again: no set-up is in progress.");
   const pending = JSON.parse(decryptString(u.mfaPending)) as Pending;
-  if (!verifyTotp(pending.secret, code)) throw new DomainError("That code is not correct. Check the time on your phone and enter the current six-digit code.");
+  if (!verifyTotp(pending.secret, code)) throw new DomainError("That code is not correct. Check the time on your phone and enter the current six-digit code.", "wrong_code");
   await db.update(users).set({
     mfaSecret: encryptString(pending.secret), mfaEnabledAt: new Date(), mfaPending: null,
     mfaRecoveryHashes: pending.codes.map((c) => sha256Hex(normaliseRecoveryCode(c))),
@@ -83,7 +84,7 @@ export async function verifySecondStep(db: Executor, userId: string, sessionId: 
       method = `recovery code (${remaining.length - 1} left)`;
     } else {
       await audit(db, { userId, displayName: u.displayName } as Actor, { action: "mfa.failed", entityType: "user", entityId: userId, summary: "Incorrect two-step verification code" });
-      throw new DomainError("That code is not correct. Enter the current six-digit code from your authenticator app.");
+      throw new DomainError("That code is not correct. Enter the current six-digit code from your authenticator app.", "wrong_code");
     }
   }
   await markSessionVerified(db, sessionId);
@@ -97,10 +98,13 @@ export async function verifySecondStep(db: Executor, userId: string, sessionId: 
 export async function confirmWithCode(db: Executor, actor: Actor, code: string, what: string) {
   const [u] = await db.select({ secret: users.mfaSecret }).from(users).where(eq(users.id, actor.userId));
   if (!u?.secret) throw new DomainError("Set up two-step verification under My profile before doing this.");
-  if (!verifyTotp(decryptString(u.secret), code.trim())) {
-    await audit(db, actor, { action: "mfa.failed", entityType: "user", entityId: actor.userId, summary: `Incorrect two-step verification code to ${what}` });
-    throw new DomainError("That code is not correct. Enter the current six-digit code from your authenticator app.");
-  }
+  // Wrong codes count towards the account lock (Settings > Security), as at sign-in.
+  await withCodeLock(db, actor.userId, async () => {
+    if (!verifyTotp(decryptString(u.secret!), code.trim())) {
+      await audit(db, actor, { action: "mfa.failed", entityType: "user", entityId: actor.userId, summary: `Incorrect two-step verification code to ${what}` });
+      throw new DomainError("That code is not correct. Enter the current six-digit code from your authenticator app.", "wrong_code");
+    }
+  });
 }
 
 /** Administrator reset, e.g. after a lost phone: the person sets up again at their next sign-in. */

@@ -5,12 +5,13 @@
  */
 import type { Permission } from "@/lib/auth/permissions";
 
-export type Audience = "everyone" | "approver" | Permission;
+/** "public": anyone, even before signing in (sign-in help). "everyone": anyone signed in. */
+export type Audience = "public" | "everyone" | "approver" | Permission;
 
 export interface Guide {
   id: string;
   /** Heading under which the guide is listed. */
-  area: "Getting started" | "Applying" | "Your loan" | "Guarantors" | "Human Resources" | "Bursary" | "Approvals" | "Accounts Payable" | "Payroll" | "Finance" | "Reports" | "Administration";
+  area: "Signing in" | "Getting started" | "Applying" | "Your loan" | "Guarantors" | "Human Resources" | "Bursary" | "Approvals" | "Accounts Payable" | "Payroll" | "Finance" | "Reports" | "Administration";
   title: string;
   /** Any one of these lets the person read the guide. */
   audience: Audience[];
@@ -24,6 +25,7 @@ export interface Guide {
 }
 
 const EVERYONE: Audience[] = ["everyone"];
+const PUBLIC: Audience[] = ["public"];
 
 export const GUIDES: Guide[] = [
   // ───────────── Getting started (everyone) ─────────────
@@ -52,14 +54,62 @@ export const GUIDES: Guide[] = [
     ],
   },
   {
-    id: "signin", area: "Getting started", title: "Signing in and security", audience: EVERYONE, pages: ["/profile"],
-    keywords: ["sign in", "login", "log in", "slider", "verification", "code", "authenticator", "locked", "two-step", "otp", "signed out", "timeout"],
-    summary: "Sign in with your work Microsoft account after a short security check.",
+    id: "signin-check", area: "Signing in", title: "The security check (slider)", audience: PUBLIC, pages: ["/login"],
+    keywords: ["slider", "security check", "verification", "puzzle", "piece", "drag", "locked", "try again", "captcha", "not a robot"],
+    summary: "Before signing in, drag the slider so the piece fits into the gap in the picture. It shows the system a person is signing in.",
     steps: [
-      "Drag the slider so the piece fits into its place. If it does not fit, a new picture appears; try again.",
-      "After several failed attempts the device is locked for a short time. Wait for the countdown, then try again.",
-      "Sign in with your work Microsoft account, then enter the six-digit code from your authenticator app if asked.",
-      "You are signed out after a period without activity, to protect your information. Sign in again to continue.",
+      "Press and hold the round handle under the picture.",
+      "Drag it to the right until the piece sits exactly in the gap, then let go.",
+      "If it does not fit, a new picture appears after a moment. Try again, moving at a natural speed.",
+      "After several misses this device is locked for a few minutes. Wait for the countdown to finish; a new picture then appears.",
+      "On a phone, drag with your finger. Turning the phone sideways gives more room.",
+    ],
+  },
+  {
+    id: "signin-microsoft", area: "Signing in", title: "Signing in with Microsoft", audience: PUBLIC, pages: ["/login"],
+    keywords: ["sign in", "login", "log in", "microsoft", "password", "account", "outlook", "not institutional", "deactivated", "cannot sign in", "error"],
+    summary: "Sign in with your work Microsoft account, the one you use for Outlook and Teams. There is no separate password.",
+    steps: [
+      "After the security check, select Sign in with Microsoft.",
+      "Enter your work email and your usual Microsoft password. A personal account (Gmail, Yahoo, Outlook.com) will not work.",
+      "If your password has expired or you are locked out of Microsoft, ICT support resets it; this system cannot.",
+      "\"Only institutional staff accounts may use this system\" means you used a personal account. Sign out of it and use your work account.",
+      "\"Your platform access has been deactivated\" means your access was switched off. Contact the Bursary or Human Resources.",
+    ],
+  },
+  {
+    id: "mfa-setup", area: "Signing in", title: "Setting up two-step verification (first time)", audience: PUBLIC, pages: ["/mfa"],
+    keywords: ["set up", "setup", "first time", "new user", "qr code", "scan", "authenticator", "install", "recovery codes", "key", "two-step", "mfa", "2fa"],
+    summary: "The first time you sign in, link an authenticator app on your phone. It takes about two minutes and protects your loans and pay details.",
+    steps: [
+      "Install Microsoft Authenticator (recommended) or Google Authenticator from your phone's app store.",
+      "In the app, tap + (Add account), choose Other account, and scan the QR code on screen.",
+      "Cannot scan? Choose to enter a key instead, and type the key shown under the QR code.",
+      "Write down or save the eight recovery codes. Each one works once if you lose your phone.",
+      "Type the six-digit code now showing in the app and select Verify and continue.",
+    ],
+  },
+  {
+    id: "mfa-code", area: "Signing in", title: "Your six-digit code", audience: PUBLIC, pages: ["/mfa"],
+    keywords: ["code", "six digit", "otp", "two-step", "mfa", "2fa", "wrong code", "code refused", "not correct", "lost phone", "new phone", "recovery code", "authenticator"],
+    summary: "Each time you sign in, enter the six-digit code your authenticator app shows for this system.",
+    steps: [
+      "Open the authenticator app and find this system's entry. Type the code shown; it changes every 30 seconds.",
+      "If the code is refused, wait for a new one and type it promptly.",
+      "Still refused? Set your phone's date and time to automatic. A clock that is even a minute out makes every code wrong.",
+      "Lost or changed your phone? Enter one of your recovery codes instead of the six-digit code.",
+      "No phone and no recovery codes? Contact ICT support to reset your two-step verification.",
+    ],
+  },
+  {
+    id: "signed-out", area: "Signing in", title: "Signed out or the page will not open", audience: PUBLIC, pages: ["/login", "/mfa"],
+    keywords: ["signed out", "logged out", "timeout", "inactive", "session expired", "page not loading", "blank", "slow", "offline", "browser"],
+    summary: "You are signed out after a period without activity, to protect your information.",
+    steps: [
+      "Select Sign in and go through the security check again.",
+      "If a page will not load, check your internet connection and refresh the page.",
+      "Use an up-to-date Chrome, Edge or Safari. Private or incognito windows ask you to do the security check each time.",
+      "If it still does not work, send a request to ICT support from the Contact ICT tab.",
     ],
   },
   {
@@ -475,7 +525,7 @@ export const GUIDES: Guide[] = [
     summary: "Settings shows the sections you may change; Branding holds names, logos and contact emails.",
     steps: [
       "Settings > School accounts: each school's account for early repayments.",
-      "Settings > Security: sign-out times, the security check and when the Register closes.",
+      "Settings > Security: sign-out times, sessions at the same time, the slider check, sign-in attempts, wrong two-step codes, the Register and requests to ICT support. Each is set separately.",
       "Branding > Organisation: the Bursary, Human Resources and ICT support emails shown to staff.",
     ],
   },
@@ -489,7 +539,12 @@ export const GUIDES: Guide[] = [
 
 /** The guides a person may read: by permission, by heading a department, or everything for administrators. */
 export function guidesFor(permissions: ReadonlySet<Permission>, opts: { approver: boolean; admin: boolean }): Guide[] {
-  return GUIDES.filter((g) => opts.admin || g.audience.some((a) => a === "everyone" || (a === "approver" ? opts.approver : permissions.has(a))));
+  return GUIDES.filter((g) => opts.admin || g.audience.some((a) => a === "public" || a === "everyone" || (a === "approver" ? opts.approver : permissions.has(a))));
+}
+
+/** Sign-in help: the only guides shown before someone has signed in. */
+export function publicGuides(): Guide[] {
+  return GUIDES.filter((g) => g.audience.includes("public"));
 }
 
 /** Whether a guide is about the page at `path` ("/loans/*" matches "/loans/123"). */

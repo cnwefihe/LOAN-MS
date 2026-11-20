@@ -4,6 +4,7 @@ import { getSignInState } from "@/lib/auth/session";
 import { getBranding, logoUrl } from "@/server/branding";
 import { beginEnrolment, devFixtureCode } from "@/server/services/mfa";
 import { ActionForm } from "@/components/action-form";
+import { SignInAssistant } from "@/components/sign-in-assistant";
 import { confirmMfaSetupAction, verifyMfaAction } from "@/app/actions/mfa";
 
 export const dynamic = "force-dynamic";
@@ -79,6 +80,7 @@ export default async function MfaPage({ searchParams }: { searchParams: Promise<
           </form>
         </div>
       </main>
+      <SignInAssistant />
     </div>
   );
 }

@@ -16,6 +16,7 @@ import { DomainError } from "../errors";
 import { getSetting } from "../settings";
 import { approvalStageName, loadWording } from "../wording";
 import { departmentHeadOf, departmentsHeadedBy } from "./staff";
+import { isInstitutionalEmail } from "./identity";
 import { listOpenProducts } from "./policies";
 
 export interface NextStep { text: string; href?: string; tone?: "info" | "warning" | "success" }
@@ -138,6 +139,57 @@ export async function answerQuestion(db: Executor, actor: Actor, question: strin
     out.lines.push("I could not find an answer to that. Try other words, browse the guides below, or send a request to ICT support.");
   }
   return out;
+}
+
+export const SIGN_IN_CATEGORIES = ["Security check (slider)", "Signing in with Microsoft", "Two-step verification code", "Setting up two-step verification", "Something else"] as const;
+
+/**
+ * A request to ICT support from someone who cannot sign in. They give their name and work email; the copy is
+ * sent only to a work address, so the form cannot be used to send email to anyone else. Limited per device
+ * and per address by the caller.
+ */
+export async function submitSignInSupportRequest(db: Executor, input: { name: string; email: string; category: string; subject: string; message: string; page: string; ip: string }) {
+  const to = await getSetting(db, "org.ictEmail");
+  if (!to) throw new DomainError("ICT support has no email address yet. Please contact ICT directly.");
+  const name = input.name.replace(/\s+/g, " ").trim().slice(0, 120);
+  const email = input.email.trim().toLowerCase().slice(0, 254);
+  const category = (SIGN_IN_CATEGORIES as readonly string[]).includes(input.category) ? input.category : "Something else";
+  const subject = input.subject.replace(/\s+/g, " ").trim().slice(0, 120);
+  const message = input.message.trim().slice(0, 4000);
+  const page = /^\/[\w\-/?=&.%]*$/.test(input.page) ? input.page.slice(0, 200) : "";
+  if (name.length < 2) throw new DomainError("Enter your name.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new DomainError("Enter your work email address.");
+  if (!isInstitutionalEmail(email)) throw new DomainError("Enter your work email address, so ICT can find your account and reply.");
+  if (subject.length < 3) throw new DomainError("Give your request a short subject.");
+  if (message.length < 10) throw new DomainError("Describe the problem in a few words so ICT can help.");
+  const ref = `SR-${new Date().toISOString().slice(2, 10).replace(/-/g, "")}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+  const system = await getSetting(db, "org.systemName");
+  await db.insert(emailOutbox).values({
+    toAddress: to, subject: `[${ref}] ${category}: ${subject}`,
+    body: `A support request from the ${system} sign-in page (the person was not signed in).
+
+Reference: ${ref}
+From: ${name} (${email})
+Topic: ${category}
+Page: ${page || "Not given"}
+
+${message}
+
+Reply to ${email} to answer. Check the address belongs to the person before changing anything on their account.`,
+  });
+  await db.insert(emailOutbox).values({
+    toAddress: email, subject: `We received your request ${ref}`,
+    body: `Dear ${name.split(" ")[0]},
+
+Thank you. ICT support has received your request about signing in and will reply to this email address.
+
+Reference: ${ref}
+Subject: ${subject}
+
+If you did not send this request, you can ignore this email.`,
+  });
+  await audit(db, null, { action: "support.request_sent", entityType: "support_request", entityId: ref, summary: `Sign-in support request ${ref}: ${category} from ${email}`, after: { ip: input.ip } });
+  return ref;
 }
 
 const CATEGORIES = ["Signing in", "Payslip or eligibility", "My application", "My loan or repayments", "Guarantees", "My work queue", "Something else"] as const;

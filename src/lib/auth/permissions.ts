@@ -58,7 +58,7 @@ export const PERMISSIONS = {
   "admin.org.manage": { category: "Administration", description: "Manage schools, departments and staff categories" },
   "admin.content.manage": { category: "Administration", description: "Manage terms, document requirements and notification templates" },
   "admin.settings.manage": { category: "Administration", description: "Manage general settings: workflow, wording, reminders, automation, notifications, data retention, privacy, announcements and email" },
-  "settings.security": { category: "Administration", description: "Change security settings: sign-out times, two-step verification, the security verification before sign-in and when the Register closes" },
+  "settings.security": { category: "Administration", description: "Change security settings: sign-out times, sessions at the same time, the security check, sign-in attempts, wrong two-step codes, when the Register closes and requests to ICT support" },
   "admin.branding.manage": { category: "Administration", description: "Change the institution's details, logos, colours and document markings (Branding)" },
   "admin.releases.manage": { category: "Administration", description: "Publish version notes (Versions)" },
   "admin.audit.view": { category: "Administration", description: "View audit logs, sessions and email outbox" },

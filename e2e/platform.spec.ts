@@ -440,6 +440,21 @@ test.describe("inactivity sign-out", () => {
 });
 
 test.describe("security in the browser", () => {
+  test("the sign-in page has help with the security check, signing in and codes, and a way to reach ICT", async ({ page }) => {
+    await page.context().clearCookies();
+    await page.goto("/login");
+    await page.getByRole("button", { name: "Help", exact: true }).click();
+    const panel = page.getByRole("dialog", { name: "Loan assistant" });
+    await expect(panel.getByText("The security check (slider)")).toBeVisible();
+    await expect(panel.getByRole("tab", { name: "All guides" })).toHaveCount(0);
+    await panel.getByLabel("Ask a question").fill("my code is refused");
+    await panel.getByRole("button", { name: "Ask" }).click();
+    await expect(panel.getByText("Your six-digit code")).toBeVisible();
+    await panel.getByRole("tab", { name: "Contact ICT" }).click();
+    // The form when ICT's address is set under Branding; otherwise a note to contact ICT directly.
+    await expect(panel.getByLabel("Your work email").or(panel.getByText(/contact ICT directly/))).toBeVisible();
+  });
+
   test("HR, Accounts and administrators cannot use the system until two-step verification is complete", async ({ page }) => {
     await page.context().clearCookies();
     await page.goto("/login");

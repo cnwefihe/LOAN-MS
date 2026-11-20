@@ -17,9 +17,10 @@ import { seedBase, seedFixtures } from "@/server/seed";
 import { loadActor } from "@/server/services/identity";
 import type { Actor } from "@/server/actor";
 import { saveDraft } from "@/server/services/applications";
-import { answerQuestion, myGuides, nextSteps, submitSupportRequest } from "@/server/services/assistant";
-import { GUIDES, guideMatchesPage, searchGuides } from "@/lib/assistant/guides";
+import { answerQuestion, myGuides, nextSteps, submitSignInSupportRequest, submitSupportRequest } from "@/server/services/assistant";
+import { GUIDES, guideMatchesPage, publicGuides, searchGuides } from "@/lib/assistant/guides";
 import { updateSetting } from "@/server/services/admin";
+import { getSettings } from "@/server/settings";
 
 let db: Database;
 let productId = "";
@@ -71,6 +72,7 @@ describe("guides by role", () => {
       }
     };
     walk(root);
+    pages.push("/login", "/mfa");
     const missing = pages.filter((p) => !GUIDES.some((g) => guideMatchesPage(g, p)));
     expect(missing).toEqual([]);
   });
@@ -110,9 +112,49 @@ describe("answers from the person's own records", () => {
   });
 });
 
+describe("before signing in", () => {
+  it("the sign-in pages offer only sign-in help: the security check, Microsoft sign-in and two-step codes", () => {
+    const pub = publicGuides();
+    expect(pub.map((g) => g.area)).toEqual(pub.map(() => "Signing in"));
+    expect(pub.filter((g) => guideMatchesPage(g, "/login")).map((g) => g.id)).toEqual(["signin-check", "signin-microsoft", "signed-out"]);
+    expect(pub.filter((g) => guideMatchesPage(g, "/mfa")).map((g) => g.id)).toEqual(["mfa-setup", "mfa-code", "signed-out"]);
+    expect(searchGuides(pub, "my code is refused")[0].id).toBe("mfa-code");
+    expect(searchGuides(pub, "the slider piece will not fit")[0].id).toBe("signin-check");
+    expect(searchGuides(pub, "how do I set up the authenticator for the first time")[0].id).toBe("mfa-setup");
+  });
+
+  it("signed-in staff can read the sign-in help too", async () => {
+    expect((await myGuides(db, await actor("applicant"))).some((g) => g.id === "mfa-code")).toBe(true);
+  });
+
+  it("someone who cannot sign in can reach ICT support, with a work email only", async () => {
+    await updateSetting(db, await actor("admin"), "org.ictEmail", "ict@example.edu.ng");
+    const base = { name: "Kemi Ade", category: "Two-step verification code", subject: "Lost my phone", message: "I changed my phone and lost the codes.", page: "/mfa", ip: "203.0.113.5" };
+    await expect(submitSignInSupportRequest(db, { ...base, email: "someone@gmail.com" })).rejects.toThrow(/work email/);
+    const ref = await submitSignInSupportRequest(db, { ...base, email: "kemi.ade@example.edu.ng" });
+    const sent = (await db.select().from(s.emailOutbox).where(eq(s.emailOutbox.toAddress, "ict@example.edu.ng"))).find((m) => m.subject.includes(ref))!;
+    expect(sent.body).toContain("kemi.ade@example.edu.ng");
+    expect(sent.body).toContain("/mfa");
+    expect((await db.select().from(s.emailOutbox).where(eq(s.emailOutbox.toAddress, "kemi.ade@example.edu.ng"))).some((m) => m.subject.includes(ref))).toBe(true);
+  });
+});
+
+describe("support request limit", () => {
+  it("is 3 an hour unless changed under Settings > Security, and only to the listed choices", async () => {
+    expect(await getSettings(db, ["security.supportRequestsMax", "security.supportRequestsWindowMinutes"])).toEqual({ "security.supportRequestsMax": 3, "security.supportRequestsWindowMinutes": 60 });
+    const admin = await actor("admin");
+    await updateSetting(db, admin, "security.supportRequestsMax", 2);
+    await updateSetting(db, admin, "security.supportRequestsWindowMinutes", 1440);
+    expect(await getSettings(db, ["security.supportRequestsMax", "security.supportRequestsWindowMinutes"])).toEqual({ "security.supportRequestsMax": 2, "security.supportRequestsWindowMinutes": 1440 });
+    await expect(updateSetting(db, admin, "security.supportRequestsMax", 1000)).rejects.toThrow();
+    await expect(updateSetting(db, await actor("applicant"), "security.supportRequestsMax", 5)).rejects.toThrow();
+  });
+});
+
 describe("support requests", () => {
   it("emails ICT support with the sender's own details and the page, and sends the sender a copy", async () => {
     const a = await actor("applicant");
+    await updateSetting(db, await actor("admin"), "org.ictEmail", "");
     await expect(submitSupportRequest(db, a, { category: "My application", subject: "Help", message: "The page will not load for me.", page: "/applications", roles: ["Applicant"] })).rejects.toThrow(/no email address/);
     await updateSetting(db, await actor("admin"), "org.ictEmail", "ict@example.edu.ng");
     const ref = await submitSupportRequest(db, a, { category: "My application", subject: "Cannot submit", message: "The submit button does nothing on my phone.", page: "/applications/new", roles: ["Applicant"] });

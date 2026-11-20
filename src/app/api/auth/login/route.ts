@@ -5,6 +5,8 @@ import { entraConfig, msalClient, cryptoProvider, redirectUri, ENTRA_SCOPES } fr
 import { hmac, randomToken } from "@/lib/security/crypto";
 import { rateLimit } from "@/server/rate-limit";
 import { hasPassed, HUMAN_COOKIE } from "@/server/human-check";
+import { getDb } from "@/db";
+import { getSettings } from "@/server/settings";
 
 const OIDC_COOKIE = "pau_oidc";
 
@@ -14,7 +16,9 @@ export async function GET(req: NextRequest) {
   if (!hasPassed(req.cookies.get(HUMAN_COOKIE)?.value)) return NextResponse.redirect(appUrl("/login?error=human_check", req));
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
   try {
-    await rateLimit(`login:${ip}`, 30, 300);
+    // Attempts allowed from one network address, set under Settings > Security.
+    const s = await getSettings(await getDb(), ["security.signInAttemptsMax", "security.signInAttemptsWindowMinutes"]);
+    await rateLimit(`login:${ip}`, s["security.signInAttemptsMax"], s["security.signInAttemptsWindowMinutes"] * 60);
   } catch {
     return NextResponse.redirect(appUrl("/login?error=rate_limited", req));
   }
