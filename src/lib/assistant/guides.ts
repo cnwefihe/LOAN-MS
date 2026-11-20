@@ -525,7 +525,7 @@ export const GUIDES: Guide[] = [
     summary: "Settings shows the sections you may change; Branding holds names, logos and contact emails.",
     steps: [
       "Settings > School accounts: each school's account for early repayments.",
-      "Settings > Security: sign-out times, sessions at the same time, the slider check, sign-in attempts, wrong two-step codes, the Register and requests to ICT support. Each is set separately.",
+      "Settings > Security: sign-out times, sessions at the same time, the slider check, wrong two-step codes, the Register and requests to ICT support. Each is set separately.",
       "Branding > Organisation: the Bursary, Human Resources and ICT support emails shown to staff.",
     ],
   },

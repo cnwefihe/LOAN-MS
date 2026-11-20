@@ -3,10 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { entraConfig, msalClient, cryptoProvider, redirectUri, ENTRA_SCOPES } from "@/lib/auth/entra";
 import { hmac, randomToken } from "@/lib/security/crypto";
-import { rateLimit } from "@/server/rate-limit";
 import { hasPassed, HUMAN_COOKIE } from "@/server/human-check";
-import { getDb } from "@/db";
-import { getSettings } from "@/server/settings";
 
 const OIDC_COOKIE = "pau_oidc";
 
@@ -14,14 +11,8 @@ export async function GET(req: NextRequest) {
   const cfg = entraConfig();
   if (!cfg) return NextResponse.redirect(appUrl("/login?error=sso_not_configured", req));
   if (!hasPassed(req.cookies.get(HUMAN_COOKIE)?.value)) return NextResponse.redirect(appUrl("/login?error=human_check", req));
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
-  try {
-    // Attempts allowed from one network address, set under Settings > Security.
-    const s = await getSettings(await getDb(), ["security.signInAttemptsMax", "security.signInAttemptsWindowMinutes"]);
-    await rateLimit(`login:${ip}`, s["security.signInAttemptsMax"], s["security.signInAttemptsWindowMinutes"] * 60);
-  } catch {
-    return NextResponse.redirect(appUrl("/login?error=rate_limited", req));
-  }
+  // No limit by network address: most staff share the campus address. The security check before this
+  // step, and Microsoft's own protection of passwords, guard against misuse.
 
   const { verifier, challenge } = await cryptoProvider.generatePkceCodes();
   const state = randomToken(24);

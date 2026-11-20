@@ -5,9 +5,9 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ArrowRight, BookOpen, ListChecks, LifeBuoy, Lightbulb, Mail, MapPin, Search, X } from "lucide-react";
 import type { Guide } from "@/lib/assistant/guides";
-import { guideMatchesPage, searchGuides } from "@/lib/assistant/guides";
+import { GUIDES, guideMatchesPage, searchGuides } from "@/lib/assistant/guides";
 import type { Answer, NextStep } from "@/server/services/assistant";
-import { askAssistantAction, signInSupportRequestAction, supportRequestAction } from "@/app/actions/assistant";
+import { askAssistantAction, nextStepsAction, signInSupportRequestAction, supportRequestAction } from "@/app/actions/assistant";
 import { ActionForm } from "@/components/action-form";
 
 const OPEN_EVENT = "open-assistant";
@@ -62,14 +62,18 @@ const TONE = { info: "border-sky-200 bg-sky-50", warning: "border-amber-200 bg-a
  * The loan assistant: a Help button on every page. It always opens on the page the person is on, with that
  * page's guide unfolded first; everything else stays folded until asked for. It also answers questions,
  * lists the person's next steps and every guide they may read, and sends requests to ICT support.
- * Guides and steps arrive already filtered for this person on the server.
+ * The server says which guides this person may read (the text itself is part of the page's code, so it is
+ * not sent again on every page). Their own next steps are fetched only when the assistant is opened.
  */
-export function Assistant({ guides, steps, support, categories, firstName, signIn = false }: {
-  guides: Guide[]; steps: NextStep[]; support: boolean; categories: readonly string[]; firstName?: string;
+export function Assistant({ guideIds, work = [], support, categories, firstName, signIn = false }: {
+  guideIds: string[]; work?: NextStep[]; support: boolean; categories: readonly string[]; firstName?: string;
   /** On the sign-in pages: sign-in help only, answers from the guides, and a support form that asks who you are. */
   signIn?: boolean;
 }) {
   const path = usePathname();
+  const guides = useMemo(() => { const ok = new Set(guideIds); return GUIDES.filter((g) => ok.has(g.id)); }, [guideIds]);
+  const [own, setOwn] = useState<NextStep[]>([]);
+  const steps = useMemo(() => [...own, ...work], [own, work]);
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("help");
   const [tip, setTip] = useState<Guide | null>(null);
@@ -97,6 +101,14 @@ export function Assistant({ guides, steps, support, categories, firstName, signI
     if (input.current) input.current.value = "";
     body.current?.scrollTo({ top: 0 });
   }, [path]);
+
+  // The person's own next steps, read when the assistant is open (not on every page load).
+  useEffect(() => {
+    if (!open || signIn) return;
+    let live = true;
+    nextStepsAction().then((r) => { if (live) setOwn(r); }).catch(() => {});
+    return () => { live = false; };
+  }, [open, path, signIn]);
 
   // Opened from elsewhere on the page (for example the dashboard strip).
   useEffect(() => {

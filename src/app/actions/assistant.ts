@@ -7,7 +7,7 @@ import { runAction, str, toMessage } from "@/server/action";
 import type { ActionResult } from "@/server/action-result";
 import { kickOutbox } from "@/server/email";
 import { rateLimit } from "@/server/rate-limit";
-import { answerQuestion, submitSignInSupportRequest, submitSupportRequest, type Answer } from "@/server/services/assistant";
+import { answerQuestion, nextSteps, submitSignInSupportRequest, submitSupportRequest, type Answer, type NextStep } from "@/server/services/assistant";
 import { getWording, roleTitles } from "@/server/wording";
 import { getSettings } from "@/server/settings";
 
@@ -15,6 +15,13 @@ import { getSettings } from "@/server/settings";
 async function supportLimit() {
   const s = await getSettings(await getDb(), ["security.supportRequestsMax", "security.supportRequestsWindowMinutes"]);
   return { max: s["security.supportRequestsMax"], seconds: s["security.supportRequestsWindowMinutes"] * 60 };
+}
+
+/** The signed-in person's own next steps: their applications, guarantees and next deduction. */
+export async function nextStepsAction(): Promise<NextStep[]> {
+  const actor = await getActor();
+  if (!actor) return [];
+  return nextSteps(await getDb(), actor);
 }
 
 /** An answer for the signed-in person only, from their own records and the guides they may read. */
@@ -49,7 +56,6 @@ export async function signInSupportRequestAction(_: ActionResult | null, fd: For
   const ip = (await headers()).get("x-forwarded-for")?.split(",")[0].trim() || "local";
   try {
     const limit = await supportLimit();
-    await rateLimit(`support-public:${ip}`, limit.max, limit.seconds);
     await rateLimit(`support-public:${str(fd, "email").toLowerCase()}`, limit.max, limit.seconds);
     const ref = await submitSignInSupportRequest(await getDb(), {
       name: str(fd, "name", true), email: str(fd, "email", true), category: str(fd, "category"),

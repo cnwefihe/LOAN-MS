@@ -34,7 +34,7 @@ export default async function AddUsers({ searchParams }: { searchParams: Promise
                 <input id="departmentName" name="departmentName" list="department-list" maxLength={200} autoComplete="off" className="input" />
                 <datalist id="department-list">{depts.map((d) => <option key={d.id} value={d.name} />)}</datalist>
               </Field>
-              <Field label="School or faculty (optional)" htmlFor="schoolName" hint="For a new department. Choose one, or type a new name to create it.">
+              <Field label="School (optional)" htmlFor="schoolName" hint="For a new department. Choose one, or type a new name to create it.">
                 <input id="schoolName" name="schoolName" list="school-list" maxLength={200} autoComplete="off" className="input" />
                 <datalist id="school-list">{schoolList.map((s) => <option key={s.name} value={s.name} />)}</datalist>
               </Field>

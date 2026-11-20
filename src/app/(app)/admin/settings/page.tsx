@@ -21,7 +21,7 @@ const DESCRIPTIONS: Record<string, string> = {
   Reminders: "Timed from when work reaches the person who must act.",
   Automation: "How often the loan check runs: deductions, overdue loans, reminders and tidying.",
   "Financial controls": "Which transactions need the Bursar's authorisation.",
-  Security: "Each limit is separate: sign-out times, sessions at the same time, the slider check, sign-in attempts, wrong two-step codes, the Register and requests to ICT support.",
+  Security: "Each limit is separate: sign-out times, sessions at the same time, the slider check, wrong two-step codes, the Register and requests to ICT support.",
   Notifications: "In-app notifications are always recorded; these control email.",
   "Data retention": "Old operational records are removed; financial and audit records stay.",
   Privacy: "Contact details shown in the privacy notice.",

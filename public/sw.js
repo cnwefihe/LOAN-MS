@@ -3,7 +3,7 @@
  * Only public files are stored: the page design, logos and the offline page. Pages and data are
  * never stored, because they hold personal and salary details and must stay on the server.
  */
-const CACHE = "pau-loans-v2";
+const CACHE = "pau-loans-v3";
 const OFFLINE = "/offline.html";
 
 self.addEventListener("install", (event) => {
@@ -24,10 +24,12 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Pages load straight from the server. The offline page is shown only when the device has no connection,
-  // never for a page that is slow or for sign-in and sign-out, which go to Microsoft.
+  // Pages load straight from the server. The offline page is shown only when the page really cannot be
+  // reached. The browser's own "online" flag is not used: on some computers it says offline while the
+  // network works, which wrongly stopped people signing in. Sign-in and sign-out (/api/) are left alone.
   if (request.mode === "navigate") {
-    if (self.navigator.onLine === false && !url.pathname.startsWith("/api/")) event.respondWith(caches.match(OFFLINE));
+    if (url.pathname.startsWith("/api/")) return;
+    event.respondWith(fetch(request).catch(() => caches.match(OFFLINE).then((page) => page || Response.error())));
     return;
   }
 

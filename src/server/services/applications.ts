@@ -26,6 +26,9 @@ import { attachPayslip, getPayslip, latestPayslip } from "./payslips";
 
 export type SalarySnapshot = SalaryFigures & { source: string };
 
+/** Reasons that come from the Human Resources record (length of service, employment status), not from pay. */
+const RECORD_REASON = /of service is required|not available to confirmed members of staff|not show you as confirmed|not on record yet/;
+
 /** Everything about a staff member that eligibility depends on (also sent to the live calculator). */
 export async function staffContext(db: Executor, userId: string, opts: { excludeApplicationId?: string; payslipId?: string | null; checkRecord?: boolean } = {}): Promise<StaffContext & { payslipId: string | null }> {
   const rec = await getStaffRecord(db, userId);
@@ -40,6 +43,7 @@ export async function staffContext(db: Executor, userId: string, opts: { exclude
     serviceMonths: rec.serviceMonths, employmentStatus: rec.profile?.employmentStatus ?? null, guaranteeCommitment,
     openCount: obligations.liveLoanCount + obligations.inFlightApplications, oneLoanAtATime: rules["lending.oneLoanAtATime"],
     checkRecord: opts.checkRecord ?? true,
+    recordKnown: !!rec.profile?.employmentDate && !!rec.profile?.employmentStatus,
   };
 }
 
@@ -107,6 +111,9 @@ export async function saveDraft(db: Executor, actor: Actor, input: DraftInput) {
     const elig = await computeEligibilityFor(tx, actor.userId, policy.params, {
       requestedAmount: input.requestedAmount, tenorMonths, excludeApplicationId: input.applicationId, advanceType, checkRecord: false,
     });
+    // Length of service and employment status (or no record of them) stop the application at once: it never reaches guarantors.
+    const onRecord = elig.reasons.filter((r) => RECORD_REASON.test(r));
+    if (onRecord.length) throw new DomainError(`You cannot apply for this loan yet. ${onRecord.join(" ")}`);
     if (!elig.payslipId) throw new DomainError("Upload your latest payslip first.");
     const values = {
       productId: input.productId, policyVersionId: policy.id, requestedAmount: m(input.requestedAmount), tenorMonths,

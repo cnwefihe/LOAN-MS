@@ -11,7 +11,7 @@ import { IdleGuard } from "@/components/idle-guard";
 import { ListMemoryRecorder } from "@/components/list-memory";
 import { Suspense } from "react";
 import { currentVersion } from "@/server/services/releases";
-import { myGuides, nextSteps, supportAvailable, SUPPORT_CATEGORIES } from "@/server/services/assistant";
+import { myGuides, supportAvailable, SUPPORT_CATEGORIES } from "@/server/services/assistant";
 import { Assistant } from "@/components/assistant";
 
 export const dynamic = "force-dynamic";
@@ -38,7 +38,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Suspense fallback={null}><ListMemoryRecorder /></Suspense>
       <IdleGuard minutes={await idleMinutesFor(db, actor.roles)} />
       {children}
-      <Assistant guides={await myGuides(db, actor)} steps={await nextSteps(db, actor, work)} support={await supportAvailable(db)} categories={SUPPORT_CATEGORIES} firstName={userName.split(" ")[0]} />
+      <Assistant guideIds={(await myGuides(db, actor)).map((g) => g.id)} work={work.map((w) => ({ text: `${w.count} waiting in ${w.label}.`, href: w.href, tone: "info" as const }))} support={await supportAvailable(db)} categories={SUPPORT_CATEGORIES} firstName={userName.split(" ")[0]} />
     </AppShell>
   );
 }

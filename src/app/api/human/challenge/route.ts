@@ -10,13 +10,15 @@ const NO_STORE = { "Cache-Control": "no-store" };
 
 /** A new image for the security verification before sign-in, unless this device is locked out. */
 export async function GET(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
-  try {
-    await rateLimit(`human-new:${ip}`, 200, 600);
-  } catch {
-    return NextResponse.json({ error: "Too many attempts. Please wait a few minutes and try again." }, { status: 429, headers: NO_STORE });
-  }
+  // Counted per device, never per network address: most staff share the campus address.
   const device = req.cookies.get(DEVICE_COOKIE)?.value;
+  if (device) {
+    try {
+      await rateLimit(`human-new:${device}`, 60, 600);
+    } catch {
+      return NextResponse.json({ error: "Too many attempts. Please wait a few minutes and try again." }, { status: 429, headers: NO_STORE });
+    }
+  }
   const wait = device ? await lockedFor(await getDb(), device) : 0;
   const res = wait
     ? NextResponse.json({ error: lockMessage(wait), retryAfter: wait }, { status: 423, headers: NO_STORE })

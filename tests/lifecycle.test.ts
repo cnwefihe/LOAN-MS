@@ -290,16 +290,25 @@ describe("full loan lifecycle", () => {
     expect(closed.length).toBe(3); // borrower + 2 guarantors
   });
 
-  it("staff below the minimum service can apply; Human Resources sees the shortfall when verifying", async () => {
+  it("staff whose service on record is too short are refused at once; with no record yet, Human Resources checks it", async () => {
     const [u] = await db.insert(s.users).values({ email: "recent.joiner.dev@example.edu.ng", displayName: "Recent Joiner", isDevFixture: true }).returning();
     const [role] = await db.select().from(s.roles).where(eq(s.roles.code, "APPLICANT"));
     await db.insert(s.userRoles).values({ userId: u.id, roleId: role.id });
     await db.insert(s.staffProfiles).values({ userId: u.id, staffNumber: "DEV-9001", employmentStatus: "confirmed", employmentDate: addMonths(todayLagos(), -6) });
     const recent = (await loadActor(db, u.id, { ip: "127.0.0.1", userAgent: "vitest" }))!;
-    await expectErr(saveDraft(db, recent, { productId, requestedAmount: "100000", tenorMonths: 6, purpose: "Testing eligibility rules", guarantorEmails: [] }), /Upload your latest payslip first/);
+    await expectErr(saveDraft(db, recent, { productId, requestedAmount: "100000", tenorMonths: 6, purpose: "Testing eligibility rules", guarantorEmails: [] }), /cannot apply for this loan yet\. A minimum of .* of service is required; you have 6 months/);
     await recordSamplePayslip(db, recent, u.id, samplePayslip({ name: "Recent Joiner", code: "DEV-9001", grade: "Officer", period: todayLagos().slice(0, 7), basic: "300000", medical: "20000", tax: "30000", pension: "24000" }));
+    // Six months on record: refused before any guarantor is asked.
+    await expectErr(saveDraft(db, recent, { productId, requestedAmount: "100000", tenorMonths: 6, purpose: "Testing eligibility rules", guarantorEmails: [] }), /cannot apply for this loan yet\. A minimum of .* of service is required; you have 6 months/);
+    expect(await db.select().from(s.loanApplications).where(eq(s.loanApplications.applicantId, u.id))).toHaveLength(0);
+    // No employment date on record: refused too, and asked to have Human Resources update the record.
+    await db.update(s.staffProfiles).set({ employmentDate: null }).where(eq(s.staffProfiles.userId, u.id));
+    await expectErr(saveDraft(db, recent, { productId, requestedAmount: "100000", tenorMonths: 6, purpose: "Testing eligibility rules", guarantorEmails: [] }), /cannot apply for this loan yet\. Your employment date and confirmation are not on record yet\. Please ask Human Resources/);
+    // Once the record shows enough service, they may apply; Human Resources still checks when verifying.
+    await db.update(s.staffProfiles).set({ employmentDate: addMonths(todayLagos(), -36) }).where(eq(s.staffProfiles.userId, u.id));
     const r = await saveDraft(db, recent, { productId, requestedAmount: "100000", tenorMonths: 6, purpose: "Testing eligibility rules", guarantorEmails: [] });
     expect(r.eligibility.eligible).toBe(true);
+    await db.update(s.staffProfiles).set({ employmentDate: addMonths(todayLagos(), -6) }).where(eq(s.staffProfiles.userId, u.id));
     const policy = (await getActivePolicy(db, productId))!.params;
     const forHr = await computeEligibilityFor(db, u.id, policy, { requestedAmount: "100000", tenorMonths: 6, excludeApplicationId: r.id });
     expect(forHr.reasons.join(" ")).toMatch(/minimum of .* of service/);
