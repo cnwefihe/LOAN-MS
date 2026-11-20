@@ -61,6 +61,20 @@ describe("guides by role", () => {
     expect((await myGuides(db, await actor("admin"))).length).toBe(GUIDES.length);
   });
 
+  it("every page of the app has a guide that opens first on it", () => {
+    const root = path.join(process.cwd(), "src", "app", "(app)");
+    const pages: string[] = [];
+    const walk = (dir: string) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (e.isDirectory()) walk(path.join(dir, e.name));
+        else if (e.name === "page.tsx") pages.push("/" + path.relative(root, dir).split(path.sep).filter(Boolean).map((x) => (x.startsWith("[") ? "x1" : x)).join("/"));
+      }
+    };
+    walk(root);
+    const missing = pages.filter((p) => !GUIDES.some((g) => guideMatchesPage(g, p)));
+    expect(missing).toEqual([]);
+  });
+
   it("finds the guide for a page and for a question in everyday words", () => {
     expect(GUIDES.filter((g) => guideMatchesPage(g, "/loans/abc-123")).map((g) => g.id)).toContain("repay");
     expect(searchGuides(GUIDES, "how do I pay off my loan early?")[0].id).toBe("repay-early");

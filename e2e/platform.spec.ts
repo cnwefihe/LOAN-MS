@@ -262,10 +262,18 @@ test.describe.serial("application lifecycle through the UI", () => {
     await page.goto("/dashboard");
     await page.getByRole("button", { name: "Open the assistant" }).click();
     const panel = page.getByRole("dialog", { name: "Loan assistant" });
+    // The page's own guide comes first, unfolded.
+    await expect(panel.getByText("The dashboard shows your loans")).toBeVisible();
     await expect(panel.getByText("Your next steps")).toBeVisible();
     await panel.getByLabel("Ask a question").fill("How much do I owe?");
     await panel.getByRole("button", { name: "Ask" }).click();
     await expect(panel.getByText(/You owe ₦/)).toBeVisible();
+    // Moving to another page starts afresh there: its guide first, the last answer gone.
+    await panel.getByRole("link", { name: "My loans" }).first().click();
+    await expect(page).toHaveURL(/\/loans$/);
+    await expect(panel.getByText("Loans are repaid by monthly deduction")).toBeVisible();
+    await expect(panel.getByText(/You owe ₦/)).toHaveCount(0);
+    await expect(panel.getByText("The dashboard shows your loans")).toHaveCount(0);
     await panel.getByRole("tab", { name: "All guides" }).click();
     await expect(panel.getByText("How repayment works")).toBeVisible();
     await expect(panel.getByText("Verifying an application")).toHaveCount(0);

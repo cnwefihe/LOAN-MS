@@ -96,6 +96,23 @@ export const GUIDES: Guide[] = [
     ],
   },
 
+  {
+    id: "search", area: "Getting started", title: "Searching", audience: EVERYONE, pages: ["/search"],
+    keywords: ["search", "find", "look up", "reference number", "lms-"],
+    summary: "Search finds applications and loans by reference, name or amount, among the records you may see.",
+    steps: [
+      "Type in the search box at the top of the page; suggestions appear as you type. Press Enter to see all results.",
+      "Staff see only their own applications and loans. People with a work role also see the records their role covers.",
+      "Select a result to open it.",
+    ],
+  },
+  {
+    id: "whats-new", area: "Getting started", title: "Recent updates", audience: EVERYONE, pages: ["/whats-new"],
+    keywords: ["new", "update", "version", "changes", "release"],
+    summary: "Each version of the system and what changed in it.",
+    steps: ["When a new version is published you get a notification; select it to open Recent updates.", "The newest version is at the top."],
+  },
+
   // ───────────── Applying (everyone who may apply) ─────────────
   {
     id: "apply", area: "Applying", title: "How to apply for a loan", audience: ["application.create"], pages: ["/applications/new", "/applications", "/products", "/dashboard"],
@@ -160,7 +177,7 @@ export const GUIDES: Guide[] = [
     links: [{ label: "My applications", href: "/applications" }],
   },
   {
-    id: "returned", area: "Applying", title: "My application was returned", audience: ["application.create"], pages: ["/applications/*"],
+    id: "returned", area: "Applying", title: "My application was returned", audience: ["application.create"], pages: ["/applications/*", "/applications/*/edit"],
     keywords: ["returned", "sent back", "correction", "fix", "change application", "edit application", "resubmit"],
     summary: "A returned application needs a change from you before it can continue.",
     steps: [
@@ -324,6 +341,25 @@ export const GUIDES: Guide[] = [
     steps: ["Open Pending authorisations.", "Check each transaction and its reason.", "Approve or reject it. You cannot approve your own."],
   },
 
+  {
+    id: "advances", area: "Bursary", title: "Advances", audience: ["accounts.view"], pages: ["/accounts/advances"],
+    keywords: ["advance", "leave allowance", "13th month", "recover advance"],
+    summary: "Advances are recovered in one deduction from the payment they are against.",
+    steps: ["Open Bursary > Advances.", "Advances are listed by type: salary, leave allowance and 13th month.", "When the payment an advance is against is made, its deduction is recovered and it moves to Recovered."],
+  },
+  {
+    id: "servicing", area: "Bursary", title: "The automatic loan check", audience: ["servicing.run"], pages: ["/accounts/servicing"],
+    keywords: ["servicing", "overdue", "default", "automatic check", "loan check"],
+    summary: "A check runs by itself to keep every loan up to date: deductions, overdue loans and reminders.",
+    steps: ["It runs as often as set under Settings > Automation.", "Each run is listed with what it did.", "Select Run check now if you need an immediate update."],
+  },
+  {
+    id: "authenticate", area: "Reports", title: "Checking a document is genuine", audience: ["documents.view_all", "accounts.view", "admin.audit.view"], pages: ["/verify"],
+    keywords: ["authenticate", "genuine", "fake", "verify document", "check pdf", "forged"],
+    summary: "Check that a PDF issued by this system is genuine and has not been changed.",
+    steps: ["Open Insight > Authenticate.", "Upload the PDF you were given; it is compared, not stored.", "Or enter the reference printed on the document to see who issued it and when."],
+  },
+
   // ───────────── Approvals ─────────────
   {
     id: "approve", area: "Approvals", title: "Approving applications", audience: ["approver", "approval.queue.view"], pages: ["/approvals", "/approvals/*"],
@@ -390,7 +426,35 @@ export const GUIDES: Guide[] = [
 
   // ───────────── Administration ─────────────
   {
-    id: "admin-users", area: "Administration", title: "Users and roles", audience: ["admin.users.manage", "admin.roles.manage"], pages: ["/admin/users", "/admin/users/*", "/admin/roles", "/admin/roles/*"],
+    id: "admin-centre", area: "Administration", title: "Control centre", audience: ["admin.users.manage", "admin.roles.manage", "admin.policy.manage", "admin.settings.manage", "admin.audit.view"], pages: ["/admin", "/admin/connections"],
+    keywords: ["control centre", "overview", "connections", "health", "system status", "microsoft", "email working"],
+    summary: "What is happening across the system: work waiting at each stage, anything stuck, and the connections.",
+    steps: [
+      "The figures show applications at each stage; select one to open that list.",
+      "Applications waiting too long are highlighted so you can follow them up.",
+      "Connections shows whether Microsoft sign-in, email and payroll are set up and working.",
+    ],
+  },
+  {
+    id: "admin-organisation", area: "Administration", title: "Schools, departments and approvers", audience: ["admin.org.manage"], pages: ["/admin/organisation", "/admin/organisation/*/*", "/admin/organisation/import"],
+    keywords: ["organisation", "department", "school", "head of department", "line manager", "approver", "staff category"],
+    summary: "Keep the list of schools and departments, and who approves for each department.",
+    steps: ["Open Organisation.", "Add or edit a school or department; set its Head of Department or Line Manager.", "Import many at once from a spreadsheet."],
+  },
+  {
+    id: "admin-content", area: "Administration", title: "Templates, terms and documents", audience: ["admin.content.manage"], pages: ["/admin/content", "/admin/content/templates/*", "/admin/content/terms/*", "/admin/content/documents/*"],
+    keywords: ["template", "email wording", "terms", "privacy notice", "documents required", "notification text"],
+    summary: "The wording staff agree to, the documents they upload, and the notifications they receive.",
+    steps: ["Open Templates.", "Edit a notification's subject and text, or switch its email off.", "Publish new terms or a new privacy notice; staff accept the latest version when they apply."],
+  },
+  {
+    id: "admin-releases", area: "Administration", title: "Version notes", audience: ["admin.releases.manage"], pages: ["/admin/releases"],
+    keywords: ["version", "release notes", "publish update", "announce"],
+    summary: "Publish what changed in each version. Publishing tells all staff.",
+    steps: ["Open Versions.", "Write the changes in plain words.", "Publish; staff see them under Recent updates."],
+  },
+  {
+    id: "admin-users", area: "Administration", title: "Users and roles", audience: ["admin.users.manage", "admin.roles.manage"], pages: ["/admin/users", "/admin/users/*", "/admin/users/new", "/admin/roles", "/admin/roles/*", "/admin/roles/new"],
     keywords: ["user", "add user", "role", "permission", "give access", "remove access", "deactivate"],
     summary: "Add staff, give roles, and choose exactly what each role can do.",
     steps: [
@@ -400,7 +464,7 @@ export const GUIDES: Guide[] = [
     ],
   },
   {
-    id: "admin-products", area: "Administration", title: "Products and terms", audience: ["admin.policy.manage", "admin.policy.approve"], pages: ["/admin/products", "/admin/products/*"],
+    id: "admin-products", area: "Administration", title: "Products and terms", audience: ["admin.policy.manage", "admin.policy.approve"], pages: ["/admin/products", "/admin/products/*", "/admin/products/new"],
     keywords: ["product", "terms", "policy", "interest rate", "tenor", "guarantors required", "minimum service"],
     summary: "Set each product's terms. Descriptions shown to staff are written from the terms.",
     steps: ["Open Products and select one.", "Change the terms as a draft.", "Approve the new version to make it active."],
@@ -416,7 +480,7 @@ export const GUIDES: Guide[] = [
     ],
   },
   {
-    id: "admin-activity", area: "Administration", title: "Activity log and emails", audience: ["admin.audit.view"], pages: ["/admin/audit", "/admin/audit/*", "/admin/outbox"],
+    id: "admin-activity", area: "Administration", title: "Activity log and emails", audience: ["admin.audit.view"], pages: ["/admin/audit", "/admin/audit/*", "/admin/outbox", "/admin/sessions"],
     keywords: ["audit", "activity", "log", "who did", "emails sent", "outbox"],
     summary: "See who did what and when, and every email the system has sent.",
     steps: ["Activity lists every action with the person, time and details.", "Emails shows each message and whether it was delivered."],
